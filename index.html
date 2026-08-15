@@ -859,6 +859,14 @@ async function confirmDeathByPlayer(notificationId){
  }
  renderPermanentDeathScreen();
  await db.from("notifications").delete().eq("id",notificationId);
+ // 사망 경고 화면을 30초간 유지한 뒤 기존 탈락 화면으로 전환
+ await new Promise(r=>setTimeout(r,30000));
+ if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
+   localStorage.removeItem("wolf_game_death_lock_v1");
+   stopAllTimers();
+   showScreen("trialLock");
+   el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+ }
 }
 
 async function openLocationChoice(){
