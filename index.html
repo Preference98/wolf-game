@@ -593,15 +593,17 @@ async function ensureRoundMissionSetup(round){
    const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
    // 미션은 관리자가 미리 등록해 둔 풀에서만 선택합니다.
    // 장소의 concept_type과 같은 미션만 후보가 됩니다.
+   // 장소 이름(location)은 표시용 값일 수 있으므로,
+   // 실제 연결된 mission_location_id를 우선 사용합니다.
    let q=db.from("missions").select("*")
      .eq("active",true)
      .eq("concept_type",concept)
-     .eq("location",loc.name);
+     .eq("mission_location_id",loc.id);
    const mr=await q;
    if(mr.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+mr.error.message);
    const pool=mr.data||[];
    if(!pool.length){
-     throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요.");
+     throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
    }
    const selected=pool[Math.floor(Math.random()*pool.length)];
    const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
