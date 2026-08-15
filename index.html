@@ -1257,6 +1257,7 @@ async function openMissionObject(m,loc,p,g){
   missionEndAt=Date.now()+180000;
   clearInterval(missionTimer);
   missionTimer=setInterval(tickMission,250);
+  window.__wolfMissionTimerId=missionTimer;
   tickMission();
   showScreen("mission");
 
@@ -1834,6 +1835,26 @@ window.saveTiming=saveTiming;window.toggleNfc=toggleNfc;window.sendNotice=sendNo
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
 boot();
+  // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
+  window.__wolfGameBridge={
+    getDb:()=>db,
+    me,
+    settings,
+    comps,
+    getCurrentMission:()=>currentMission,
+    setCurrentMission:(v)=>{currentMission=v;},
+    renderPlayer,
+    toast:(m)=>{
+      const t=document.getElementById("toast");
+      if(!t)return;
+      t.textContent=String(m??"");
+      t.classList.add("show");
+      clearTimeout(window.__wolfToast);
+      window.__wolfToast=setTimeout(()=>t.classList.remove("show"),2200);
+    },
+    esc:(v)=>String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))
+  };
+
 })();
 
 // 미니게임 영역은 메인 IIFE 바깥에 있으므로 전역 DOM helper를 사용합니다.
@@ -1844,56 +1865,85 @@ function el(id){
 function finishMiniGame(success,message){
   if(window.__miniOutcomeLocked)return;
   window.__miniOutcomeLocked=true;
-  clearInterval(missionTimer);
-  missionTimer=null;
+
+  const bridge=window.__wolfGameBridge;
+  if(!bridge){
+    console.error("늑대게임 브리지 초기화 실패");
+    window.__miniOutcomeLocked=false;
+    return;
+  }
+
+  if(window.__wolfMissionTimerId){
+    clearInterval(window.__wolfMissionTimerId);
+    window.__wolfMissionTimerId=null;
+  }
 
   (async()=>{
     try{
       if(success){
-        const p=await me(),g=await settings();
+        const p=await bridge.me();
+        const g=await bridge.settings();
+        const current=bridge.getCurrentMission();
+
         if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){
           throw new Error("현재는 미션을 완료할 수 없습니다.");
         }
-        const cs=await comps(g.current_round);
-        if(!cs.some(x=>String(x.mission_id)===String(currentMission?.id)) && p.role==="SHEEP"){
-          const r=await db.from("mission_completions").insert({
+        if(!current){
+          throw new Error("현재 미션 정보를 찾을 수 없습니다.");
+        }
+
+        const cs=await bridge.comps(g.current_round);
+        if(!cs.some(x=>String(x.mission_id)===String(current.id))&&p.role==="SHEEP"){
+          const r=await bridge.getDb().from("mission_completions").insert({
             game_round:g.current_round,
-            mission_id:currentMission.id,
+            mission_id:current.id,
             player_id:p.id
           });
           if(r.error)throw new Error(r.error.message);
         }
       }
-      showMiniMissionOutcome(success,message|| (success?"미션을 성공했습니다.":"미션에 실패했습니다."));
+
+      showMiniMissionOutcome(success,message||(success?"미션을 성공했습니다.":"미션에 실패했습니다."));
     }catch(e){
       window.__miniOutcomeLocked=false;
-      toast(e.message||String(e));
+      bridge.toast(e.message||String(e));
+      console.error("미니게임 결과 처리 오류:",e);
     }
   })();
 }
 
 function showMiniMissionOutcome(success,message){
-  const box=el("miniGame");
+  const box=document.getElementById("miniGame");
   if(!box)return;
+
+  const escape=window.__wolfGameBridge?.esc||((v)=>String(v??""));
   box.innerHTML=`
     <div class="wolfMiniOutcome ${success?"success":"failure"}">
       <div class="wolfMiniOutcomeIcon">${success?"✓":"✕"}</div>
       <div class="wolfMiniOutcomeTitle">${success?"미션 성공!":"미션 실패"}</div>
-      <div class="wolfMiniOutcomeText">${esc(message)}</div>
+      <div class="wolfMiniOutcomeText">${escape(message)}</div>
       <button class="secondary wolfMiniCancel" type="button" onclick="cancelMiniMission()">취소</button>
     </div>`;
-  el("question").textContent="";
-  el("answer").style.display="none";
-  el("answerBtn").style.display="none";
+
+  const q=document.getElementById("question");
+  const answer=document.getElementById("answer");
+  const answerBtn=document.getElementById("answerBtn");
+  if(q)q.textContent="";
+  if(answer)answer.style.display="none";
+  if(answerBtn)answerBtn.style.display="none";
 }
+
 
 function cancelMiniMission(){
   window.__miniOutcomeLocked=false;
-  clearInterval(missionTimer);
-  missionTimer=null;
-  currentMission=null;
-  renderPlayer();
+  if(window.__wolfMissionTimerId){
+    clearInterval(window.__wolfMissionTimerId);
+    window.__wolfMissionTimerId=null;
+  }
+  window.__wolfGameBridge?.setCurrentMission(null);
+  window.__wolfGameBridge?.renderPlayer?.();
 }
+
 
 // 독립 테스트용 성공/실패 API를 본 게임의 성공/실패 처리에 연결합니다.
 function testerSuccess(message){finishMiniGame(true,message);}
