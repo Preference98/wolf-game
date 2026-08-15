@@ -114,6 +114,19 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @keyframes startCountPulse{0%{opacity:0;transform:scale(1.45)}35%{opacity:1}100%{opacity:1;transform:scale(1)}}
 @keyframes startTitleIn{from{opacity:0;transform:scale(1.18)}to{opacity:1;transform:scale(1)}}
 
+
+/* VICTORY SCREEN v22 */
+.victoryStage{position:fixed!important;inset:0!important;z-index:1100!important;display:flex!important;align-items:center;justify-content:center;overflow:hidden;text-align:center;background:#000;animation:victoryIn .7s ease-out both}
+.victoryStage.sheep{background:radial-gradient(circle,#063d21 0,#000 68%)}
+.victoryStage.wolf{background:radial-gradient(circle,#5b000b 0,#000 68%)}
+.victoryGlow{position:absolute;inset:-20%;opacity:.65;background:radial-gradient(circle,currentColor 0,transparent 42%);filter:blur(45px);animation:victoryPulse 1.8s ease-in-out infinite}
+.victoryContent{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
+.victoryImage{width:min(46vw,330px);height:min(46vw,330px);filter:drop-shadow(0 0 28px currentColor);animation:victoryImageIn 1.1s cubic-bezier(.2,.8,.2,1) both}
+.victoryTitle{margin:20px 20px 0;font-family:Cinzel,serif;font-size:clamp(38px,7vw,78px);font-weight:900;letter-spacing:2px;text-shadow:0 0 24px currentColor,0 0 55px currentColor;animation:victoryTextIn 1s .35s both}
+.victorySub{margin-top:18px;font-size:clamp(20px,3.5vw,34px);font-weight:700;animation:victoryTextIn 1s .55s both}
+.victoryStage.sheep{color:#58f39a}.victoryStage.wolf{color:#ff3347}
+@keyframes victoryIn{from{opacity:0}to{opacity:1}}@keyframes victoryPulse{0%,100%{transform:scale(.9);opacity:.45}50%{transform:scale(1.08);opacity:.75}}@keyframes victoryImageIn{from{opacity:0;transform:scale(.5) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes victoryTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+
 </style>
 </head>
 <body>
@@ -181,7 +194,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 
 <section id="gameCountdown" class="screen">
 <div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
-</section>
+</section><section id="victory" class="screen"></section>
 
 <section id="mission" class="screen">
 <button class="secondary" onclick="renderPlayer()">← 돌아가기</button>
@@ -383,6 +396,7 @@ async function route(){
   if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
   if(g.phase==="ROLE_REVEAL"){stopAllTimers();await renderRoleReveal(p,g);return;}
   if(g.phase==="COUNTDOWN"){stopAllTimers();await renderGameCountdown(p,g);return;}
+  if(g.phase==="FINISHED" && g.winner){await renderVictory(g.winner);return;}
   if(g.phase==="INVESTIGATION"){stopRoundTimer();await renderInvestigation(p,g);return;}
   if(g.phase==="TRIAL"){stopAllTimers();showTrialLock();return;}
   if(g.phase==="FINISHED"){stopAllTimers();return;}
@@ -502,6 +516,16 @@ async function startRoleSelection(){
  toast("양과 늑대 선정 화면을 시작합니다.");
 }
 async function markReady(){
+ const g=await settings();
+ if(g.phase==="FINISHED" && g.winner){
+   const next=g.current_round+1;
+   await db.from("mission_completions").delete().eq("game_round",g.current_round);
+   await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
+   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
+   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
+   toast("다음 라운드 대기 화면으로 전환했습니다.");
+   await renderAdmin();return;
+ }
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
  if(!players.length){toast("참가자가 없습니다.");return;}
  await set({ready:true,notice:"준비완료 — "+players.length+"명 확정"});
@@ -654,75 +678,36 @@ async function startGame(){
  toast("게임 시작 준비");
 }
 async function renderGameCountdown(p,g){
- // This screen is for players only. Admin remains on the admin dashboard.
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
-
  stopRoleSelectionBgm();
- const startedAt=Date.parse(g.round_started_at||"");
- if(!startedAt)return;
-
- // Do not restart the same countdown every time realtime/route fires.
  if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
-
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
  const content=el("gameStartContent");
  if(!content)return;
-
  if(countdownTimer)clearInterval(countdownTimer);
 
- // Timeline:
- // 0.0 - 3.0s : message
- // 3.0 - 8.0s : 5,4,3,2,1 (one second each)
- // 8.0 - 10.5s: game start title
- // 10.5s       : PLAY
- const tick=async()=>{
+ const sequence=async()=>{
+   content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
+   await new Promise(r=>setTimeout(r,5000));
+
+   for(let n=5;n>=1;n--){
+     content.innerHTML='<div class="gameStartCount">'+n+'</div>';
+     await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n+"-"+Date.now());
+     await new Promise(r=>setTimeout(r,2000));
+   }
+
+   content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
+   await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
+   await new Promise(r=>setTimeout(r,4000));
+
    const latest=await settings();
-   if(latest.phase!=="COUNTDOWN"){
-     clearInterval(countdownTimer);countdownTimer=null;
-     return;
-   }
-
-   const elapsed=(Date.now()-startedAt)/1000;
-
-   if(elapsed<3){
-     if(content.dataset.step!=="message"){
-       content.dataset.step="message";
-       content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
-     }
-     return;
-   }
-
-   if(elapsed<8){
-     const n=5-Math.floor(elapsed-3);
-     const step="count"+n;
-     if(content.dataset.step!==step){
-       content.dataset.step=step;
-       content.innerHTML='<div class="gameStartCount">'+n+'</div>';
-       await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n);
-     }
-     return;
-   }
-
-   if(elapsed<10.5){
-     if(content.dataset.step!=="title"){
-       content.dataset.step="title";
-       content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
-       await playSound("gameStart","game-start-title-"+g.current_round);
-     }
-     return;
-   }
-
-   clearInterval(countdownTimer);countdownTimer=null;
-   const latest2=await settings();
-   if(latest2.phase==="COUNTDOWN"){
-     await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
-   }
+   if(latest.phase==="COUNTDOWN")await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
+   countdownTimer=null;
  };
-
- await tick();
- countdownTimer=setInterval(tick,100);
+ countdownTimer={running:true};
+ sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
 }
 
 async function nextRound(){
@@ -793,17 +778,24 @@ async function runPendingFunction(){const f=pendingAdminAction;pendingAdminActio
 async function removePlayer(id,name){try{const r=await db.from("players").update({status:"REMOVED"}).eq("id",id);if(r.error)throw new Error(r.message||r.error.message);toast(name+" 플레이어를 퇴장 처리했습니다.");await renderAdmin();}catch(e){toast("플레이어 퇴장 실패: "+e.message);}}
 
 
-async function autoLobbyAfterVictory(){
- try{
-   const g=await settings();
-   if(g.phase!=="FINISHED")return;
-   closeOverlay();
-   const next=g.current_round+1;
-   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
-   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,winner:null,notice:"다음 라운드 대기 중",dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
-   await route();
- }catch(e){console.error(e);}
+async 
+async function renderVictory(winner){
+ stopAllTimers();stopRoleSelectionBgm();
+ const kind=winner==="WOLF"?"wolf":"sheep";
+ const title=winner==="WOLF"?"늑대가 승리했습니다.":"양이 승리했습니다.";
+ const color=winner==="WOLF"?"#ff3347":"#58f39a";
+ await showScreen("victory");
+ el("victory").innerHTML=
+ '<div class="victoryStage '+kind+'" style="color:'+color+'"><div class="victoryGlow"></div><div class="victoryContent">'+
+ '<div class="victoryImage"><svg viewBox="0 0 300 300" aria-label="'+title+'">'+
+ (winner==="WOLF"?
+ '<path d="M62 92 L98 28 L145 65 L155 65 L202 28 L238 92 L226 190 Q211 250 150 270 Q89 250 74 190 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M100 140 Q120 120 140 140 M160 140 Q180 120 200 140" fill="none" stroke="currentColor" stroke-width="11"/><path d="M132 175 Q150 188 168 175" fill="none" stroke="currentColor" stroke-width="11"/>':
+ '<path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/>')+
+ '</svg></div><div class="victoryTitle">'+title+'</div><div class="victorySub">모두 그레이스홀로 모여주세요.</div></div></div>';
+ await playSound(winner==="WOLF"?"wolfWin":"sheepWin","winner-"+winner+"-"+Date.now());
 }
+async function autoLobbyAfterVictory(){ return; }
+
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
@@ -812,12 +804,10 @@ function realtime(){
     return;
   }
   if(g.winner==="SHEEP" && g.winner!==lastNotice){
-   lastNotice="WIN_SHEEP"; openOverlay("🐑","양이 승리했습니다.", "모두 그레이스홀로 모여주세요.","win"); playSound("sheepWin","winner-sheep");
-   setTimeout(()=>autoLobbyAfterVictory(),5000);
+   lastNotice="WIN_SHEEP"; await renderVictory("SHEEP"); return;
   }
   else if(g.winner==="WOLF" && g.winner!==lastNotice){
-   lastNotice="WIN_WOLF"; openOverlay("🐺","늑대가 승리했습니다.", "모두 그레이스홀로 모여주세요.","win"); playSound("wolfWin","winner-wolf");
-   setTimeout(()=>autoLobbyAfterVictory(),5000);
+   lastNotice="WIN_WOLF"; await renderVictory("WOLF"); return;
   }
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
