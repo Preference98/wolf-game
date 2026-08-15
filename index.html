@@ -143,6 +143,61 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .deathConfirmName{color:#ff3347;font-weight:900}
 .deathLockTitle{color:#ff3347}
 
+
+/* DEATH PROCESS UI v38 */
+.deathConfirmList{
+ display:grid;
+ grid-template-rows:repeat(2,minmax(0,1fr));
+ grid-auto-flow:column;
+ grid-auto-columns:minmax(125px,1fr);
+ gap:8px;
+ max-height:230px;
+ overflow-x:auto;
+ overflow-y:hidden;
+ margin:14px auto;
+ padding:4px 2px;
+}
+.deathConfirmList button{
+ min-height:58px;
+ height:58px;
+ padding:8px 10px;
+ font-size:16px;
+ border-radius:8px;
+ white-space:nowrap;
+}
+.deathWarningStage{background:#050000!important}
+.deathWarningStage h1{font-size:clamp(28px,6vw,52px);color:#ff3347}
+.deathWarningStage p{font-size:clamp(20px,4vw,30px);font-weight:800}
+
+
+/* DEATH PLAYER LIST v39 */
+.deathConfirmList{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ grid-template-rows:none!important;
+ grid-auto-flow:row!important;
+ gap:8px!important;
+ max-height:320px!important;
+ overflow-x:hidden!important;
+ overflow-y:auto!important;
+ width:100%;
+ box-sizing:border-box;
+ margin:14px auto!important;
+ padding:4px 2px!important;
+}
+.deathConfirmList button{
+ width:100%;
+ min-width:0;
+ min-height:58px;
+ height:58px;
+ padding:8px 10px;
+ font-size:16px;
+ border-radius:8px;
+ white-space:nowrap;
+ overflow:hidden;
+ text-overflow:ellipsis;
+}
+
 </style>
 </head>
 <body>
@@ -179,6 +234,14 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <h1>사망 확인</h1>
 <p id="deathConfirmMessage" class="muted" style="font-size:22px"></p>
 <div id="deathConfirmActions"></div>
+</div></div>
+</section>
+
+<section id="deathWarning" class="screen">
+<div class="fullStage show deathWarningStage"><div>
+<div class="symbol">☠️</div>
+<h1>사망 처리</h1>
+<p style="font-size:26px;font-weight:900;color:#ff3347">지금부터 당신은 아무말도 할 수 없습니다.</p>
 </div></div>
 </section>
 
@@ -297,6 +360,7 @@ const SOUND_FILES={
  sheepWin:"sounds/sheep-win.mp3",
  wolfWin:"sounds/wolf-win.mp3",
  deadSheepFound:"sounds/body-found.mp3",
+ death:"sounds/death.mp3",
  adminNotice:"sounds/admin-notice.mp3"
 };
 const audio={};
@@ -685,18 +749,18 @@ async function enableSound(){
 async function openWolfDeathList(){
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
- const sheep=(await db.from("players").select("id,name").eq("role","SHEEP").eq("status","ALIVE").order("name")).data||[];
- if(!sheep.length){toast("현재 사망 처리할 수 있는 양이 없습니다.");return;}
+ const players=(await db.from("players").select("id,name,role").eq("status","ALIVE").neq("id",p.id).order("name")).data||[];
+ if(!players.length){toast("현재 선택할 수 있는 생존 플레이어가 없습니다.");return;}
  const html='<div class="deathConfirmList">'+
-   sheep.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+esc(x.name)+' 양</button>').join("")+
+   players.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+esc(x.name)+'</button>').join("")+
    '</div><button class="secondary" style="width:100%" onclick="closeOverlay()">취소</button>';
- openOverlay("☠️","사망확인","사망 처리할 양의 이름을 선택하십시오.","",html);
+ openOverlay("☠️","사망처리","사망 처리할 플레이어를 선택하십시오.","",html);
 }
 
 function confirmWolfDeath(id,name){
  const safeName=String(name).replace(/'/g,"&#39;");
  openOverlay("☠️","사망 처리 확인",
-   '정말 <span class="deathConfirmName">'+esc(name)+' 양</span>의 사망을 확인하시겠습니까?',"",
+   '정말 '+esc(name)+'의 사망을 확인하시겠습니까?',"",
    '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openWolfDeathList()">취소</button>'+
    '<button class="danger" style="flex:1" onclick="sendDeathConfirmation(\''+esc(id)+'\',\''+safeName+'\')">확인</button></div>');
 }
@@ -708,7 +772,7 @@ async function sendDeathConfirmation(victimId,victimName){
  const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
  if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
  const r=await db.from("notifications").insert({
-   message:"늑대가 당신을 사망 처리했습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.",
+   message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.",
    target_player:victim.id,
    notification_type:"DEATH_CONFIRM"
  });
@@ -733,19 +797,19 @@ function ignoreDeathConfirmation(){
 }
 
 async function confirmDeathByPlayer(notificationId){
+ await showScreen("deathWarning");
+ await playSound("death","death-"+notificationId);
+ await new Promise(r=>setTimeout(r,2000));
+
  await showScreen("deathCountdown");
- let n=3;
- el("deathCountdownNum").textContent=n;
- await playSound("deadSheepFound","death-confirm-"+notificationId+"-3");
- for(n=3;n>=1;n--){
+ for(let n=5;n>=1;n--){
    el("deathCountdownNum").textContent=n;
-   if(n!==3)await playSound("deadSheepFound","death-confirm-"+notificationId+"-"+n);
    await new Promise(r=>setTimeout(r,1000));
  }
  el("deathCountdownNum").textContent="";
  el("deathCountdown").querySelector(".deathCountdownStage").innerHTML=
    '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">당신은 탈락했습니다.</h1>'+
-   '<p style="font-size:24px;font-weight:800">지금부터 그 자리에서 움직일 수 없으며<br>말할 수 없습니다.</p>'+
+   '<p style="font-size:24px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
    '<p class="muted">게임 전체 초기화 전까지 게임에 참여할 수 없습니다.</p></div>';
  await new Promise(r=>setTimeout(r,1200));
  const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
@@ -984,6 +1048,10 @@ function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
+    if(g.phase==="INVESTIGATION" && g.notice && g.notice!==lastNotice){
+      lastNotice=g.notice;
+      playSound("deadSheepFound","admin-dead-sheep-"+g.current_round+"-"+g.investigation_started_at);
+    }
     renderAdmin();
     return;
   }
