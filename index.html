@@ -48,14 +48,22 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @keyframes stageIn{from{opacity:0;transform:scale(1.03)}to{opacity:1;transform:scale(1)}}
 @keyframes countPulse{50%{transform:scale(1.08);opacity:.75}}
 .selectionGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px}
-.roleCard{height:145px;border:1px solid #5b0007;border-radius:12px;background:linear-gradient(145deg,#171717,#050505);display:flex;align-items:center;justify-content:center;font-family:Cinzel,serif;font-size:28px;cursor:pointer;box-shadow:0 10px 30px #000;transition:.2s}
+.roleCard{height:190px;border:1px solid #5b0007;border-radius:12px;background:linear-gradient(145deg,#171717,#050505);display:flex;align-items:center;justify-content:center;font-family:Cinzel,serif;font-size:28px;cursor:pointer;box-shadow:0 10px 30px #000;transition:.2s;padding:7px;position:relative;overflow:hidden}
+.playingCard{background:#090909;border-color:#b3000b}
+.playingCard::before{content:"";position:absolute;inset:7px;border:1px solid #a8000a;border-radius:7px;background:repeating-linear-gradient(45deg,rgba(160,0,10,.22) 0,rgba(160,0,10,.22) 2px,transparent 2px,transparent 7px),repeating-linear-gradient(-45deg,rgba(160,0,10,.22) 0,rgba(160,0,10,.22) 2px,transparent 2px,transparent 7px)}
+.cardInner{position:relative;z-index:1;width:100%;height:100%;border:1px solid #650008;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px 8px;box-sizing:border-box;background:radial-gradient(circle at center,rgba(100,0,8,.22),transparent 55%);color:#e7c7c7}
+.cardOrnament{font-size:14px;letter-spacing:5px;color:#d20a16}
+.cardOrnament.bottom{transform:rotate(180deg)}
+.cardCenter{font-family:Cinzel,serif;font-size:21px;line-height:1.15;letter-spacing:2px;color:#f0d6d6;text-shadow:0 0 12px #a00008}
+.playingCard:hover{transform:translateY(-8px) rotate(-1deg);border-color:#ef1a2b;box-shadow:0 18px 40px #7d000833,0 0 24px #a0000a55}
+
 .roleCard:hover{border-color:#d00010;transform:translateY(-3px)}
 .roleCard.selected{border-color:#d8d8d8;box-shadow:0 0 30px #fff3;opacity:.55;cursor:default}
 .roleCard.disabled{opacity:.35;cursor:not-allowed}
 .revealCard{height:145px;border:1px solid #333;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#090909;font-size:24px;font-weight:900}
 .revealCard.wolf{border-color:#9a000a;background:#300006;color:#ff3846}
 .revealCard.sheep{border-color:#1b8b47;background:#062c17;color:#5de28a}
-@media(max-width:420px){.selectionGrid{grid-template-columns:1fr}.roleCard,.revealCard{height:120px}}
+@media(max-width:420px){.selectionGrid{grid-template-columns:1fr}.roleCard,.revealCard{height:160px}}
 
 </style>
 </head>
@@ -242,7 +250,10 @@ function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disab
 async function showScreen(id){
  const target=el(id);
  if(!target)return;
- document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll(".screen").forEach(x=>{
+   x.classList.remove("active");
+   x.style.display="none";
+ });
  target.classList.add("active");
  target.style.display="block";
  if(fadeBusy)return;
@@ -324,10 +335,15 @@ async function renderLobby(p,g){
 
 
 async function renderRoleIntro(){
- showScreen("roleIntro");
+ await showScreen("roleIntro");
  await new Promise(r=>setTimeout(r,2500));
  const g=await settings();
- if(g.phase==="ROLE_INTRO"){await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});}
+ if(g.phase==="ROLE_INTRO"){
+   await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});
+   const latest=await settings();
+   const p=await me();
+   if(p && latest.phase==="ROLE_SELECT") await renderRoleSelect(p,latest);
+ }
 }
 
 async function renderRoleSelect(p,g){
@@ -342,7 +358,7 @@ async function renderRoleSelect(p,g){
    box.innerHTML='<div class="notice success" style="grid-column:1/-1">✓ 카드 선택 완료</div>';
  }else{
    players.forEach((x,i)=>{
-     box.innerHTML+='<button class="roleCard '+(x.card_selected?"selected":"")+'" '+(x.card_selected?"disabled":"")+' onclick="selectRoleCard('+i+')">CARD '+(i+1)+'</button>';
+     box.innerHTML+='<button class="roleCard playingCard '+(x.card_selected?"selected":"")+'" '+(x.card_selected?"disabled":"")+' onclick="selectRoleCard('+i+')"><span class="cardInner"><span class="cardOrnament">♠ ♥ ♣ ♦</span><span class="cardCenter">늑대<br>게임</span><span class="cardOrnament bottom">♦ ♣ ♥ ♠</span></span></button>';
    });
  }
 }
