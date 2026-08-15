@@ -433,7 +433,6 @@ function stopRoleSelectionBgm(){
   if(a){a.pause();a.currentTime=0;}
  }catch(e){}
 }
-function stopRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(a){a.pause();a.currentTime=0;}}catch(e){}}
 
 async function renderRoleIntro(){
  const screenTransition=showScreen("roleIntro");
@@ -678,17 +677,19 @@ async function renderAdmin(){
 }
 
 async function startGame(){
+ // 게임시작 확인 직후 역할 선정 BGM을 즉시 정지합니다.
+ stopRoleSelectionBgm();
  const g=await settings();
  if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해야 합니다.");return;}
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
  if(!players.length||!players.every(x=>x.card_selected)){toast("모든 플레이어의 양과 늑대 선정이 완료되지 않았습니다.");return;}
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
- stopRoleSelectionBgm();
  await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  await startGameStartBgm();
  toast("게임 시작 준비");
 }
 async function startGameStartBgm(){
+ stopRoleSelectionBgm();
  try{
   const a=audio.gameStartBgm;
   if(!a)return;
