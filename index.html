@@ -1005,6 +1005,8 @@ async function getOrCreateRoundMission(location,round){
  ]);
 
  const pool=(r.data||[]).filter(m=>{
+   // 장소 연결은 mission_location_id / location_id / location 이름 중
+   // 하나라도 맞으면 같은 장소로 인정합니다.
    const mid1=m.mission_location_id!=null?String(m.mission_location_id):"";
    const mid2=m.location_id!=null?String(m.location_id):"";
    const mn=String(m.location||"").trim();
@@ -1019,24 +1021,44 @@ async function getOrCreateRoundMission(location,round){
    const mini=String(m.mini_game_type||"").trim().toUpperCase();
 
    if(concept==="MINIGAME"){
-     // 정상 데이터: concept_type=MINIGAME + mini_game_type
-     // 구버전 데이터: concept_type이 잘못 저장되어도 mini_game_type이
-     // 실제 지원되는 미니게임이면 이 장소의 미니게임으로 인정합니다.
-     return (mc==="MINIGAME" && supportedMiniTypes.has(mini)) ||
-            supportedMiniTypes.has(mini);
+     // 장소가 MINIGAME이면 지원되는 mini_game_type이 있는 미션을 사용합니다.
+     return supportedMiniTypes.has(mini);
    }
 
-   // PUZZLE 장소는 반드시 PUZZLE 컨셉만 사용합니다.
-   return mc==="PUZZLE";
+   // 장소가 PUZZLE이면 정상 데이터(concept_type=PUZZLE)를 우선하고,
+   // 구버전 데이터에서 concept_type이 잘못 저장된 경우에도
+   // mini_game_type이 비어 있으면 두뇌퍼즐로 인정합니다.
+   return mc==="PUZZLE" || (!mini && mc!=="MINIGAME");
  });
 
  if(!pool.length){
+   // 진단에 필요한 정보를 함께 남깁니다. 사용자 화면에는 기존의 간단한 오류만 표시합니다.
+   const samePlace=(r.data||[]).filter(m=>{
+     const a=m.mission_location_id!=null?String(m.mission_location_id):"";
+     const b=m.location_id!=null?String(m.location_id):"";
+     const n=String(m.location||"").trim();
+     return a===locationId||b===locationId||(!!locationName&&n===locationName);
+   });
+   console.error("미션 검색 상세:",{
+     locationId,locationName,concept,
+     samePlace:samePlace.map(m=>({
+       id:m.id,title:m.title,active:m.active,
+       concept_type:m.concept_type,
+       mini_game_type:m.mini_game_type,
+       location:m.location,
+       location_id:m.location_id,
+       mission_location_id:m.mission_location_id
+     }))
+   });
+
    throw new Error(
      "이 장소에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+
      " 미션이 없습니다. 장소: "+locationName+" (ID: "+locationId+")"
    );
  }
 
+ // 같은 장소에 다시 입장할 때마다 이 함수가 새로 실행되므로
+ // 매번 새로운 미션을 랜덤으로 선택할 수 있습니다.
  return pool[Math.floor(Math.random()*pool.length)];
 }
 
