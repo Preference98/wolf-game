@@ -124,6 +124,7 @@ const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
+let lastSoundEvent="",lastSoundAt=0;
 
 const SOUND_FILES={
  login:"sounds/login.mp3",
@@ -136,8 +137,18 @@ const SOUND_FILES={
 };
 const audio={};
 function preloadSounds(){for(const [k,v] of Object.entries(SOUND_FILES)){const a=new Audio(v);a.preload="auto";audio[k]=a;}}
-function playSound(name){if(!soundEnabled||!audio[name])return;audio[name].currentTime=0;audio[name].play().catch(()=>{});}
-function unlockSound(){soundEnabled=true;playSound("login");}
+function playSound(name,eventKey=""){
+ if(!soundEnabled||!audio[name])return;
+ const key=eventKey||name,now=Date.now();
+ if(key===lastSoundEvent && now-lastSoundAt<3000)return;
+ lastSoundEvent=key;lastSoundAt=now;
+ audio[name].currentTime=0;audio[name].play().catch(()=>{});
+}
+function unlockSound(){
+ if(soundEnabled)return;
+ soundEnabled=true;
+ playSound("login","login");
+}
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
@@ -292,7 +303,7 @@ async function openLocationChoice(){
  openOverlay("☠️","죽은 양 발견","발견한 장소를 선택하십시오.","alarm",html);
 }
 function confirmDeadSheepLocation(name){
- openOverlay("☠️","죽은 양 발견 확인","<"+name+">에서 발견했다고 신고하시겠습니까?>".replace("<"+name+">","["+name+"]"),"",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openLocationChoice()">취소</button><button class="danger" style="flex:1" onclick="deadSheepFound(\''+esc(name)+'\')">신고</button></div>');
+ openOverlay("☠️","죽은 양 발견 확인","["+name+"]에서 발견했다고 신고하시겠습니까?","",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openLocationChoice()">취소</button><button class="danger" style="flex:1" onclick="deadSheepFound(\''+esc(name)+'\')">신고</button></div>');
 }
 async function deadSheepFound(location){
  closeOverlay();const btn=el("deadSheepBtn"),done=busy(btn,"신고 중...");
@@ -386,13 +397,17 @@ function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},payload=>{
   const g=payload.new||{};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){renderAdmin();return;}
-  if(g.winner==="SHEEP"){openOverlay("🐑","양의 승리!",g.notice,"win");playSound("sheepWin");}
-  else if(g.winner==="WOLF"){openOverlay("🐺","늑대의 승리!",g.notice,"win");playSound("wolfWin");}
+  if(g.winner==="SHEEP" && g.winner!==lastNotice){
+   lastNotice="WIN_SHEEP"; openOverlay("🐑","양의 승리!",g.notice,"win"); playSound("sheepWin","winner-sheep");
+  }
+  else if(g.winner==="WOLF" && g.winner!==lastNotice){
+   lastNotice="WIN_WOLF"; openOverlay("🐺","늑대의 승리!",g.notice,"win"); playSound("wolfWin","winner-wolf");
+  }
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
-   if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound");}
-   else if(g.phase==="TRIAL"){openOverlay("⚖️","재판 시작",g.notice,"alarm");playSound("trialStart");}
-   else if(g.started&&g.phase==="PLAY"){playSound("gameStart");}
+   if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound","dead-sheep-"+g.dead_sheep_location+"-"+g.investigation_started_at);}
+   else if(g.phase==="TRIAL"){openOverlay("⚖️","재판 시작",g.notice,"alarm");playSound("trialStart","trial-"+g.current_round+"-"+g.notice);}
+   else if(g.started&&g.phase==="PLAY"){playSound("gameStart","game-start-"+g.current_round);}
   }
   route();
  }).subscribe();
@@ -416,7 +431,7 @@ function realtime(){
    if(n.target_player && n.target_player!==playerId)return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
-   if(n.notification_type==="ADMIN")playSound("adminNotice");
+   if(n.notification_type==="ADMIN")playSound("adminNotice","admin-notice-"+n.id);
    // WOLF notifications intentionally have no sound.
  }).subscribe();
 }
