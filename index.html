@@ -694,86 +694,145 @@ function randomMissionTypeForLocation(location){
  return pool[Math.floor(Math.random()*pool.length)];
 }
 async function ensureRoundMissionSetup(round){
- const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
- const expected=Math.max(0,players.length-1);
+  const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
+  const expected=Math.max(0,players.length-1);
 
- const allR=await db.from("mission_locations").select("*").eq("active",true).order("id");
- if(allR.error)throw new Error("미션 장소 목록 조회 실패: "+allR.error.message);
- // 같은 이름의 활성 장소가 중복 등록되어 있으면 한 곳만 사용합니다.
- const activeByName=new Map();
- for(const loc of (allR.data||[])){
-   const key=String(loc.name||"").trim();
-   if(!activeByName.has(key))activeByName.set(key,loc);
- }
- const activeUnique=[...activeByName.values()];
- const targetCount=Math.min(expected,activeUnique.length);
+  const allR=await db.from("mission_locations").select("*").eq("active",true).order("id");
+  if(allR.error)throw new Error("미션 장소 목록 조회 실패: "+allR.error.message);
 
- const existingR=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order").order("id");
- if(existingR.error)throw new Error("라운드 미션 설정 조회 실패: "+existingR.error.message);
- let rows=existingR.data||[];
+  // 활성 장소 중 이름이 중복된 경우 하나만 사용합니다.
+  const activeByName=new Map();
+  for(const loc of (allR.data||[])){
+    const key=String(loc.name||"").trim();
+    if(!activeByName.has(key))activeByName.set(key,loc);
+  }
+  const activeUnique=[...activeByName.values()];
+  const targetCount=Math.min(expected,activeUnique.length);
 
- // 잘못 만들어진 중복 장소 행 제거: 동일 장소 ID 또는 동일 장소 이름은 한 번만 남깁니다.
- const activeIds=new Set(activeUnique.map(x=>String(x.id)));
- const seenIds=new Set(),seenNames=new Set(),keep=[],removeIds=[];
- for(const row of rows){
-   if(row.mission_id)continue;
-   const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
-   if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
-   const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
+  const existingR=await db.from("round_mission_locations")
+    .select("*").eq("game_round",round).order("sort_order").order("id");
+  if(existingR.error)throw new Error("라운드 미션 설정 조회 실패: "+existingR.error.message);
 
-   // MINIGAME 장소는 DB에 미션을 미리 등록할 필요가 없습니다.
-   // 실제 미니게임은 입장할 때 아래 getOrCreateRoundMission()에서
-   // 7개 미니게임 중 하나를 랜덤으로 생성합니다.
-   if(concept==="MINIGAME")continue;
+  let rows=existingR.data||[];
 
-   // PUZZLE만 관리자가 등록한 미션을 사용합니다.
-   let pool=[];
-   const exact=await db.from("missions").select("*")
-     .eq("active",true)
-     .eq("concept_type",concept)
-     .eq("mission_location_id",loc.id);
-   if(exact.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+exact.error.message);
-   pool=exact.data||[];
+  // 현재 활성 장소에 없는 장소, 중복 장소를 제거합니다.
+  const activeIds=new Set(activeUnique.map(x=>String(x.id)));
+  const seenIds=new Set(),seenNames=new Set(),keep=[],removeIds=[];
 
-   if(!pool.length){
-     const legacyId=await db.from("missions").select("*")
-       .eq("active",true)
-       .eq("concept_type",concept)
-       .eq("location_id",loc.id);
-     if(legacyId.error)throw new Error("기존 미션 연결 조회 실패 ("+loc.name+"): "+legacyId.error.message);
-     pool=legacyId.data||[];
-   }
+  for(const row of rows){
+    const loc=activeUnique.find(x=>String(x.id)===String(row.mission_location_id));
+    const nameKey=String(loc?.name||row.mission_location_id).trim();
 
-   if(!pool.length){
-     const legacyName=await db.from("missions").select("*")
-       .eq("active",true)
-       .eq("concept_type",concept)
-       .eq("location",loc.name);
-     if(legacyName.error)throw new Error("장소명 기준 미션 조회 실패 ("+loc.name+"): "+legacyName.error.message);
-     pool=legacyName.data||[];
-   }
+    if(!activeIds.has(String(row.mission_location_id)) ||
+       seenIds.has(String(row.mission_location_id)) ||
+       seenNames.has(nameKey)){
+      if(row.id!=null)removeIds.push(row.id);
+      continue;
+    }
 
-   if(!pool.length)throw new Error("미션 장소 '"+loc.name+"'에 등록된 두뇌퍼즐 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
+    seenIds.add(String(row.mission_location_id));
+    seenNames.add(nameKey);
+    keep.push(row);
+  }
 
-   const selected=pool[Math.floor(Math.random()*pool.length)];
-   if(String(selected.mission_location_id||"")!==String(loc.id) ||
-      String(selected.location_id||"")!==String(loc.id)){
-     const fix=await db.from("missions").update({
-       mission_location_id:loc.id,
-       location_id:loc.id,
-       location:loc.name
-     }).eq("id",String(selected.id));
-     if(fix.error)throw new Error("미션 장소 연결 복구 실패 ("+loc.name+"): "+fix.error.message);
-   }
+  if(removeIds.length){
+    const dr=await db.from("round_mission_locations").delete().in("id",removeIds);
+    if(dr.error)throw new Error("중복 라운드 미션 제거 실패: "+dr.error.message);
+  }
+  rows=keep;
 
-   const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
-   if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
- }
- const done=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
- if(done.error)throw new Error("라운드 미션 재조회 실패: "+done.error.message);
- return done.data||[];
+  // 플레이어 수 - 1개의 장소가 될 때까지 랜덤으로 장소를 추가합니다.
+  if(rows.length<targetCount){
+    const used=new Set(rows.map(x=>String(x.mission_location_id)));
+    const candidates=activeUnique.filter(x=>!used.has(String(x.id)));
+
+    for(let i=candidates.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [candidates[i],candidates[j]]=[candidates[j],candidates[i]];
+    }
+
+    const add=candidates.slice(0,targetCount-rows.length);
+
+    if(add.length){
+      const ins=await db.from("round_mission_locations")
+        .insert(add.map((loc,i)=>({
+          game_round:round,
+          mission_location_id:loc.id,
+          sort_order:rows.length+i
+        }))).select();
+
+      if(ins.error)throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
+      rows=rows.concat(ins.data||[]);
+    }
+  }
+
+  // PUZZLE 장소만 관리자 등록 미션을 연결합니다.
+  // MINIGAME 장소는 DB에 미션을 미리 등록하지 않습니다.
+  for(const row of rows){
+    if(row.mission_id)continue;
+
+    const loc=activeUnique.find(x=>String(x.id)===String(row.mission_location_id));
+    if(!loc)continue;
+
+    const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
+
+    if(concept==="MINIGAME"){
+      continue;
+    }
+
+    let pool=[];
+
+    let q=await db.from("missions").select("*")
+      .eq("active",true)
+      .eq("concept_type","PUZZLE")
+      .eq("mission_location_id",loc.id);
+
+    if(q.error)throw new Error("두뇌퍼즐 미션 조회 실패 ("+loc.name+"): "+q.error.message);
+    pool=q.data||[];
+
+    // 구버전 DB 연결 방식도 호환합니다.
+    if(!pool.length){
+      q=await db.from("missions").select("*")
+        .eq("active",true)
+        .eq("concept_type","PUZZLE")
+        .eq("location_id",loc.id);
+      if(q.error)throw new Error("기존 두뇌퍼즐 연결 조회 실패 ("+loc.name+"): "+q.error.message);
+      pool=q.data||[];
+    }
+
+    if(!pool.length){
+      q=await db.from("missions").select("*")
+        .eq("active",true)
+        .eq("concept_type","PUZZLE")
+        .eq("location",loc.name);
+      if(q.error)throw new Error("장소명 기준 두뇌퍼즐 조회 실패 ("+loc.name+"): "+q.error.message);
+      pool=q.data||[];
+    }
+
+    if(!pool.length){
+      throw new Error(
+        "미션 장소 '"+loc.name+
+        "'에 등록된 두뇌퍼즐 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. "+
+        "(장소 ID: "+loc.id+", 컨셉: PUZZLE)"
+      );
+    }
+
+    const selected=pool[Math.floor(Math.random()*pool.length)];
+
+    const ur=await db.from("round_mission_locations")
+      .update({mission_id:String(selected.id)})
+      .eq("id",row.id);
+
+    if(ur.error)throw new Error("두뇌퍼즐 라운드 연결 실패 ("+loc.name+"): "+ur.error.message);
+  }
+
+  const done=await db.from("round_mission_locations")
+    .select("*").eq("game_round",round).order("sort_order").order("id");
+
+  if(done.error)throw new Error("라운드 미션 재조회 실패: "+done.error.message);
+
+  return done.data||[];
 }
-async function activeMissionLocations(round){return getRoundMissionLocations(round);}
 async function getRoundMissionLocations(round){const rows=await ensureRoundMissionSetup(round);if(!rows.length)return [];const ids=rows.map(x=>x.mission_location_id),r=await db.from("mission_locations").select("*").in("id",ids);if(r.error)throw new Error(r.error.message);return rows.map(x=>r.data.find(y=>String(y.id)===String(x.mission_location_id))).filter(Boolean);}
 async function allMissions(){const r=await db.from("missions").select("*").order("id");if(r.error)throw new Error("미션 목록 오류\\n"+r.error.message);return r.data||[];}
 async function activeMissionLocations(){const r=await db.from("mission_locations").select("*").eq("active",true).order("sort_order").order("id");if(r.error)throw new Error("미션 장소 오류\\n"+r.error.message);return r.data||[];}
