@@ -326,6 +326,22 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><h2>미션 장소 관리</h2><p class="muted">시체발견 장소와 완전히 별개의 장소입니다. 생존 양 수만큼 앞에서부터 활성화됩니다.</p><div id="missionLocationList"></div>
 <div class="grid"><input id="newMissionLocationName" placeholder="미션 장소 이름"><select id="newMissionLocationConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select></div>
 <button onclick="addMissionLocation()">미션 장소 추가</button></div>
+<div class="card"><h2>미션 관리</h2>
+<p class="muted">미션은 관리자가 미리 등록합니다. 게임 시작 시 각 장소의 컨셉에 맞는 미션 중 하나가 라운드마다 랜덤 선택됩니다.</p>
+<div class="grid">
+<select id="newMissionLocation"><option value="">미션 장소 선택</option></select>
+<select id="newMissionConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select>
+<input id="newMissionTitle" placeholder="미션 이름">
+</div>
+<div class="grid">
+<input id="newMissionMiniType" placeholder="미니게임 종류 (예: WIRING)">
+<input id="newMissionDescription" placeholder="설명">
+<input id="newMissionQuestion" placeholder="문제">
+<input id="newMissionAnswer" placeholder="정답">
+</div>
+<button onclick="addMission()">미션 추가</button>
+<div id="missionAdminList"></div>
+</div>
 <div class="card"><h2>NFC 테스트 모드</h2><p class="muted">테스트 모드에서는 NFC 태그 없이 미션을 열 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 테스트 모드: OFF</button></div>
 
 <div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
@@ -552,21 +568,16 @@ function randomMissionTypeForLocation(location){
 async function ensureRoundMissionSetup(round){
  const existing=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
  if(existing.error)throw new Error("라운드 미션 설정 조회 실패: "+existing.error.message);
-
- // 장소는 이미 확정됐지만 mission_id가 비어 있는 경우가 이전 오류/중단으로
- // 남아 있을 수 있습니다. 이 경우 기존 장소를 유지하면서 미션만 생성합니다.
  let rows=existing.data||[];
+
  if(!rows.length){
    const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
    const chosen=await activeMissionLocationsForRound(round,players.length);
    if(!chosen.length)return [];
    const ins=await db.from("round_mission_locations")
      .insert(chosen.map((loc,i)=>({game_round:round,mission_location_id:loc.id,sort_order:i}))).select();
-   if(ins.error){
-     const retry=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
-     if(!retry.error&&retry.data?.length) rows=retry.data;
-     else throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
-   }else rows=ins.data||[];
+   if(ins.error)throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
+   rows=ins.data||[];
  }
 
  const locIds=rows.map(x=>x.mission_location_id).filter(Boolean);
@@ -574,34 +585,28 @@ async function ensureRoundMissionSetup(round){
  if(lr.error)throw new Error("라운드 미션 장소 조회 실패: "+lr.error.message);
  const locations=lr.data||[];
 
- const titles={WIRING:"배선 연결",MATCHING:"같은 그림 찾기",CIRCUIT:"회로 회전",PIPES:"파이프 연결",REACTION:"반응속도",MEMORY:"기억 패턴",SAFE:"금고 해킹",DNA:"DNA 조립",SHAPE:"같은 모양 찾기",TRACE:"선 따라가기",NUMBER_RULE:"숫자 규칙",LOGIC:"논리 문제",SHAPE_RULE:"도형 규칙",SEQUENCE:"순서 문제",MEMORY_PUZZLE:"기억 문제",CALCULATION:"계산 문제"};
- const puzzles=[["다음 숫자는? 2, 4, 8, 16, ?","32"],["다음 숫자는? 3, 6, 12, 24, ?","48"],["A=1, B=2, C=3일 때 A+B+C는?","6"],["다음 순서는? 1, 3, 5, 7, ?","9"],["10-3×2 = ?","4"],["어떤 수에 5를 더하면 12입니다. 그 수는?","7"]];
-
  for(const row of rows){
    if(row.mission_id)continue;
    const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
    if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
-   const type=randomMissionTypeForLocation(loc);
-   const pq=puzzles[Math.floor(Math.random()*puzzles.length)];
-   const missionId=(crypto&&typeof crypto.randomUUID==="function")
-     ? crypto.randomUUID()
-     : ("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
-   const mr=await db.from("missions").insert({
-     id:missionId,
-     title:(titles[type]||"두뇌퍼즐")+" · R"+round,
-     mission_location_id:loc.id,
-     concept_type:loc.concept_type,
-     mini_game_type:loc.concept_type==="MINIGAME"?type:null,
-     description:"이번 라운드에 랜덤 배정된 미션",
-     question:loc.concept_type==="PUZZLE"?pq[0]:null,
-     answer:loc.concept_type==="PUZZLE"?pq[1]:null,
-     active:true
-   }).select().single();
-   if(mr.error)throw new Error("라운드 미션 생성 실패: "+mr.error.message);
-   const ur=await db.from("round_mission_locations").update({mission_id:String(mr.data.id)}).eq("id",row.id);
+
+   const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
+   // 미션은 관리자가 미리 등록해 둔 풀에서만 선택합니다.
+   // 장소의 concept_type과 같은 미션만 후보가 됩니다.
+   let q=db.from("missions").select("*")
+     .eq("active",true)
+     .eq("concept_type",concept)
+     .eq("location",loc.name);
+   const mr=await q;
+   if(mr.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+mr.error.message);
+   const pool=mr.data||[];
+   if(!pool.length){
+     throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요.");
+   }
+   const selected=pool[Math.floor(Math.random()*pool.length)];
+   const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
    if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
  }
-
  const done=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
  if(done.error)throw new Error("라운드 미션 재조회 실패: "+done.error.message);
  return done.data||[];
@@ -989,6 +994,11 @@ async function renderAdmin(){
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?mls.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mnfc_'+x.id+'" value="'+esc(x.nfc_tag||"")+'" placeholder="NFC 태그값" style="flex:1"><button onclick="saveMissionLocationNfc(\''+esc(x.id)+'\')">NFC 저장</button></div></div><button class="danger" onclick="removeMissionLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 미션 장소가 없습니다.</div>";
+  const ms=await allMissions();
+  const missionLocSel=el("newMissionLocation");
+  if(missionLocSel)missionLocSel.innerHTML='<option value="">미션 장소 선택</option>'+mls.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+'</option>').join("");
+  const mal=el("missionAdminList");
+  if(mal)mal.innerHTML=ms.length?ms.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.location||"")+' · '+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+(x.mini_game_type?" · "+esc(x.mini_game_type):"")+'</div></div><button class="danger" onclick="removeMission(\''+esc(x.id)+'\')">비활성화</button></div>').join(""):"<div class='muted'>등록된 미션이 없습니다.</div>";
   el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");
   const readyBtn=el("readyBtn"),roleBtn=el("roleStartBtn"),gameBtn=el("gameStartBtn");
   readyBtn.disabled=!!g.ready || g.phase!=="LOBBY";
@@ -1162,6 +1172,42 @@ async function saveTiming(){
   await set({round_duration_minutes:round,investigation_duration_minutes:investigation});
   toast("시간 설정이 저장되었습니다.");await renderAdmin();
  }catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}
+}
+async function addMission(){
+ const locationId=el("newMissionLocation").value;
+ const title=el("newMissionTitle").value.trim();
+ const concept_type=el("newMissionConcept").value;
+ const mini_game_type=el("newMissionMiniType").value.trim()||null;
+ const description=el("newMissionDescription").value.trim()||null;
+ const question=el("newMissionQuestion").value.trim()||null;
+ const answer=el("newMissionAnswer").value.trim()||null;
+ if(!locationId||!title){toast("미션 장소와 미션 이름을 입력해 주세요.");return}
+ const loc=await getMissionLocation(locationId);
+ if(!loc){toast("미션 장소를 찾을 수 없습니다.");return}
+ const missionId=(crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
+ const r=await db.from("missions").insert({
+   id:missionId,
+   title,
+   location:loc.name,
+   mission_location_id:loc.id,
+   concept_type,
+   mini_game_type:concept_type==="MINIGAME"?mini_game_type:null,
+   description,
+   question:concept_type==="PUZZLE"?question:null,
+   answer:concept_type==="PUZZLE"?answer:null,
+   active:true
+ }).select().single();
+ if(r.error){toast("미션 추가 실패: "+r.error.message);return}
+ ["newMissionTitle","newMissionMiniType","newMissionDescription","newMissionQuestion","newMissionAnswer"].forEach(id=>{if(el(id))el(id).value=""});
+ toast("미션을 추가했습니다.");
+ await renderAdmin();
+}
+async function removeMission(id){
+ const used=await db.from("round_mission_locations").select("id").eq("mission_id",String(id)).limit(1);
+ if(used.data?.length){toast("이미 라운드에 사용된 미션은 삭제할 수 없습니다. 비활성화하세요.");return}
+ const r=await db.from("missions").update({active:false}).eq("id",String(id));
+ if(r.error){toast("미션 비활성화 실패: "+r.error.message);return}
+ toast("미션을 비활성화했습니다.");await renderAdmin();
 }
 async function addMissionLocation(){const name=el("newMissionLocationName").value.trim(),concept_type=el("newMissionLocationConcept").value;if(!name){toast("미션 장소 이름을 입력해 주세요.");return}const existing=await db.from("mission_locations").select("id").eq("name",name).maybeSingle();if(existing.error)throw new Error(existing.error.message);if(existing.data){toast("이미 존재하는 미션 장소입니다.");return}const max=(await db.from("mission_locations").select("sort_order").order("sort_order",{ascending:false}).limit(1)).data||[];const sort=(max[0]?.sort_order||0)+1;const r=await db.from("mission_locations").insert({name,sort_order:sort,active:true,concept_type});if(r.error){toast("미션 장소 추가 실패: "+r.error.message);return}el("newMissionLocationName").value="";toast("미션 장소를 추가했습니다.");await renderAdmin()}
 async function removeMissionLocation(id,name){const used=await db.from("missions").select("id").eq("mission_location_id",id).eq("active",true).limit(1);if(used.data?.length){toast("이 장소에 연결된 미션이 있어 제거할 수 없습니다.");return}const r=await db.from("mission_locations").update({active:false}).eq("id",id);if(r.error){toast("미션 장소 제거 실패: "+r.error.message);return}toast(name+" 미션 장소를 제거했습니다.");await renderAdmin()}
