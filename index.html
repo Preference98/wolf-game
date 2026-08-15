@@ -127,6 +127,13 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .victoryStage.sheep{color:#58f39a}.victoryStage.wolf{color:#ff3347}
 @keyframes victoryIn{from{opacity:0}to{opacity:1}}@keyframes victoryPulse{0%,100%{transform:scale(.9);opacity:.45}50%{transform:scale(1.08);opacity:.75}}@keyframes victoryImageIn{from{opacity:0;transform:scale(.5) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes victoryTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
 
+
+/* PLAYER UI UPDATE v32 */
+.playerStatusTitle{font-size:clamp(26px,5vw,48px)!important;letter-spacing:-.5px}
+.playerStatusTitle .sheepAliveIcon{display:inline-flex;align-items:center;justify-content:center;width:1.15em;height:1.15em;margin-left:.12em;border-radius:50%;font-size:.72em;background:#1f9d55;color:#fff;box-shadow:0 0 14px rgba(31,157,85,.8)}
+.totalMissionCount{font-size:clamp(18px,3vw,25px);font-weight:800;margin:8px 0 18px;color:#ddd}
+.totalMissionCount b{color:#fff;font-size:1.12em}
+
 </style>
 </head>
 <body>
@@ -149,9 +156,9 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 
 <section id="player" class="screen">
 <div id="noticeBox"></div>
-<div class="card"><div class="row"><h1 id="stateTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
+<div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p></div>
-<div class="card"><h2>미션</h2><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
+<div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
 </section>
@@ -217,8 +224,8 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 </div><div id="prepStatus" class="notice" style="margin-top:10px"></div></div>
 
 <div class="card"><h2>시간 설정</h2>
-<label class="small">한 라운드 진행 시간</label><select id="roundMinutes"><option>10</option><option selected>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select>
-<label class="small">죽은 양 발견 후 현장 조사 시간</label><select id="investigationMinutes"><option>1</option><option>2</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option></select>
+<label class="small">한 라운드 진행 시간 (분)</label><input id="roundMinutes" type="number" min="1" max="180" step="1" value="15" inputmode="numeric" placeholder="예: 15">
+<label class="small">죽은 양 발견 후 현장 조사 시간 (분)</label><input id="investigationMinutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric" placeholder="예: 5">
 <button onclick="saveTiming()">시간 설정 저장</button></div>
 
 <div class="card"><h2>장소 관리</h2><p class="muted">죽은 양 발견 시 선택할 장소입니다.</p><div id="locationList"></div>
@@ -549,7 +556,9 @@ async function renderPlayer(){
  if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
  if(g.phase==="TRIAL"){showTrialLock();return;}
  const ms=await missions(),cs=await comps(g.current_round);
- el("stateTitle").textContent="양 생존 중...";el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;
+ el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon" aria-label="생존">🐑</span> <span style="color:#35d878">생존</span>';
+ el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;
+ el("totalMissionCount").innerHTML='총 미션 <b>'+ms.length+'개</b>';
  el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";
  const myDone=cs.some(x=>x.player_id===p.id),box=el("missions");box.innerHTML="";
  ms.forEach(m=>{const own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id),disabled=myDone||own||!nfcTestMode;
@@ -816,7 +825,13 @@ async function forceSheepWin(){await finishRound("SHEEP");}
 async function forceWolfWin(){await finishRound("WOLF");}
 async function saveTiming(){
  const done=busy(document.querySelector('#admin button[onclick*="saveTiming"]'),"저장 중...");
- try{await set({round_duration_minutes:Number(el("roundMinutes").value),investigation_duration_minutes:Number(el("investigationMinutes").value)});toast("시간 설정이 저장되었습니다.");await renderAdmin();}catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}
+ try{
+  const round=Number(el("roundMinutes").value),investigation=Number(el("investigationMinutes").value);
+  if(!Number.isInteger(round)||round<1||round>180){toast("라운드 진행 시간은 1~180분의 정수로 입력해 주세요.");return;}
+  if(!Number.isInteger(investigation)||investigation<1||investigation>60){toast("현장 조사 시간은 1~60분의 정수로 입력해 주세요.");return;}
+  await set({round_duration_minutes:round,investigation_duration_minutes:investigation});
+  toast("시간 설정이 저장되었습니다.");await renderAdmin();
+ }catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}
 }
 function toggleNfc(){nfcTestMode=!nfcTestMode;el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");toast(nfcTestMode?"NFC 없이 미션 테스트가 가능합니다.":"NFC 테스트 모드를 껐습니다.");}
 async function sendNotice(){
