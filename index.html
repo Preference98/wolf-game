@@ -326,10 +326,6 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><h2>미션 장소 관리</h2><p class="muted">시체발견 장소와 완전히 별개의 장소입니다. 생존 양 수만큼 앞에서부터 활성화됩니다.</p><div id="missionLocationList"></div>
 <div class="grid"><input id="newMissionLocationName" placeholder="미션 장소 이름"><select id="newMissionLocationConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select></div>
 <button onclick="addMissionLocation()">미션 장소 추가</button></div>
-<div class="card"><h2>미션 관리</h2><p class="muted">장소별 미션을 등록합니다.</p><div id="missionAdminList"></div>
-<div class="grid"><input id="newMissionTitle" placeholder="미션 제목"><select id="newMissionLocation"></select><select id="newMissionConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select><select id="newMiniGameType"><option value="WIRING">배선 연결</option><option value="MATCHING">같은 그림 찾기</option><option value="CIRCUIT">회로 회전</option><option value="PIPES">파이프 연결</option><option value="REACTION">반응속도</option><option value="MEMORY">기억 패턴</option><option value="SAFE">금고 해킹</option><option value="DNA">DNA 조립</option><option value="SHAPE">같은 모양 찾기</option><option value="TRACE">선 따라가기</option></select>
-<textarea id="newMissionDescription" placeholder="미션 설명"></textarea><input id="newMissionQuestion" placeholder="두뇌퍼즐 문제"><input id="newMissionAnswer" placeholder="정답"></div><button onclick="addMission()">미션 추가</button></div>
-
 <div class="card"><h2>NFC 테스트 모드</h2><p class="muted">테스트 모드에서는 NFC 태그 없이 미션을 열 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 테스트 모드: OFF</button></div>
 
 <div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
@@ -469,10 +465,33 @@ async function playSound(name,eventKey=""){
    console.warn("사운드 재생 실패:",name,e);
  }
 }
+
+// 일반적인 짧은 UI 클릭음.
+// 외부 button.mp3 파일에 의존하지 않아 404/지원되지 않는 형식 오류를 피합니다.
+async function playNormalClick(){
+ if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+ try{
+   await activateStageAudio();
+   if(!soundEnabled||!soundUnlocked||!audioContext)return;
+   const now=audioContext.currentTime;
+   const osc=audioContext.createOscillator();
+   const gain=audioContext.createGain();
+   osc.type="sine";
+   osc.frequency.setValueAtTime(900,now);
+   osc.frequency.exponentialRampToValueAtTime(620,now+0.045);
+   gain.gain.setValueAtTime(0.0001,now);
+   gain.gain.exponentialRampToValueAtTime(0.075,now+0.004);
+   gain.gain.exponentialRampToValueAtTime(0.0001,now+0.055);
+   osc.connect(gain);gain.connect(audioContext.destination);
+   osc.start(now);osc.stop(now+0.06);
+ }catch(e){
+   console.warn("클릭 효과음 재생 실패:",e);
+ }
+}
 document.addEventListener("click",(event)=>{
  const btn=event.target.closest("button");
  if(btn && !btn.disabled && !btn.hasAttribute("data-no-button-sound")){
-   playSound("button","button-click-"+Date.now());
+   playNormalClick();
  }
 },true);
 document.addEventListener("pointerdown",()=>{unlockSound().catch(()=>{});},{once:true});
@@ -727,6 +746,20 @@ async function markReady(){
  await renderAdmin();
 }
 async function renderPlayer(){stopGameStartBgm();const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"){await route();return;}if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}if(g.phase==="TRIAL"){showTrialLock();return;}const locs=await getRoundMissionLocations(g.current_round),cs=await comps(g.current_round);el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;el("totalMissionCount").innerHTML='총 미션 <b>'+locs.length+'개</b>';el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";const box=el("missions");box.innerHTML="";for(const loc of locs){const m=await getOrCreateRoundMission(loc,g.current_round),done=cs.some(x=>String(x.mission_id)===String(m.id)),nfcOk=nfcTestMode||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===String(loc.id),label=loc.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐";box.innerHTML+=`<div class="missionRow ${done?'completed':''}"><div><b>${esc(loc.name)}</b><div class="small">${label}</div></div><span class="pill">${done?"클리어":(nfcOk?"미완료":"NFC 필요")}</span>${!done&&!nfcOk?'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(loc.id)+'\')">NFC 인증</button>':(!done?'<button onclick="event.stopPropagation();openMission(\''+esc(m.id)+'\')">입장</button>':"")}</div>`;}if(!locs.length)box.innerHTML='<div class="muted">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';el("deadSheepBtn").disabled=false;el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';showScreen("player");startRoundTimer(g);}
+
+async function getOrCreateRoundMission(location,round){
+  await ensureRoundMissionSetup(round);
+  const row=await db.from("round_mission_locations")
+    .select("mission_id")
+    .eq("game_round",round)
+    .eq("mission_location_id",location.id)
+    .maybeSingle();
+  if(row.error) throw new Error("라운드 미션 연결 조회 실패: "+row.error.message);
+  if(!row.data?.mission_id) throw new Error("이 장소의 라운드 미션이 아직 생성되지 않았습니다.");
+  const r=await db.from("missions").select("*").eq("id",row.data.mission_id).single();
+  if(r.error) throw new Error("라운드 미션 조회 실패: "+r.error.message);
+  return r.data;
+}
 async function openMission(id){try{const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const m=(await allMissions()).find(x=>String(x.id)===String(id));if(!m)throw new Error("미션을 찾을 수 없습니다.");const loc=await getMissionLocation(m.mission_location_id||m.location_id),cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(m.id))){toast("이미 완료된 미션입니다.");return;}currentMission=m;el("mMeta").textContent=(loc?.name||"미션")+" · "+(m.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐");el("mTitle").textContent=m.title;el("mDesc").textContent=m.description||"";el("question").textContent="";el("answer").value="";el("missionResult").innerHTML="";el("miniGame").innerHTML="";el("answer").style.display=m.concept_type==="PUZZLE"?"":"none";el("answerBtn").style.display=m.concept_type==="PUZZLE"?"":"none";missionEndAt=Date.now()+180000;clearInterval(missionTimer);missionTimer=setInterval(tickMission,250);tickMission();showScreen("mission");if(m.concept_type==="MINIGAME")launchMiniGame(m);else el("question").textContent=m.question||"문제가 없습니다.";}catch(e){toast(e.message||String(e));}}
 async function completeCurrentMission(){const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(currentMission.id))){toast("이미 완료된 미션입니다.");return;}if(p.role==="SHEEP"){const r=await db.from("mission_completions").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id});if(r.error)throw new Error(r.error.message);toast("미션 완료!");}else toast("늑대 미션 완료!");await renderPlayer();}
 async function submitAnswer(){const btn=el("answerBtn");if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
@@ -871,8 +904,6 @@ async function renderAdmin(){
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?mls.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mnfc_'+x.id+'" value="'+esc(x.nfc_tag||"")+'" placeholder="NFC 태그값" style="flex:1"><button onclick="saveMissionLocationNfc(\''+esc(x.id)+'\')">NFC 저장</button></div></div><button class="danger" onclick="removeMissionLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 미션 장소가 없습니다.</div>";
-  const locSel=el("newMissionLocation");if(locSel)locSel.innerHTML=mls.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
-  const am=await allMissions(),ml=el("missionAdminList");if(ml)ml.innerHTML=am.length?am.map(x=>'<div class="item row"><div><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.concept_type||"PUZZLE")+' · '+esc(x.mini_game_type||"")+'</div></div><button class="danger" onclick="removeMission(\''+esc(x.id)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 미션이 없습니다.</div>";
   el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");
   const readyBtn=el("readyBtn"),roleBtn=el("roleStartBtn"),gameBtn=el("gameStartBtn");
   readyBtn.disabled=!!g.ready || g.phase!=="LOBBY";
@@ -1022,8 +1053,6 @@ async function saveTiming(){
 async function addMissionLocation(){const name=el("newMissionLocationName").value.trim(),concept_type=el("newMissionLocationConcept").value;if(!name){toast("미션 장소 이름을 입력해 주세요.");return}const existing=await db.from("mission_locations").select("id").eq("name",name).maybeSingle();if(existing.error)throw new Error(existing.error.message);if(existing.data){toast("이미 존재하는 미션 장소입니다.");return}const max=(await db.from("mission_locations").select("sort_order").order("sort_order",{ascending:false}).limit(1)).data||[];const sort=(max[0]?.sort_order||0)+1;const r=await db.from("mission_locations").insert({name,sort_order:sort,active:true,concept_type});if(r.error){toast("미션 장소 추가 실패: "+r.error.message);return}el("newMissionLocationName").value="";toast("미션 장소를 추가했습니다.");await renderAdmin()}
 async function removeMissionLocation(id,name){const used=await db.from("missions").select("id").eq("mission_location_id",id).eq("active",true).limit(1);if(used.data?.length){toast("이 장소에 연결된 미션이 있어 제거할 수 없습니다.");return}const r=await db.from("mission_locations").update({active:false}).eq("id",id);if(r.error){toast("미션 장소 제거 실패: "+r.error.message);return}toast(name+" 미션 장소를 제거했습니다.");await renderAdmin()}
 async function saveMissionLocationNfc(id){const v=el("mnfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("미션 장소 NFC 태그를 저장했습니다.");await renderAdmin()}
-async function addMission(){const title=el("newMissionTitle").value.trim(),mission_location_id=el("newMissionLocation").value,concept_type=el("newMissionConcept").value,mini_game_type=el("newMiniGameType").value;if(!title||!mission_location_id){toast("미션 제목과 미션 장소를 입력해 주세요.");return}const q=el("newMissionQuestion").value.trim(),a=el("newMissionAnswer").value.trim(),r=await db.from("missions").insert({title,mission_location_id,concept_type,mini_game_type,description:el("newMissionDescription").value.trim(),question:q,answer:a,wolf_question:q,wolf_answer:a,active:true});if(r.error){toast("미션 추가 실패: "+r.error.message);return}toast("미션을 추가했습니다.");await renderAdmin()}
-async function removeMission(id){const r=await db.from("missions").update({active:false}).eq("id",id);if(r.error){toast("미션 제거 실패: "+r.error.message);return}toast("미션을 제거했습니다.");await renderAdmin()}
 async function saveLocationNfc(id){const v=el("nfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("NFC 태그를 저장했습니다.");await renderAdmin()}
 async function scanNfcForLocation(locationId){
  if(nfcTestMode){localStorage.setItem("wolf_game_nfc_location",String(locationId));toast("NFC 테스트 인증 완료");await renderPlayer();return}
@@ -1191,6 +1220,19 @@ window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocatio
 
 boot();
 })();
+
+function launchMiniGame(m){const f={WIRING:miniWiring,MATCHING:miniMatching,CIRCUIT:miniCircuit,PIPES:miniPipes,REACTION:miniReaction,MEMORY:miniMemory,SAFE:miniSafe,DNA:miniDNA,SHAPE:miniShape,TRACE:miniTrace}[m.mini_game_type]||miniWiring;f(el("miniGame"));}
+function finishMiniGame(){completeCurrentMission().catch(e=>toast(e.message||String(e)));}
+function miniWiring(r){const c=["🔴","🔵","🟢","🟡"],a=[...c,...c].sort(()=>Math.random()-.5);let p=null,n=0;r.innerHTML='<p class="muted">같은 색 단자를 연결하세요.</p><div class="wireGrid" id="wg"></div>';a.forEach((x,i)=>{const b=document.createElement("button");b.className="wireNode";b.textContent=x;b.onclick=()=>{if(!p){p={x,i};b.classList.add("selected");return}document.querySelectorAll(".wireNode").forEach(z=>z.classList.remove("selected"));if(p.x===x&&p.i!==i){el("wg").children[p.i].disabled=b.disabled=true;if(++n===c.length)finishMiniGame()}p=null};el("wg").appendChild(b)})}
+function miniMatching(r){const a=["🐺","🐑","⚡","🔧","🧬","🔒","🔥","👁️"],v=[...a,...a].sort(()=>Math.random()-.5);let o=[],n=0;r.innerHTML='<p class="muted">같은 그림 두 장씩 찾으세요.</p><div class="matchGrid" id="mg"></div>';v.forEach(x=>{const b=document.createElement("button");b.className="matchCard";b.textContent="❓";b.dataset.v=x;b.onclick=()=>{if(b.disabled||o.length===2)return;b.textContent=x;o.push(b);if(o.length===2){if(o[0].dataset.v===o[1].dataset.v){o.forEach(z=>{z.disabled=true;z.classList.add("done")});o=[];if(++n===a.length)finishMiniGame()}else setTimeout(()=>{o.forEach(z=>z.textContent="❓");o=[]},450)}};el("mg").appendChild(b)})}
+function miniCircuit(r){const a=Array(9).fill(0).map(()=>Math.floor(Math.random()*4));r.innerHTML='<p class="muted">회로를 회전해 모두 같은 방향으로 맞추세요.</p><div class="rotateGrid" id="cg"></div>';const draw=()=>{el("cg").innerHTML="";a.forEach((x,i)=>{const b=document.createElement("button");b.className="rotateTile";b.textContent=["↑","→","↓","←"][x];b.onclick=()=>{a[i]=(a[i]+1)%4;draw();if(a.every(v=>v===0))finishMiniGame()};el("cg").appendChild(b)})};draw()}
+function miniPipes(r){const a=Array(9).fill(0).map(()=>Math.floor(Math.random()*4));r.innerHTML='<p class="muted">파이프를 회전해 연결하세요.</p><div class="pipeGrid" id="pg"></div>';const draw=()=>{el("pg").innerHTML="";a.forEach((x,i)=>{const b=document.createElement("button");b.className="pipeTile";b.textContent=["└","┌","┐","┘"][x];b.onclick=()=>{a[i]=(a[i]+1)%4;draw();if(a.every(v=>v===0))finishMiniGame()};el("pg").appendChild(b)})};draw()}
+function miniReaction(r){let n=0;r.innerHTML='<p class="muted">빨간 신호가 나타날 때 누르세요. 5회 성공.</p><div id="ra"></div>';const go=()=>{el("ra").innerHTML='<button style="width:100%;height:130px">대기</button>';setTimeout(()=>{el("ra").innerHTML='<button class="danger" style="width:100%;height:130px;font-size:40px">🔴</button>';el("ra").firstChild.onclick=()=>{if(++n>=5)finishMiniGame();else go()}},500+Math.random()*1000)};go()}
+function miniMemory(r){const q=[0,1,2,5,6],g=document.createElement("div");g.className="memoryGrid";g.id="mem";r.innerHTML='<p class="muted">빛나는 순서를 기억하세요.</p>';r.appendChild(g);let i=0,ready=false;for(let n=0;n<16;n++){const b=document.createElement("button");b.className="memoryCell";b.dataset.i=n;b.onclick=()=>{if(!ready)return;if(+b.dataset.i!==q[i]){toast("순서가 틀렸습니다.");i=0;return}b.classList.add("active");setTimeout(()=>b.classList.remove("active"),150);if(++i===q.length)finishMiniGame()};g.appendChild(b)}q.forEach((x,j)=>setTimeout(()=>g.children[x].classList.add("active"),j*400));setTimeout(()=>{g.querySelectorAll("button").forEach(b=>b.classList.remove("active"));ready=true},q.length*400+500)}
+function miniSafe(r){const code=String(Math.floor(1000+Math.random()*9000));r.innerHTML='<p class="muted">4자리 코드를 기억하세요.</p><div class="safeDisplay" id="sd">'+code+'</div><div class="safeKeys" id="sk"></div>';setTimeout(()=>{el("sd").textContent="••••";"1234567890".split("").forEach(n=>{const b=document.createElement("button");b.className="safeKey";b.textContent=n;b.onclick=()=>{let v=el("sd").dataset.v||"";v+=n;el("sd").dataset.v=v;el("sd").textContent="•".repeat(v.length);if(v.length===4){if(v===code)finishMiniGame();else{toast("코드가 틀렸습니다.");el("sd").dataset.v="";el("sd").textContent="••••"}}};el("sk").appendChild(b)})},1800)}
+function miniDNA(r){const target="ACGT",a=[..."ACGT"].sort(()=>Math.random()-.5);r.innerHTML='<p class="muted">A-C-G-T 순서로 선택하세요.</p><div id="dna" class="miniBoard"></div>';let v="";a.forEach(x=>{const b=document.createElement("button");b.textContent=x;b.onclick=()=>{v+=x;b.disabled=true;if(v.length===4){if(v===target)finishMiniGame();else{toast("순서가 틀렸습니다.");v="";el("dna").querySelectorAll("button").forEach(z=>z.disabled=false)}}};el("dna").appendChild(b)})}
+function miniShape(r){const target="▲ ○ ■",a=["▲ ○ ■","■ ▲ ○","○ ■ ▲","▲ ■ ○"];r.innerHTML='<div class="notice">목표: '+target+'</div><div id="sh" class="miniBoard"></div>';a.forEach(x=>{const b=document.createElement("button");b.className="shapeChoice";b.textContent=x;b.onclick=()=>x===target?finishMiniGame():toast("다른 모양입니다.");el("sh").appendChild(b)})}
+function miniTrace(r){r.innerHTML='<p class="muted">START에서 END까지 선을 따라가세요.</p><div class="traceArea"><div class="tracePath">● ──┐<br>└───┴──●</div></div>';let n=0;r.querySelector(".traceArea").onpointermove=()=>{if(++n>35)finishMiniGame()}}
 </script>
 </body>
 </html>
