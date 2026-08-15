@@ -136,18 +136,43 @@ const SOUND_FILES={
  adminNotice:"sounds/admin-notice.mp3"
 };
 const audio={};
-function preloadSounds(){for(const [k,v] of Object.entries(SOUND_FILES)){const a=new Audio(v);a.preload="auto";audio[k]=a;}}
-function playSound(name,eventKey=""){
+let soundUnlocked=false;
+function preloadSounds(){
+ for(const [k,v] of Object.entries(SOUND_FILES)){
+   const a=new Audio();
+   a.preload="auto";
+   a.src=v;
+   audio[k]=a;
+ }
+}
+async function playSound(name,eventKey=""){
  if(!soundEnabled||!audio[name])return;
  const key=eventKey||name,now=Date.now();
- if(key===lastSoundEvent && now-lastSoundAt<3000)return;
+ if(key===lastSoundEvent && now-lastSoundAt<2500)return;
  lastSoundEvent=key;lastSoundAt=now;
- audio[name].currentTime=0;audio[name].play().catch(()=>{});
+ try{
+   const a=audio[name];
+   a.pause();
+   a.currentTime=0;
+   await a.play();
+ }catch(e){
+   console.warn("사운드 재생 실패:",name,e);
+ }
 }
 function unlockSound(){
- if(soundEnabled)return;
+ if(soundUnlocked){soundEnabled=true;return;}
  soundEnabled=true;
- playSound("login","login");
+ soundUnlocked=true;
+ // 브라우저의 사용자 제스처 안에서 오디오 재생 권한을 먼저 확보합니다.
+ const a=audio.login;
+ if(a){
+   a.muted=true;
+   a.currentTime=0;
+   const p=a.play();
+   if(p){
+     p.then(()=>{a.pause();a.currentTime=0;a.muted=false;}).catch(()=>{a.muted=false;});
+   }else{a.muted=false;}
+ }
 }
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
@@ -183,6 +208,8 @@ async function join(){
 
 async function route(){
  try{
+  // 페이지 전환으로도 현재 브라우저 세션의 사운드 허용 상태를 유지합니다.
+  if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
   if(p.status!=="ALIVE"){stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';return;}
@@ -293,7 +320,11 @@ async function submitAnswer(){
  }catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}
 }
 
-function enableSound(){unlockSound();toast("알림 소리가 활성화되었습니다.");}
+function enableSound(){
+ unlockSound();
+ toast("알림 소리가 활성화되었습니다.");
+ setTimeout(()=>playSound("login","manual-sound-test"),50);
+}
 
 async function openLocationChoice(){
  const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
