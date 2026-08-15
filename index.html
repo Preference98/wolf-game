@@ -527,7 +527,7 @@ async function route(){
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
   if(p.status!=="ALIVE"){
-   if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){renderPermanentDeathScreen();return;}
+   if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){showScreen("deathWarning");return;}
    stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직이거나 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';return;
   }
   localStorage.removeItem("wolf_game_death_lock_v1");
@@ -838,37 +838,52 @@ function ignoreDeathConfirmation(){
 async function confirmDeathByPlayer(notificationId){
  await playSound("death","death-confirm-"+notificationId);
  await showScreen("deathWarning");
- await new Promise(r=>setTimeout(r,2000));
 
- await showScreen("deathCountdown");
+ const warningStage=el("deathWarning").querySelector(".deathWarningStage");
+ warningStage.innerHTML=
+   '<div><div class="symbol">☠️</div><h1>사망 처리</h1>'+
+   '<p style="font-size:26px;font-weight:900;color:#ff3347">지금부터 당신은 아무말도 할 수 없습니다.</p>'+
+   '<div id="deathWarningCountdown" class="countNum" style="margin:18px 0">5</div>'+
+   '<p id="deathWarningCountdownText" style="font-size:24px;font-weight:900;color:#ff3347">5초 후에 당신은 완전히 죽습니다.</p></div>';
+
  for(let n=5;n>=1;n--){
-   el("deathCountdownNum").textContent=n;
+   el("deathWarningCountdown").textContent=n;
+   el("deathWarningCountdownText").textContent=n+"초 후에 당신은 완전히 죽습니다.";
    await new Promise(r=>setTimeout(r,1000));
  }
- el("deathCountdownNum").textContent="";
- el("deathCountdown").querySelector(".deathCountdownStage").innerHTML=
-   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">사망 처리 완료</h1>'+
-   '<p style="font-size:28px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
-   '<p class="muted">게임 전체 초기화 전까지 이 화면이 유지됩니다.</p></div>';
+
+ // From this point the player is treated as dead and the warning screen remains
+ // visible for at least 35 seconds, avoiding the previous immediate route transition.
  localStorage.setItem("wolf_game_death_lock_v1","1");
  const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
  if(r.error){
    localStorage.removeItem("wolf_game_death_lock_v1");
-   toast("사망 처리 실패: "+r.error.message);
+   toast("사망 처리 실패: "+r.message);
    return;
  }
- renderPermanentDeathScreen();
+
+ warningStage.innerHTML=
+   '<div><div class="symbol">☠️</div>'+
+   '<h1 class="deathLockTitle">사망 처리 완료</h1>'+
+   '<p style="font-size:30px;font-weight:900;color:#ff3347;line-height:1.7">지금부터 당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
+   '<p class="muted">이 화면은 35초 동안 유지됩니다.</p></div>';
+ showScreen("deathWarning");
+ stopAllTimers();
+
  await db.from("notifications").delete().eq("id",notificationId);
- // 사망 경고 화면을 30초간 유지한 뒤 기존 탈락 화면으로 전환
- await new Promise(r=>setTimeout(r,30000));
+
+ await new Promise(r=>setTimeout(r,35000));
+ // After the 35-second warning, show the existing elimination screen.
  if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
    localStorage.removeItem("wolf_game_death_lock_v1");
    stopAllTimers();
    showScreen("trialLock");
-   el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+   el("trialLock").innerHTML=
+     '<div class="lock"><div><div class="symbol">☠️</div>'+
+     '<h1 class="deathLockTitle">탈락</h1>'+
+     '<p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
  }
 }
-
 async function openLocationChoice(){
  const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
  const ls=await locations();
