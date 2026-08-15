@@ -583,7 +583,11 @@ async function ensureRoundMissionSetup(round){
    if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
    const type=randomMissionTypeForLocation(loc);
    const pq=puzzles[Math.floor(Math.random()*puzzles.length)];
+   const missionId=(crypto&&typeof crypto.randomUUID==="function")
+     ? crypto.randomUUID()
+     : ("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
    const mr=await db.from("missions").insert({
+     id:missionId,
      title:(titles[type]||"두뇌퍼즐")+" · R"+round,
      mission_location_id:loc.id,
      concept_type:loc.concept_type,
@@ -655,7 +659,11 @@ async function route(){
   if(g.phase==="ROLE_INTRO"){stopAllTimers();await renderRoleIntro();return;}
   if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
   if(g.phase==="ROLE_REVEAL"){stopAllTimers();await renderRoleReveal(p,g);return;}
-  if(g.phase==="COUNTDOWN"){stopAllTimers();await renderGameCountdown(p,g);return;}
+  if(g.phase==="COUNTDOWN"){
+    if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
+    await renderGameCountdown(p,g);
+    return;
+  }
   if(g.phase==="FINISHED" && g.winner){await renderVictory(g.winner);return;}
   if(g.phase==="INVESTIGATION"){stopRoundTimer();await renderInvestigation(p,g);return;}
   if(g.phase==="TRIAL"){stopAllTimers();showTrialLock();return;}
@@ -815,7 +823,6 @@ async function renderPlayer(){
  if(g.phase==="TRIAL"){showTrialLock();return;}
  let locs=[],cs=[];
  try{
-   await ensureRoundMissionSetup(g.current_round);
    locs=await getRoundMissionLocations(g.current_round);
    cs=await comps(g.current_round);
  }catch(e){
