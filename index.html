@@ -510,16 +510,6 @@ async function join(){
 }
 
 
-function renderPermanentDeathScreen(){
- const stage=el("deathCountdown");
- if(!stage)return;
- stage.querySelector(".deathCountdownStage").innerHTML=
-   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">사망 처리 완료</h1>'+
-   '<p style="font-size:28px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
-   '<p class="muted">게임 전체 초기화 전까지 이 화면이 유지됩니다.</p></div>';
- showScreen("deathCountdown");
- stopAllTimers();
-}
 async function route(){
  try{
   // 페이지 전환으로도 현재 브라우저 세션의 사운드 허용 상태를 유지합니다.
@@ -1154,6 +1144,13 @@ function realtime(){
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
    const p=payload.new||{};
    if(p.status!=="ALIVE"){
+     // 사망확인 완료 직후 Supabase UPDATE가 발생하면서 이 핸들러가
+     // 기존 탈락 화면을 강제로 띄우던 것이 원인이었습니다.
+     // 닫기 버튼을 누르기 전에는 사망 경고 화면을 유지합니다.
+     if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
+       showScreen("deathWarning");
+       return;
+     }
      stopAllTimers();
      showScreen("trialLock");
      el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';
