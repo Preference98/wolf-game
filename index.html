@@ -134,6 +134,15 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .totalMissionCount{font-size:clamp(18px,3vw,25px);font-weight:800;margin:8px 0 18px;color:#ddd}
 .totalMissionCount b{color:#fff;font-size:1.12em}
 
+
+/* DEATH CONFIRMATION v33 */
+.deathCountdownStage{background:#050000!important}
+.deathCountdownStage .countNum{color:#ff3347;text-shadow:0 0 30px #ff3347,0 0 80px #ff0000}
+.deathConfirmList{display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto;margin:18px auto;max-width:520px}
+.deathConfirmList button{font-size:20px;padding:16px}
+.deathConfirmName{color:#ff3347;font-weight:900}
+.deathLockTitle{color:#ff3347}
+
 </style>
 </head>
 <body>
@@ -159,8 +168,26 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p></div>
 <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
-<div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button></div>
+<div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button>
+<div id="wolfDeathAction" style="margin-top:10px"></div></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
+</section>
+
+<section id="deathConfirm" class="screen">
+<div class="fullStage show"><div>
+<div class="symbol">☠️</div>
+<h1>사망 확인</h1>
+<p id="deathConfirmMessage" class="muted" style="font-size:22px"></p>
+<div id="deathConfirmActions"></div>
+</div></div>
+</section>
+
+<section id="deathCountdown" class="screen">
+<div class="fullStage show deathCountdownStage"><div>
+<div class="symbol">☠️</div>
+<div id="deathCountdownNum" class="countNum">3</div>
+<h1>사망 처리 중</h1>
+</div></div>
 </section>
 
 <section id="investigation" class="screen">
@@ -400,7 +427,7 @@ async function route(){
   if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
-  if(p.status!=="ALIVE"){stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';return;}
+  if(p.status!=="ALIVE"){stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직이거나 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';return;}
   const g=await settings();
   if(g.phase==="ROLE_INTRO"){stopAllTimers();await renderRoleIntro();return;}
   if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
@@ -563,7 +590,11 @@ async function renderPlayer(){
  const myDone=cs.some(x=>x.player_id===p.id),box=el("missions");box.innerHTML="";
  ms.forEach(m=>{const own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id),disabled=myDone||own||!nfcTestMode;
  box.innerHTML+='<div class="item mission"><div><b>'+esc(m.location)+'</b><div class="muted">'+esc(m.title)+'</div></div><button '+(disabled?"disabled":"")+' onclick="openMission(\''+esc(m.id)+'\')">'+(own?"완료":"수행")+'</button></div>';});
- el("deadSheepBtn").disabled=false;showScreen("player");startRoundTimer(g);
+ el("deadSheepBtn").disabled=false;
+ el("wolfDeathAction").innerHTML=p.role==="WOLF"
+   ? '<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망확인</button>'
+   : "";
+ showScreen("player");startRoundTimer(g);
 }
 
 async function renderInvestigation(p,g){
@@ -650,6 +681,78 @@ async function enableSound(){
  await unlockSound();
  toast("알림 소리가 활성화되었습니다.");
  setTimeout(()=>playSound("login","manual-sound-test"),50);
+}
+
+async 
+async function openWolfDeathList(){
+ const p=await me(),g=await settings();
+ if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
+ const sheep=(await db.from("players").select("id,name").eq("role","SHEEP").eq("status","ALIVE").order("name")).data||[];
+ if(!sheep.length){toast("현재 사망 처리할 수 있는 양이 없습니다.");return;}
+ const html='<div class="deathConfirmList">'+
+   sheep.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+esc(x.name)+' 양</button>').join("")+
+   '</div><button class="secondary" style="width:100%" onclick="closeOverlay()">취소</button>';
+ openOverlay("☠️","사망확인","죽인 양의 이름을 선택하십시오.","",html);
+}
+
+function confirmWolfDeath(id,name){
+ const safeName=String(name).replace(/'/g,"&#39;");
+ openOverlay("☠️","사망 처리 확인",
+   '정말 <span class="deathConfirmName">'+esc(name)+' 양</span>을 죽인 것으로 확인하시겠습니까?',"",
+   '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openWolfDeathList()">취소</button>'+
+   '<button class="danger" style="flex:1" onclick="sendDeathConfirmation(\''+esc(id)+'\',\''+safeName+'\')">확인</button></div>');
+}
+
+async function sendDeathConfirmation(victimId,victimName){
+ closeOverlay();
+ const p=await me(),g=await settings();
+ if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
+ const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
+ if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
+ const r=await db.from("notifications").insert({
+   message:"늑대가 당신을 사망 처리했습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.",
+   target_player:victim.id,
+   notification_type:"DEATH_CONFIRM"
+ });
+ if(r.error){toast("사망 확인 요청 실패: "+r.error.message);return;}
+ toast(victim.name+" 양에게 사망 확인 요청을 보냈습니다.");
+}
+
+async function showDeathConfirmation(notification){
+ const message=notification?.message||"늑대가 당신을 사망 처리했습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.";
+ await showScreen("deathConfirm");
+ el("deathConfirmMessage").innerHTML=esc(message);
+ el("deathConfirmActions").innerHTML=
+   '<div style="display:flex;gap:10px;max-width:520px;margin:20px auto">'+
+   '<button class="secondary" style="flex:1" onclick="ignoreDeathConfirmation()">아니오</button>'+
+   '<button class="danger" style="flex:1" onclick="confirmDeathByPlayer(\''+esc(notification.id)+'\')">내가 죽은 것이 맞습니다</button>'+
+   '</div>';
+}
+
+function ignoreDeathConfirmation(){
+ showScreen("player");
+ route();
+}
+
+async function confirmDeathByPlayer(notificationId){
+ await showScreen("deathCountdown");
+ let n=3;
+ el("deathCountdownNum").textContent=n;
+ await playSound("deadSheepFound","death-confirm-"+notificationId+"-3");
+ for(n=3;n>=1;n--){
+   el("deathCountdownNum").textContent=n;
+   if(n!==3)await playSound("deadSheepFound","death-confirm-"+notificationId+"-"+n);
+   await new Promise(r=>setTimeout(r,1000));
+ }
+ el("deathCountdownNum").textContent="";
+ el("deathCountdown").querySelector(".deathCountdownStage").innerHTML=
+   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">당신은 탈락했습니다.</h1>'+
+   '<p style="font-size:24px;font-weight:800">지금부터 그 자리에서 움직일 수 없으며<br>말할 수 없습니다.</p>'+
+   '<p class="muted">게임 전체 초기화 전까지 게임에 참여할 수 없습니다.</p></div>';
+ await new Promise(r=>setTimeout(r,1200));
+ const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
+ if(r.error){toast("사망 처리 실패: "+r.error.message);return;}
+ await db.from("notifications").delete().eq("id",notificationId);
 }
 
 async function openLocationChoice(){
@@ -922,6 +1025,10 @@ function realtime(){
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
    if(n.target_player && n.target_player!==playerId)return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
+   if(n.notification_type==="DEATH_CONFIRM"){
+     showDeathConfirmation(n);
+     return;
+   }
    openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
    if(n.notification_type==="ADMIN")playSound("adminNotice","admin-notice-"+n.id);
    // WOLF notifications intentionally have no sound.
