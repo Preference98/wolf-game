@@ -716,60 +716,17 @@ async function ensureRoundMissionSetup(round){
  const activeIds=new Set(activeUnique.map(x=>String(x.id)));
  const seenIds=new Set(),seenNames=new Set(),keep=[],removeIds=[];
  for(const row of rows){
-   const loc=activeUnique.find(x=>String(x.id)===String(row.mission_location_id));
-   const nameKey=String(loc?.name||row.mission_location_id).trim();
-   if(!activeIds.has(String(row.mission_location_id)) ||
-      seenIds.has(String(row.mission_location_id)) ||
-      seenNames.has(nameKey)){
-     if(row.id!=null)removeIds.push(row.id);
-     continue;
-   }
-   seenIds.add(String(row.mission_location_id));seenNames.add(nameKey);keep.push(row);
- }
- if(removeIds.length){
-   const dr=await db.from("round_mission_locations").delete().in("id",removeIds);
-   if(dr.error)throw new Error("중복 라운드 미션 제거 실패: "+dr.error.message);
- }
- rows=keep;
-
- // 현재 라운드의 장소 수가 플레이어 수-1과 다르면 부족분만 채웁니다.
- if(rows.length<targetCount){
-   const used=new Set(rows.map(x=>String(x.mission_location_id)));
-   const candidates=activeUnique.filter(x=>!used.has(String(x.id)));
-   // 라운드마다 후보 순서를 섞어 랜덤 배치합니다.
-   for(let i=candidates.length-1;i>0;i--){
-     const j=Math.floor(Math.random()*(i+1));
-     [candidates[i],candidates[j]]=[candidates[j],candidates[i]];
-   }
-   const add=candidates.slice(0,targetCount-rows.length);
-   if(add.length){
-     const ins=await db.from("round_mission_locations")
-       .insert(add.map((loc,i)=>({
-         game_round:round,
-         mission_location_id:loc.id,
-         sort_order:rows.length+i
-       }))).select();
-     if(ins.error)throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
-     rows=rows.concat(ins.data||[]);
-   }
- }
- if(rows.length>targetCount)rows=rows.slice(0,targetCount);
-
- // 각 활성 장소에 대해 관리자가 등록한 동일 컨셉의 미션 중 하나를 선택합니다.
- const locIds=rows.map(x=>x.mission_location_id).filter(Boolean);
- if(!locIds.length)return [];
- const lr=await db.from("mission_locations").select("*").in("id",locIds);
- if(lr.error)throw new Error("라운드 미션 장소 조회 실패: "+lr.error.message);
- const locations=lr.data||[];
-
- for(const row of rows){
    if(row.mission_id)continue;
    const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
    if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
    const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
-   // 우선 새 구조(mission_location_id)로 찾고,
-   // 예전에 등록된 미션이 location_id 또는 location으로만 연결되어 있어도
-   // 정상적으로 찾아서 현재 장소에 다시 연결합니다.
+
+   // MINIGAME 장소는 DB에 미션을 미리 등록할 필요가 없습니다.
+   // 실제 미니게임은 입장할 때 아래 getOrCreateRoundMission()에서
+   // 7개 미니게임 중 하나를 랜덤으로 생성합니다.
+   if(concept==="MINIGAME")continue;
+
+   // PUZZLE만 관리자가 등록한 미션을 사용합니다.
    let pool=[];
    const exact=await db.from("missions").select("*")
      .eq("active",true)
@@ -796,11 +753,9 @@ async function ensureRoundMissionSetup(round){
      pool=legacyName.data||[];
    }
 
-   if(!pool.length)throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
+   if(!pool.length)throw new Error("미션 장소 '"+loc.name+"'에 등록된 두뇌퍼즐 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
 
    const selected=pool[Math.floor(Math.random()*pool.length)];
-
-   // 과거 형식으로 저장된 미션이면 현재 장소 연결을 자동으로 복구합니다.
    if(String(selected.mission_location_id||"")!==String(loc.id) ||
       String(selected.location_id||"")!==String(loc.id)){
      const fix=await db.from("missions").update({
@@ -810,6 +765,7 @@ async function ensureRoundMissionSetup(round){
      }).eq("id",String(selected.id));
      if(fix.error)throw new Error("미션 장소 연결 복구 실패 ("+loc.name+"): "+fix.error.message);
    }
+
    const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
    if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
  }
@@ -1077,20 +1033,119 @@ async function renderPlayer(){
 
 async function getOrCreateRoundMission(location,round){
   await ensureRoundMissionSetup(round);
+
   const row=await db.from("round_mission_locations")
-    .select("mission_id")
+    .select("*")
     .eq("game_round",round)
     .eq("mission_location_id",location.id)
     .order("id",{ascending:true})
     .limit(1)
     .maybeSingle();
+
   if(row.error) throw new Error("라운드 미션 연결 조회 실패: "+row.error.message);
-  if(!row.data?.mission_id) throw new Error("이 장소의 라운드 미션이 아직 생성되지 않았습니다.");
+  if(!row.data) throw new Error("이 장소의 라운드 미션이 아직 생성되지 않았습니다.");
+
+  const concept=String(location.concept_type||"PUZZLE").toUpperCase();
+
+  if(concept==="MINIGAME"){
+    // 미니게임은 DB에 미리 등록하지 않습니다.
+    // 별도 테스트 파일에서 완성한 7개 미니게임 중 하나를
+    // 라운드/입장 시 자동으로 랜덤 배정합니다.
+    if(row.data.mission_id){
+      const existing=await db.from("missions").select("*").eq("id",row.data.mission_id).maybeSingle();
+      if(!existing.error && existing.data)return existing.data;
+    }
+
+    const miniType=randomMissionTypeForLocation(location);
+    const titles={
+      WIRING:"배선 연결",
+      MATCHING:"같은 그림 찾기",
+      CIRCUIT:"방향 맞추기",
+      MEMORY:"순서기억",
+      SAFE:"금고 비밀번호",
+      SHAPE:"도형선택",
+      TRACE:"선 따라가기"
+    };
+    const missionId=(crypto&&typeof crypto.randomUUID==="function")
+      ?crypto.randomUUID()
+      :("mini-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
+
+    const generated={
+      id:missionId,
+      location:location.name,
+      location_id:location.id,
+      mission_location_id:location.id,
+      title:titles[miniType]||"미니게임",
+      description:"자동 생성된 미니게임",
+      question:"",
+      answer:"",
+      wolf_question:"",
+      wolf_answer:"",
+      active:true,
+      concept_type:"MINIGAME",
+      mini_game_type:miniType
+    };
+
+    const ins=await db.from("missions").insert(generated).select("*").single();
+    if(ins.error)throw new Error("미니게임 자동 생성 실패 ("+location.name+"): "+ins.error.message);
+
+    const ur=await db.from("round_mission_locations")
+      .update({mission_id:String(ins.data.id)})
+      .eq("id",row.data.id);
+
+    if(ur.error)throw new Error("미니게임 라운드 연결 실패: "+ur.error.message);
+    return ins.data;
+  }
+
+  if(!row.data.mission_id) throw new Error("이 장소의 라운드 미션이 아직 생성되지 않았습니다.");
+
   const r=await db.from("missions").select("*").eq("id",row.data.mission_id).single();
   if(r.error) throw new Error("라운드 미션 조회 실패: "+r.error.message);
   return r.data;
 }
-async function openMission(id){try{const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const m=(await allMissions()).find(x=>String(x.id)===String(id));if(!m)throw new Error("미션을 찾을 수 없습니다.");const loc=await getMissionLocation(m.mission_location_id||m.location_id),cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(m.id))){toast("이미 완료된 미션입니다.");return;}window.__miniOutcomeLocked=false;currentMission=m;el("mMeta").textContent=(loc?.name||"미션")+" · "+(m.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐");el("mTitle").textContent=m.title;el("mDesc").textContent=m.description||"";el("question").textContent="";el("answer").value="";el("missionResult").innerHTML="";if(el("miniGame"))el("miniGame").innerHTML="";el("answer").style.display=m.concept_type==="PUZZLE"?"":"none";el("answerBtn").style.display=m.concept_type==="PUZZLE"?"":"none";missionEndAt=Date.now()+180000;clearInterval(missionTimer);missionTimer=setInterval(tickMission,250);tickMission();showScreen("mission");if(m.concept_type==="MINIGAME")launchMiniGame(m);else el("question").textContent=m.question||"문제가 없습니다.";}catch(e){toast(e.message||String(e));}}
+
+async function createFreshMiniMission(location,round){
+  const miniType=randomMissionTypeForLocation(location);
+  const titles={
+    WIRING:"배선 연결",
+    MATCHING:"같은 그림 찾기",
+    CIRCUIT:"방향 맞추기",
+    MEMORY:"순서기억",
+    SAFE:"금고 비밀번호",
+    SHAPE:"도형선택",
+    TRACE:"선 따라가기"
+  };
+  const missionId=(crypto&&typeof crypto.randomUUID==="function")
+    ?crypto.randomUUID()
+    :("mini-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
+  const generated={
+    id:missionId,
+    location:location.name,
+    location_id:location.id,
+    mission_location_id:location.id,
+    title:titles[miniType]||"미니게임",
+    description:"자동 생성된 미니게임",
+    question:"",
+    answer:"",
+    wolf_question:"",
+    wolf_answer:"",
+    active:true,
+    concept_type:"MINIGAME",
+    mini_game_type:miniType
+  };
+  const ins=await db.from("missions").insert(generated).select("*").single();
+  if(ins.error)throw new Error("미니게임 자동 생성 실패 ("+location.name+"): "+ins.error.message);
+  const rr=await db.from("round_mission_locations").update({mission_id:String(missionId)})
+    .eq("game_round",round).eq("mission_location_id",location.id);
+  if(rr.error)throw new Error("미니게임 라운드 연결 실패: "+rr.error.message);
+  return ins.data;
+}
+async function openMission(id){try{const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}let m=(await allMissions()).find(x=>String(x.id)===String(id));if(!m)throw new Error("미션을 찾을 수 없습니다.");const loc=await getMissionLocation(m.mission_location_id||m.location_id);const cs=await comps(g.current_round);
+if(String(m.concept_type||"").toUpperCase()==="MINIGAME"){
+  // 같은 장소를 다시 입장할 때마다 7개 중 다른/새 미니게임을 랜덤 선택합니다.
+  const fresh=await createFreshMiniMission(loc,g.current_round);
+  m=fresh;
+}if(cs.some(x=>String(x.mission_id)===String(m.id))){toast("이미 완료된 미션입니다.");return;}window.__miniOutcomeLocked=false;currentMission=m;el("mMeta").textContent=(loc?.name||"미션")+" · "+(m.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐");el("mTitle").textContent=m.title;el("mDesc").textContent=m.description||"";el("question").textContent="";el("answer").value="";el("missionResult").innerHTML="";if(el("miniGame"))el("miniGame").innerHTML="";el("answer").style.display=m.concept_type==="PUZZLE"?"":"none";el("answerBtn").style.display=m.concept_type==="PUZZLE"?"":"none";missionEndAt=Date.now()+180000;clearInterval(missionTimer);missionTimer=setInterval(tickMission,250);tickMission();showScreen("mission");if(m.concept_type==="MINIGAME")launchMiniGame(m);else el("question").textContent=m.question||"문제가 없습니다.";}catch(e){toast(e.message||String(e));}}
 async function completeCurrentMission(){const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(currentMission.id))){toast("이미 완료된 미션입니다.");return;}if(p.role==="SHEEP"){const r=await db.from("mission_completions").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id});if(r.error)throw new Error(r.error.message);toast("미션 완료!");}else toast("늑대 미션 완료!");await renderPlayer();}
 async function submitAnswer(){const btn=el("answerBtn");if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
 async function enableSound(){
