@@ -354,6 +354,40 @@ let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=
 let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null;
 
+// 공통 타이머 정리 함수
+// 새로고침/Realtime 상태 변경으로 route()가 다시 실행될 때도
+// 존재하지 않는 함수를 호출하지 않도록 모든 화면용 타이머를 한 곳에서 정리합니다.
+function stopRoundTimer(){
+  if(roundTimer){ clearInterval(roundTimer); roundTimer=null; }
+}
+function stopMissionTimer(){
+  if(missionTimer){ clearInterval(missionTimer); missionTimer=null; }
+  missionEndAt=0;
+}
+function stopInvestigationTimer(){
+  if(investigationTimer){ clearInterval(investigationTimer); investigationTimer=null; }
+}
+function stopCountdownTimer(){
+  if(countdownTimer && typeof countdownTimer==="object" && countdownTimer.timerId){
+    clearInterval(countdownTimer.timerId);
+  }
+  countdownTimer=null;
+}
+function stopRoleRevealTimer(){
+  if(roleRevealTimer){ clearInterval(roleRevealTimer); roleRevealTimer=null; }
+}
+function stopAllTimers(){
+  stopRoundTimer();
+  stopMissionTimer();
+  stopInvestigationTimer();
+  stopCountdownTimer();
+  stopRoleRevealTimer();
+  if(adminGameStartEffectTimer){
+    clearTimeout(adminGameStartEffectTimer);
+    adminGameStartEffectTimer=null;
+  }
+}
+
 const SOUND_FILES={
  roleSelectionBgm:"sounds/role-selection-bgm.mp3",
  gameStartBgm:"sounds/game-start-bgm.mp3",
