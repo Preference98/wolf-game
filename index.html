@@ -14,7 +14,7 @@ body{background:radial-gradient(circle at 50% 0,#220004 0,#050505 42%,#000 78%);
 header{text-align:center;padding:9px 12px;border-bottom:1px solid #360007;background:#050505}
 .title{display:block;width:min(440px,96%);height:112px;object-fit:cover;object-position:center 20%;margin:auto}
 .sub{font-size:9px;color:#777;letter-spacing:3px}
-main{padding:18px}.screen{display:none}.screen.active{display:block}
+main{padding:18px}.screen{display:none}.screen.active{display:block!important}
 .card{background:linear-gradient(145deg,#111,#050505);border:1px solid #292929;border-radius:12px;padding:16px;margin-bottom:13px;box-shadow:inset 0 0 20px #000}
 h1{font-family:Cinzel,"Noto Sans KR",serif;font-size:25px;margin:0 0 8px;text-shadow:0 0 12px #f00000}
 h2{font-size:18px;margin:0 0 10px}.muted{color:#949494;font-size:13px;line-height:1.65}.small{font-size:11px;color:#777}
@@ -62,8 +62,12 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <header><img class="title" src="wolf_game_title.png" alt="늑대게임"><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
+<div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
+  <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
+  <div id="bootFallbackText" style="margin-top:8px;color:#aaa;font-size:13px"></div>
+</div>
 
-<section id="login" class="screen active">
+<section id="login" class="screen active" style="display:block">
 <div class="card"><h1>게임 입장</h1><p class="muted">이름을 입력하십시오. <b>관리자</b>를 입력하면 관리자 화면으로 입장합니다.</p>
 <input id="name" placeholder="성명" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">입장</button><div id="loginStatus"></div></div>
 </section>
@@ -253,15 +257,23 @@ function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
- if(fadeBusy){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));el(id).classList.add("active");return;}
- fadeBusy=true;
- const f=el("fadeLayer");f.classList.add("on");
- await new Promise(r=>setTimeout(r,220));
+ const target=el(id);
+ if(!target)return;
  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
- el(id).classList.add("active");
- await new Promise(r=>setTimeout(r,120));
- f.classList.remove("on");
- fadeBusy=false;
+ target.classList.add("active");
+ target.style.display="block";
+ if(fadeBusy)return;
+ fadeBusy=true;
+ try{
+   const f=el("fadeLayer");
+   if(f){
+     f.classList.add("on");
+     await new Promise(r=>setTimeout(r,220));
+     f.classList.remove("on");
+   }
+ }finally{
+   fadeBusy=false;
+ }
 }
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function showError(id,m){el(id).innerHTML='<div class="errorbox">'+esc(m)+'</div>';}
@@ -678,12 +690,23 @@ function realtime(){
 
 async function boot(){
  try{
-  if(typeof window.supabase==="undefined")throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
-  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);preloadSounds();realtime();
+  // 초기 로그인 화면은 Supabase 연결과 관계없이 항상 표시합니다.
+  showScreen("login");
+  if(typeof window.supabase==="undefined"){
+    throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
+  }
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  preloadSounds();
+  realtime();
   el("name").addEventListener("keydown",e=>{if(e.key==="Enter")join();});
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
-  if(playerId)await route();else showScreen("login");
- }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}
+  if(playerId)await route();
+ }catch(e){
+  console.error(e);
+  const fb=el("bootFallback"),ft=el("bootFallbackText");
+  if(fb){fb.style.display="block";ft.textContent=e.message||String(e);}
+  showError("loginStatus",e.message||String(e));
+ }
 }
 
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
