@@ -505,6 +505,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateSt
 window.addEventListener("focus",()=>activateStageAudio());
 
 function el(id){return document.getElementById(id);}
+window.el=el;
 function ensureEl(id,parentId="mission",tag="div"){
  const existing=el(id);
  if(existing)return existing;
