@@ -542,6 +542,13 @@ async function me(){if(!playerId)return null;const r=await db.from("players").se
 async function missions(){const r=await db.from("missions").select("*").eq("active",true).order("id");if(r.error)throw new Error("미션 불러오기 오류\n"+r.error.message);return r.data||[];}
 
 async function activeMissionLocationsForRound(round, playerCount){const all=await db.from("mission_locations").select("*").eq("active",true).order("id");if(all.error)throw new Error("미션 장소 목록 오류\\n"+all.error.message);const n=Math.max(0,Math.min((playerCount||0)-1,(all.data||[]).length));const arr=[...(all.data||[])];let seed=0;for(const ch of String(round||1))seed=(seed*31+ch.charCodeAt(0))>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};for(let j=arr.length-1;j>0;j--){const k=Math.floor(rnd()*(j+1));[arr[j],arr[k]]=[arr[k],arr[j]];}return arr.slice(0,n);}
+function randomMissionTypeForLocation(location){
+ const miniGames=["WIRING","MATCHING","CIRCUIT","PIPES","REACTION","MEMORY","SAFE","DNA","SHAPE","TRACE"];
+ const puzzles=["NUMBER_RULE","LOGIC","SHAPE_RULE","SEQUENCE","MEMORY_PUZZLE","CALCULATION"];
+ const type=String(location?.concept_type||"PUZZLE").toUpperCase();
+ const pool=type==="MINIGAME"?miniGames:puzzles;
+ return pool[Math.floor(Math.random()*pool.length)];
+}
 async function ensureRoundMissionSetup(round){
  const existing=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
  if(existing.error)throw new Error("라운드 미션 설정 조회 실패: "+existing.error.message);
@@ -659,7 +666,10 @@ async function route(){
   const msg=e.message||String(e);
   const status=el("loginStatus");
   if(status) status.innerHTML='<div class="errorbox">'+esc(msg)+'</div>';
-  toast(msg);
+  // 이미 플레이어 세션이 있으면 로그인 화면으로 되돌리지 않고
+  // 현재 화면에서 오류만 표시합니다.
+  if(playerId) toast("게임 화면을 불러오는 중 오류: "+msg);
+  else showScreen("login");
  }
 }
 
@@ -974,8 +984,11 @@ async function startGame(){
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
  if(!players.length||!players.every(x=>x.card_selected)){toast("모든 플레이어의 양과 늑대 선정이 완료되지 않았습니다.");return;}
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
- await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
+ // 라운드 미션을 먼저 확정/생성합니다.
+ // 생성에 실패하면 COUNTDOWN 상태로 저장하지 않아 새로고침 후 게임이
+ // 반쯤 시작된 상태로 남는 것을 방지합니다.
  await ensureRoundMissionSetup(g.current_round);
+ await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  await startGameStartBgm();
  clearTimeout(adminGameStartEffectTimer);
  adminGameStartEffectTimer=setTimeout(()=>playSound("gameStart","game-start-admin-"+g.current_round),15000);
