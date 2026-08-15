@@ -776,9 +776,6 @@ async function removeLocation(id,name){const r=await db.from("game_locations").u
 function confirmRemovePlayer(id,name){pendingAdminAction=()=>removePlayer(id,name);openOverlay("🚪","플레이어 퇴장","「"+name+"」 플레이어를 퇴장시키겠습니까?","",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="runPendingFunction()">퇴장</button></div>');}
 async function runPendingFunction(){const f=pendingAdminAction;pendingAdminAction=null;closeOverlay();if(typeof f==="function")await f();}
 async function removePlayer(id,name){try{const r=await db.from("players").update({status:"REMOVED"}).eq("id",id);if(r.error)throw new Error(r.message||r.error.message);toast(name+" 플레이어를 퇴장 처리했습니다.");await renderAdmin();}catch(e){toast("플레이어 퇴장 실패: "+e.message);}}
-
-
-async 
 async function renderVictory(winner){
  stopAllTimers();stopRoleSelectionBgm();
  const kind=winner==="WOLF"?"wolf":"sheep";
