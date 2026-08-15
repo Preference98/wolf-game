@@ -56,7 +56,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .revealCard.wolf{border-color:#9a000a;background:#300006;color:#ff3846}
 .revealCard.sheep{border-color:#1b8b47;background:#062c17;color:#5de28a}
 @media(max-width:420px){.selectionGrid{grid-template-columns:1fr}.roleCard,.revealCard{height:120px}}
-</style>
+
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -295,11 +295,22 @@ async function join(){
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
  try{
   await unlockSound();
-  if(name==="관리자"){localStorage.setItem("wolf_game_admin_v7","1");toast("관리자로 로그인되었습니다.");showScreen("admin");await renderAdmin();return;}
+  if(name==="관리자"){
+     localStorage.removeItem("wolf_game_player_v7");
+     localStorage.setItem("wolf_game_admin_v7","1");
+     toast("관리자로 로그인되었습니다.");
+     await showScreen("admin");
+     await renderAdmin();
+     return;
+   }
   let r=await db.from("players").select("*").eq("name",name).maybeSingle();if(r.error)throw new Error(r.error.message);
   let p=r.data;
   if(!p){r=await db.from("players").insert({name,role:"UNASSIGNED",status:"ALIVE"}).select().single();if(r.error)throw new Error("플레이어 등록 실패\n"+r.error.message);p=r.data;}
-  playerId=p.id;localStorage.setItem("wolf_game_player_v7",playerId);toast("접속되었습니다.");await route();
+  playerId=p.id;
+   localStorage.setItem("wolf_game_player_v7",playerId);
+   localStorage.removeItem("wolf_game_admin_v7");
+   toast("접속되었습니다.");
+   await route();
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}finally{done();}
 }
 
@@ -397,36 +408,19 @@ async function startRoleSelection(){
  toast("양과 늑대 선정 화면을 시작합니다.");
 }
 async function markReady(){
- const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
- if(!players.length){toast("참가자가 없습니다.");return;}
- await set({ready:true,notice:"준비완료 — "+players.length+"명 확정"});
- toast(players.length+"명의 플레이어가 확정되었습니다.");
- await renderAdmin();
-}
-async function renderPlayer(){
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"){await route();return;}
- if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
- if(g.phase==="TRIAL"){showTrialLock();return;}
- const ms=await missions(),cs=await comps(g.current_round);
- el("stateTitle").textContent="양 생존 중...";el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;
- el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";
- const myDone=cs.some(x=>x.player_id===p.id),box=el("missions");box.innerHTML="";
- ms.forEach(m=>{const own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id),disabled=myDone||own||!nfcTestMode;
- box.innerHTML+='<div class="item mission"><div><b>'+esc(m.location)+'</b><div class="muted">'+esc(m.title)+'</div></div><button '+(disabled?"disabled":"")+' onclick="openMission(\''+esc(m.id)+'\')">'+(own?"완료":"수행")+'</button></div>';});
- el("deadSheepBtn").disabled=false;showScreen("player");startRoundTimer(g);
-}
-
-async function renderInvestigation(p,g){
- stopRoundTimer();showScreen("investigation");
- const loc=g.dead_sheep_location||"현장";
- el("investigationNotice").innerHTML='누군가 <span class="locationName">'+esc(loc)+'</span>에서 <span class="deadSheep">죽은 양</span>을 발견했습니다.';
- const cs=await comps(g.current_round),ms=await missions(),mine=cs.filter(x=>x.player_id===p.id);
- const list=el("myCompletedMissions");
- if(mine.length){
-   const names=mine.map(c=>{const m=ms.find(x=>String(x.id)===String(c.mission_id));return m?'<li>'+esc(m.location)+' — '+esc(m.title)+'</li>':''}).join("");
-   list.innerHTML='<div class="completedList"><b>내가 완료한 미션</b><ul>'+names+'</ul></div>';
- }else list.innerHTML='<div class="completedList muted">내가 완료한 미션이 없습니다.</div>';
+  try{
+    const r=await db.from("players").select("*").eq("status","ALIVE");
+    if(r.error)throw new Error("플레이어 조회 실패\n"+r.error.message);
+    const players=r.data||[];
+    if(!players.length){toast("참가자가 없습니다.");return;}
+    await set({ready:true,notice:"준비완료 — "+players.length+"명 확정"});
+    toast(players.length+"명의 플레이어가 확정되었습니다.");
+    await renderAdmin();
+  }catch(e){
+    console.error(e);
+    toast("준비완료 실패: "+(e.message||String(e)));
+  }
+}else list.innerHTML='<div class="completedList muted">내가 완료한 미션이 없습니다.</div>';
  startInvestigationTimer(g);
 }
 
@@ -534,7 +528,7 @@ async function renderAdmin(){
   readyBtn.disabled=!!g.ready || g.phase!=="LOBBY";
   roleBtn.disabled=!g.ready || (g.phase!=="LOBBY" && g.phase!=="ROLE_SELECT");
   gameBtn.disabled=!g.ready || !p.length || !p.filter(x=>x.status==="ALIVE").every(x=>x.card_selected) || g.phase!=="ROLE_REVEAL";
-  el("prepStatus").textContent=g.ready?("준비완료 · "+p.filter(x=>x.status==="ALIVE").length+"명 확정 · 역할 선정 상태: "+(p.filter(x=>x.status==="ALIVE").every(x=>x.card_selected)?"완료":"진행 중")):"아직 참가 인원이 확정되지 않았습니다.";
+  el("prepStatus").textContent=g.ready?("준비완료 · "+p.filter(x=>x.status==="ALIVE").length+"명 확정 · 다음 단계는 [양과 늑대 선정]입니다."):"아직 참가 인원이 확정되지 않았습니다.";
   showScreen("admin");
  }catch(e){console.error(e);showError("playerList",e.message||String(e));}
 }
@@ -713,6 +707,7 @@ window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAc
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.startGame=startGame;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
+window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.selectRoleCard=selectRoleCard;window.revealRolesIfReady=revealRolesIfReady;
 window.saveTiming=saveTiming;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
