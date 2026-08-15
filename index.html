@@ -832,10 +832,9 @@ async function confirmDeathByPlayer(notificationId){
  }
  el("deathCountdownNum").textContent="";
  el("deathCountdown").querySelector(".deathCountdownStage").innerHTML=
-   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">당신은 탈락했습니다.</h1>'+
-   '<p style="font-size:24px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
-   '<p class="muted">게임 전체 초기화 전까지 게임에 참여할 수 없습니다.</p></div>';
- await new Promise(r=>setTimeout(r,1200));
+   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">사망 처리 완료</h1>'+
+   '<p style="font-size:28px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
+   '<p class="muted">게임 전체 초기화 전까지 이 화면이 유지됩니다.</p></div>';
  const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
  if(r.error){toast("사망 처리 실패: "+r.error.message);return;}
  await db.from("notifications").delete().eq("id",notificationId);
