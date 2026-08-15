@@ -29,7 +29,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .roundTimer{font-size:42px;color:#fff}.roundTimer.warn{color:#ff2736}.roundTimer.end{color:#777}
 .lock{min-height:65vh;display:flex;align-items:center;justify-content:center;text-align:center}.lock h1{font-size:31px}.lock .symbol{font-size:64px;margin-bottom:15px}
 .completedList{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.completedList li{margin:6px 0;color:#ddd}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#151515;border:1px solid #292929;border-radius:9px;padding:11px}.stat b{display:block;font-size:20px;margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#151515;border:1px solid #292929;border-radius:9px;padding:11px}.stat b{display:block;font-size:20px;margin-top:4px}.adminMissionStatus{display:flex;flex-direction:column;gap:12px}.adminMissionPlayer{border:1px solid #292929;border-radius:10px;background:#111;padding:12px}.adminMissionPlayerHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}.adminMissionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px}.adminMissionCell{border:1px solid #292929;border-radius:8px;padding:9px;background:#151515}.adminMissionCell.done{border-color:#2f7d4d;background:#102017}.adminMissionCell.fail{border-color:#7d3333;background:#211010}.adminMissionCell .missionState{font-size:11px;font-weight:700;margin-top:4px}.adminMissionCell.done .missionState{color:#4ade80}.adminMissionCell.fail .missionState{color:#f87171}.adminMissionCell .missionMeta{font-size:10px;color:#777;margin-top:3px}.adminMissionEmpty{padding:14px;border:1px dashed #333;border-radius:8px;color:#888;text-align:center}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:200;background:#171717;border:1px solid #777;border-left:3px solid #e00012;border-radius:8px;padding:12px 16px;max-width:90%;box-shadow:0 10px 40px #000;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
 .overlay{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;padding:18px;z-index:100}.overlay.show{display:flex}
 .modal{width:min(500px,100%);background:#070707;border:1px solid #97000b;border-radius:14px;padding:26px;text-align:center;box-shadow:0 0 80px #f0000044}.modal .icon{font-size:52px}.modal h1{font-size:29px}
@@ -477,6 +477,8 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 
 <div class="card"><h2>늑대 전용 알림</h2><p class="muted">늑대에게만 메시지를 보냅니다. <b>효과음은 재생되지 않습니다.</b></p>
 <textarea id="wolfMessage" placeholder="늑대에게 보낼 메시지"></textarea><button onclick="sendWolfNotice()">늑대에게 전송</button></div>
+
+<div class="card"><h2>라운드 미션 현황</h2><p class="muted">현재 라운드에서 각 플레이어가 어떤 미션 장소를 클리어했는지 확인합니다. 늑대의 클리어도 표시되지만 관리자 미션 성공 수에는 포함되지 않습니다.</p><div id="missionStatusPanel" class="adminMissionStatus"></div></div>
 
 <div class="card"><h2>플레이어</h2><div id="playerList"></div></div>
 </section>
@@ -1391,6 +1393,58 @@ async function deadSheepFound(location){
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
 }
 
+async function renderAdminMissionStatus(players,round,roundMissionLocations,completions){
+ const panel=el("missionStatusPanel");
+ if(!panel)return;
+ if(!players.length){panel.innerHTML='<div class="adminMissionEmpty">현재 등록된 플레이어가 없습니다.</div>';return;}
+ if(!roundMissionLocations.length){panel.innerHTML='<div class="adminMissionEmpty">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';return;}
+
+ const missionIds=[...new Set(completions.map(x=>String(x.mission_id)).filter(Boolean))];
+ let missionRows=[];
+ if(missionIds.length){
+   const mr=await db.from("missions").select("id,mission_location_id,location_id,title,concept_type,mini_game_type").in("id",missionIds);
+   if(mr.error)throw new Error("미션 현황 조회 실패: "+mr.error.message);
+   missionRows=mr.data||[];
+ }
+
+ const missionById=new Map(missionRows.map(x=>[String(x.id),x]));
+ const locationById=new Map(roundMissionLocations.map(x=>[String(x.id),x]));
+ const completedByPlayer=new Map();
+
+ for(const c of completions){
+   const mission=missionById.get(String(c.mission_id));
+   const locationId=mission?.mission_location_id??mission?.location_id;
+   if(locationId==null||!locationById.has(String(locationId)))continue;
+   const playerKey=String(c.player_id);
+   if(!completedByPlayer.has(playerKey))completedByPlayer.set(playerKey,new Map());
+   const byLocation=completedByPlayer.get(playerKey);
+   const key=String(locationId);
+   // 같은 장소에서 재생성된 미션이 여러 개 있더라도 최초 클리어 기록 하나로 처리합니다.
+   if(!byLocation.has(key))byLocation.set(key,c);
+ }
+
+ panel.innerHTML=players.map(player=>{
+   const byLocation=completedByPlayer.get(String(player.id))||new Map();
+   const roleLabel=player.role==="WOLF"?"🐺 늑대":player.role==="SHEEP"?"🐑 양":String(player.role||"미정");
+   const cells=roundMissionLocations.map(loc=>{
+     const done=byLocation.has(String(loc.id));
+     const type=String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
+     const completion=byLocation.get(String(loc.id));
+     const mission=completion?missionById.get(String(completion.mission_id)):null;
+     const title=mission?.title||"";
+     return `<div class="adminMissionCell ${done?'done':'fail'}">
+       <b>${esc(loc.name)}</b>
+       <div class="missionMeta">${type}${title?' · '+esc(title):''}</div>
+       <div class="missionState">${done?'✓ 클리어':'✕ 미클리어'}</div>
+     </div>`;
+   }).join("");
+   return `<div class="adminMissionPlayer">
+     <div class="adminMissionPlayerHead"><div><b>${esc(player.name)}</b><div class="muted">${esc(roleLabel)} · ${esc(player.status||'')}</div></div><span class="pill">${byLocation.size}/${roundMissionLocations.length}</span></div>
+     <div class="adminMissionGrid">${cells}</div>
+   </div>`;
+ }).join("");
+}
+
 async function renderAdmin(){
  try{
   const g=await settings();
@@ -1404,11 +1458,13 @@ async function renderAdmin(){
     stopAllAdminBgm();
   }
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
+  const roundMissionLocations=await getRoundMissionLocations(g.current_round);
   const sheepIds=new Set(p.filter(x=>x.role==="SHEEP").map(x=>String(x.id)));
    const countedMissionCompletions=c.filter(x=>sheepIds.has(String(x.player_id)));
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+countedMissionCompletions.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;
   el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+  await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?mls.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mnfc_'+x.id+'" value="'+esc(x.nfc_tag||"")+'" placeholder="NFC 태그값" style="flex:1"><button onclick="saveMissionLocationNfc(\''+esc(x.id)+'\')">NFC 저장</button></div></div><button class="danger" onclick="removeMissionLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 미션 장소가 없습니다.</div>";
