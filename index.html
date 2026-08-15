@@ -306,6 +306,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 </section>
 
 <section id="admin" class="screen">
+<div class="screenTopAction"><button class="secondary logoutBtn" onclick="logout()">로그아웃</button></div>
 <div class="card"><h1>관리자 대시보드</h1><div id="stats" class="grid"></div></div>
 
 <div class="card"><h2>게임 준비 및 진행</h2><div class="grid">
@@ -1524,7 +1525,7 @@ async function boot(){
  }
 }
 
-window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
+window.logout=logout;window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.addMissionLocation=addMissionLocation;window.removeMissionLocation=removeMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
