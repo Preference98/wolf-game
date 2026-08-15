@@ -1148,6 +1148,8 @@ async function renderPlayer(){
   try{
     locs=await getRoundMissionLocations(g.current_round);
     completedLocations=await getCompletedLocationIds(g.current_round);
+    const wolfVisual=window.__wolfGameBridge?.getWolfMissionLocationCompletions?.(g.current_round)||new Set();
+    wolfVisual.forEach(id=>completedLocations.add(String(id)));
   }catch(e){
     console.error("플레이어 미션 준비 실패:",e);
     showScreen("player");
@@ -1402,7 +1404,9 @@ async function renderAdmin(){
     stopAllAdminBgm();
   }
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
-  el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+c.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
+  const sheepIds=new Set(p.filter(x=>x.role==="SHEEP").map(x=>String(x.id)));
+   const countedMissionCompletions=c.filter(x=>sheepIds.has(String(x.player_id)));
+   el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+countedMissionCompletions.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;
   el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
@@ -1843,6 +1847,19 @@ boot();
     comps,
     getCurrentMission:()=>currentMission,
     setCurrentMission:(v)=>{currentMission=v;},
+    markWolfMissionLocationComplete:(round,locationId)=>{
+      const key="wolf_visual_completed:"+String(playerId||"guest")+":"+String(round);
+      let values=[];
+      try{values=JSON.parse(localStorage.getItem(key)||"[]");}catch(e){}
+      const setValue=new Set(values.map(String));
+      setValue.add(String(locationId));
+      localStorage.setItem(key,JSON.stringify([...setValue]));
+    },
+    getWolfMissionLocationCompletions:(round)=>{
+      const key="wolf_visual_completed:"+String(playerId||"guest")+":"+String(round);
+      try{return new Set(JSON.parse(localStorage.getItem(key)||"[]").map(String));}
+      catch(e){return new Set();}
+    },
     renderPlayer,
     toast:(m)=>{
       const t=document.getElementById("toast");
@@ -1893,13 +1910,32 @@ function finishMiniGame(success,message){
         }
 
         const cs=await bridge.comps(g.current_round);
-        if(!cs.some(x=>String(x.mission_id)===String(current.id))&&p.role==="SHEEP"){
-          const r=await bridge.getDb().from("mission_completions").insert({
-            game_round:g.current_round,
-            mission_id:current.id,
-            player_id:p.id
-          });
-          if(r.error)throw new Error(r.error.message);
+        if(p.role==="SHEEP"){
+          if(!cs.some(x=>String(x.mission_id)===String(current.id))){
+            const r=await bridge.getDb().from("mission_completions").insert({
+              game_round:g.current_round,
+              mission_id:current.id,
+              player_id:p.id
+            });
+            if(r.error)throw new Error(r.error.message);
+          }
+        }else if(p.role==="WOLF"){
+          // 늑대의 성공도 서버에 기록합니다. 따라서 양의 화면에서도
+          // 해당 장소가 클리어로 표시됩니다.
+          // 단, 아래 관리자 집계에서는 늑대 기록을 제외합니다.
+          if(!cs.some(x=>String(x.mission_id)===String(current.id)&&String(x.player_id)===String(p.id))){
+            const r=await bridge.getDb().from("mission_completions").insert({
+              game_round:g.current_round,
+              mission_id:current.id,
+              player_id:p.id
+            });
+            if(r.error)throw new Error(r.error.message);
+          }
+
+          const locationId=current.mission_location_id||current.location_id;
+          if(locationId!=null){
+            bridge.markWolfMissionLocationComplete(g.current_round,locationId);
+          }
         }
       }
 
@@ -1922,8 +1958,14 @@ function showMiniMissionOutcome(success,message){
       <div class="wolfMiniOutcomeIcon">${success?"✓":"✕"}</div>
       <div class="wolfMiniOutcomeTitle">${success?"미션 성공!":"미션 실패"}</div>
       <div class="wolfMiniOutcomeText">${escape(message)}</div>
-      <button class="secondary wolfMiniCancel" type="button" onclick="cancelMiniMission()">취소</button>
+      <button class="secondary wolfMiniCancel" type="button" onclick="cancelMiniMission()">돌아가기</button>
     </div>`;
+
+  clearTimeout(window.__wolfMiniOutcomeTimer);
+  window.__wolfMiniOutcomeTimer=setTimeout(()=>{
+    window.__wolfMiniOutcomeTimer=null;
+    cancelMiniMission();
+  },1000);
 
   const q=document.getElementById("question");
   const answer=document.getElementById("answer");
@@ -1935,6 +1977,8 @@ function showMiniMissionOutcome(success,message){
 
 
 function cancelMiniMission(){
+  clearTimeout(window.__wolfMiniOutcomeTimer);
+  window.__wolfMiniOutcomeTimer=null;
   window.__miniOutcomeLocked=false;
   if(window.__wolfMissionTimerId){
     clearInterval(window.__wolfMissionTimerId);
