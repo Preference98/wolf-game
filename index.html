@@ -427,8 +427,10 @@ function startRoleSelectionBgm(){
 function stopRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(a){a.pause();a.currentTime=0;}}catch(e){}}
 
 async function renderRoleIntro(){
- await showScreen("roleIntro");
+ const screenTransition=showScreen("roleIntro");
+ // 화면이 표시되는 즉시 BGM을 시작합니다.
  startRoleSelectionBgm();
+ await screenTransition;
  await new Promise(r=>setTimeout(r,2500));
  const g=await settings();
  if(g.phase==="ROLE_INTRO"){
