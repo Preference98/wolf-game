@@ -952,6 +952,22 @@ async function getOrCreateRoundMission(location,round){
   if(r.error) throw new Error("라운드 미션 조회 실패: "+r.error.message);
   return r.data;
 }
+function tickMission(){
+ const timerEl=el("missionTimer");
+ if(!timerEl)return;
+ const left=Math.max(0,missionEndAt-Date.now());
+ const total=Math.ceil(left/1000);
+ const min=Math.floor(total/60),sec=total%60;
+ timerEl.textContent=String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+ timerEl.classList.toggle("warn",left>0&&left<=30000);
+ if(left<=0){
+   if(missionTimer){clearInterval(missionTimer);missionTimer=null;}
+   timerEl.textContent="00:00";
+   const answer=el("answer"),btn=el("answerBtn");
+   if(answer)answer.disabled=true;
+   if(btn)btn.disabled=true;
+ }
+}
 async function openMission(id){
  try{
   const p=await me(),g=await settings();
