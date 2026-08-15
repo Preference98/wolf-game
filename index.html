@@ -417,23 +417,25 @@ async function renderLobby(p,g){
 }
 
 
-async function startRoleSelectionBgm(){
+async function startAdminRoleSelectionBgm(){
  try{
   const a=audio.roleSelectionBgm;if(!a)return;
   a.loop=true;a.volume=.45;
   if(audioContext && audioContext.state==="suspended")await audioContext.resume();
-  if(a.paused){
-    a.currentTime=0;
-    await a.play();
-  }
- }catch(e){console.warn("역할 선정 BGM 재생 실패:",e);}
+  a.currentTime=0;
+  await a.play();
+ }catch(e){console.warn("관리자 역할 선정 BGM 재생 실패:",e);}
+}
+function stopRoleSelectionBgm(){
+ try{
+  const a=audio.roleSelectionBgm;
+  if(a){a.pause();a.currentTime=0;}
+ }catch(e){}
 }
 function stopRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(a){a.pause();a.currentTime=0;}}catch(e){}}
 
 async function renderRoleIntro(){
  const screenTransition=showScreen("roleIntro");
- // roleIntro의 DOM 표시 직후 BGM 재생을 시작합니다.
- startRoleSelectionBgm();
  await screenTransition;
  await new Promise(r=>setTimeout(r,2500));
  const g=await settings();
@@ -446,7 +448,6 @@ async function renderRoleIntro(){
 }
 
 async function renderRoleSelect(p,g){
- startRoleSelectionBgm();
  await showScreen("roleSelect");
  const r=await db.from("players").select("*").order("card_position");
  if(r.error){toast(r.error.message);return;}
@@ -481,7 +482,6 @@ async function revealRolesIfReady(){
  await set({phase:"ROLE_REVEAL",notice:"모든 플레이어가 카드를 선택했습니다."});
 }
 async function renderRoleReveal(p,g){
- startRoleSelectionBgm();
  await showScreen("roleReveal");
  const isWolf=p.role==="WOLF";
  const stageClass=isWolf?"wolf":"sheep";
@@ -519,6 +519,7 @@ async function startRoleSelection(){
    if(r.error){toast("역할 카드 준비 실패: "+r.error.message);return;}
  }
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
+ await startAdminRoleSelectionBgm();
  toast("양과 늑대 선정 화면을 시작합니다.");
 }
 async function markReady(){
