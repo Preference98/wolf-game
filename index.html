@@ -542,7 +542,59 @@ async function me(){if(!playerId)return null;const r=await db.from("players").se
 async function missions(){const r=await db.from("missions").select("*").eq("active",true).order("id");if(r.error)throw new Error("미션 불러오기 오류\n"+r.error.message);return r.data||[];}
 
 async function activeMissionLocationsForRound(round, playerCount){const all=await db.from("mission_locations").select("*").eq("active",true).order("id");if(all.error)throw new Error("미션 장소 목록 오류\\n"+all.error.message);const n=Math.max(0,Math.min((playerCount||0)-1,(all.data||[]).length));const arr=[...(all.data||[])];let seed=0;for(const ch of String(round||1))seed=(seed*31+ch.charCodeAt(0))>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};for(let j=arr.length-1;j>0;j--){const k=Math.floor(rnd()*(j+1));[arr[j],arr[k]]=[arr[k],arr[j]];}return arr.slice(0,n);}
-async function ensureRoundMissionSetup(round){const existing=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");if(existing.error)throw new Error("라운드 미션 설정 조회 실패: "+existing.error.message);if(existing.data?.length)return existing.data;const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[],chosen=await activeMissionLocationsForRound(round,players.length);if(!chosen.length)return [];const ins=await db.from("round_mission_locations").insert(chosen.map((loc,i)=>({game_round:round,mission_location_id:loc.id,sort_order:i}))).select();if(ins.error){const retry=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");if(!retry.error&&retry.data?.length)return retry.data;throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);}const titles={WIRING:"배선 연결",MATCHING:"같은 그림 찾기",CIRCUIT:"회로 회전",PIPES:"파이프 연결",REACTION:"반응속도",MEMORY:"기억 패턴",SAFE:"금고 해킹",DNA:"DNA 조립",SHAPE:"같은 모양 찾기",TRACE:"선 따라가기",NUMBER_RULE:"숫자 규칙",LOGIC:"논리 문제",SHAPE_RULE:"도형 규칙",SEQUENCE:"순서 문제",MEMORY_PUZZLE:"기억 문제",CALCULATION:"계산 문제"};const puzzles=[["다음 숫자는? 2, 4, 8, 16, ?","32"],["다음 숫자는? 3, 6, 12, 24, ?","48"],["A=1, B=2, C=3일 때 A+B+C는?","6"],["다음 순서는? 1, 3, 5, 7, ?","9"],["10-3×2 = ?","4"],["어떤 수에 5를 더하면 12입니다. 그 수는?","7"]];for(const row of ins.data||[]){const loc=chosen.find(x=>String(x.id)===String(row.mission_location_id));if(!loc)continue;const type=randomMissionTypeForLocation(loc),pq=puzzles[Math.floor(Math.random()*puzzles.length)],mr=await db.from("missions").insert({title:(titles[type]||"두뇌퍼즐")+" · R"+round,mission_location_id:loc.id,concept_type:loc.concept_type,mini_game_type:loc.concept_type==="MINIGAME"?type:null,description:"이번 라운드에 랜덤 배정된 미션",question:loc.concept_type==="PUZZLE"?pq[0]:null,answer:loc.concept_type==="PUZZLE"?pq[1]:null,active:true}).select().single();if(mr.error)throw new Error("라운드 미션 생성 실패: "+mr.error.message);const ur=await db.from("round_mission_locations").update({mission_id:mr.data.id}).eq("id",row.id);if(ur.error)throw new Error(ur.error.message);}return (await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order")).data||[];}
+async function ensureRoundMissionSetup(round){
+ const existing=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
+ if(existing.error)throw new Error("라운드 미션 설정 조회 실패: "+existing.error.message);
+
+ // 장소는 이미 확정됐지만 mission_id가 비어 있는 경우가 이전 오류/중단으로
+ // 남아 있을 수 있습니다. 이 경우 기존 장소를 유지하면서 미션만 생성합니다.
+ let rows=existing.data||[];
+ if(!rows.length){
+   const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
+   const chosen=await activeMissionLocationsForRound(round,players.length);
+   if(!chosen.length)return [];
+   const ins=await db.from("round_mission_locations")
+     .insert(chosen.map((loc,i)=>({game_round:round,mission_location_id:loc.id,sort_order:i}))).select();
+   if(ins.error){
+     const retry=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
+     if(!retry.error&&retry.data?.length) rows=retry.data;
+     else throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
+   }else rows=ins.data||[];
+ }
+
+ const locIds=rows.map(x=>x.mission_location_id).filter(Boolean);
+ const lr=await db.from("mission_locations").select("*").in("id",locIds);
+ if(lr.error)throw new Error("라운드 미션 장소 조회 실패: "+lr.error.message);
+ const locations=lr.data||[];
+
+ const titles={WIRING:"배선 연결",MATCHING:"같은 그림 찾기",CIRCUIT:"회로 회전",PIPES:"파이프 연결",REACTION:"반응속도",MEMORY:"기억 패턴",SAFE:"금고 해킹",DNA:"DNA 조립",SHAPE:"같은 모양 찾기",TRACE:"선 따라가기",NUMBER_RULE:"숫자 규칙",LOGIC:"논리 문제",SHAPE_RULE:"도형 규칙",SEQUENCE:"순서 문제",MEMORY_PUZZLE:"기억 문제",CALCULATION:"계산 문제"};
+ const puzzles=[["다음 숫자는? 2, 4, 8, 16, ?","32"],["다음 숫자는? 3, 6, 12, 24, ?","48"],["A=1, B=2, C=3일 때 A+B+C는?","6"],["다음 순서는? 1, 3, 5, 7, ?","9"],["10-3×2 = ?","4"],["어떤 수에 5를 더하면 12입니다. 그 수는?","7"]];
+
+ for(const row of rows){
+   if(row.mission_id)continue;
+   const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
+   if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
+   const type=randomMissionTypeForLocation(loc);
+   const pq=puzzles[Math.floor(Math.random()*puzzles.length)];
+   const mr=await db.from("missions").insert({
+     title:(titles[type]||"두뇌퍼즐")+" · R"+round,
+     mission_location_id:loc.id,
+     concept_type:loc.concept_type,
+     mini_game_type:loc.concept_type==="MINIGAME"?type:null,
+     description:"이번 라운드에 랜덤 배정된 미션",
+     question:loc.concept_type==="PUZZLE"?pq[0]:null,
+     answer:loc.concept_type==="PUZZLE"?pq[1]:null,
+     active:true
+   }).select().single();
+   if(mr.error)throw new Error("라운드 미션 생성 실패: "+mr.error.message);
+   const ur=await db.from("round_mission_locations").update({mission_id:String(mr.data.id)}).eq("id",row.id);
+   if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
+ }
+
+ const done=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
+ if(done.error)throw new Error("라운드 미션 재조회 실패: "+done.error.message);
+ return done.data||[];
+}
 async function activeMissionLocations(round){return getRoundMissionLocations(round);}
 async function getRoundMissionLocations(round){const rows=await ensureRoundMissionSetup(round);if(!rows.length)return [];const ids=rows.map(x=>x.mission_location_id),r=await db.from("mission_locations").select("*").in("id",ids);if(r.error)throw new Error(r.error.message);return rows.map(x=>r.data.find(y=>String(y.id)===String(x.mission_location_id))).filter(Boolean);}
 async function allMissions(){const r=await db.from("missions").select("*").order("id");if(r.error)throw new Error("미션 목록 오류\\n"+r.error.message);return r.data||[];}
