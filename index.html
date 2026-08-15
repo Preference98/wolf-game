@@ -684,7 +684,7 @@ async function enableSound(){
 
 async function openWolfDeathList(){
  const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
  const sheep=(await db.from("players").select("id,name").eq("role","SHEEP").eq("status","ALIVE").order("name")).data||[];
  if(!sheep.length){toast("현재 사망 처리할 수 있는 양이 없습니다.");return;}
  const html='<div class="deathConfirmList">'+
@@ -704,7 +704,7 @@ function confirmWolfDeath(id,name){
 async function sendDeathConfirmation(victimId,victimName){
  closeOverlay();
  const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사망 처리를 할 수 없습니다.");return;}
  const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
  if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
  const r=await db.from("notifications").insert({
@@ -1057,6 +1057,8 @@ async function boot(){
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
+window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
+window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;
 window.startGame=startGame;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
 window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.selectRoleCard=selectRoleCard;window.revealRolesIfReady=revealRolesIfReady;
 window.saveTiming=saveTiming;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
