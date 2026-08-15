@@ -999,16 +999,35 @@ async function getOrCreateRoundMission(location,round){
  const r=await db.from("missions").select("*").eq("active",true);
  if(r.error)throw new Error("미션 목록 조회 실패: "+r.error.message);
 
- const pool=(r.data||[]).filter(m=>{
-   const mc=String(m.concept_type||"").trim().toUpperCase();
-   if(mc!==concept)return false;
+ const supportedMiniTypes=new Set([
+   "WIRING","MATCHING","CIRCUIT","PIPES","REACTION",
+   "MEMORY","SAFE","DNA","SHAPE","TRACE"
+ ]);
 
+ const pool=(r.data||[]).filter(m=>{
    const mid1=m.mission_location_id!=null?String(m.mission_location_id):"";
    const mid2=m.location_id!=null?String(m.location_id):"";
    const mn=String(m.location||"").trim();
+   const sameLocation=
+     mid1===locationId ||
+     mid2===locationId ||
+     (!!locationName && mn===locationName);
 
-   return mid1===locationId || mid2===locationId ||
-          (!!locationName && mn===locationName);
+   if(!sameLocation)return false;
+
+   const mc=String(m.concept_type||"").trim().toUpperCase();
+   const mini=String(m.mini_game_type||"").trim().toUpperCase();
+
+   if(concept==="MINIGAME"){
+     // 정상 데이터: concept_type=MINIGAME + mini_game_type
+     // 구버전 데이터: concept_type이 잘못 저장되어도 mini_game_type이
+     // 실제 지원되는 미니게임이면 이 장소의 미니게임으로 인정합니다.
+     return (mc==="MINIGAME" && supportedMiniTypes.has(mini)) ||
+            supportedMiniTypes.has(mini);
+   }
+
+   // PUZZLE 장소는 반드시 PUZZLE 컨셉만 사용합니다.
+   return mc==="PUZZLE";
  });
 
  if(!pool.length){
@@ -1018,7 +1037,6 @@ async function getOrCreateRoundMission(location,round){
    );
  }
 
- // 매번 openMission()을 호출할 때마다 새로 랜덤 선택합니다.
  return pool[Math.floor(Math.random()*pool.length)];
 }
 
@@ -1492,7 +1510,7 @@ async function saveTiming(){
 async function addMission(){
  const locationId=el("newMissionLocation").value;
  const title=el("newMissionTitle").value.trim();
- const concept_type=el("newMissionConcept").value;
+ const selectedConcept=el("newMissionConcept").value;
  const mini_game_type=el("newMissionMiniType").value.trim()||null;
  const description=el("newMissionDescription").value.trim();
  const question=el("newMissionQuestion").value.trim();
@@ -1509,6 +1527,12 @@ async function addMission(){
  }
  const loc=await getMissionLocation(locationId);
  if(!loc){toast("미션 장소를 찾을 수 없습니다.");return}
+ const concept_type=String(loc.concept_type||selectedConcept||"PUZZLE").trim().toUpperCase();
+ const missionMiniType=concept_type==="MINIGAME" ? mini_game_type : null;
+ if(concept_type==="MINIGAME" && !missionMiniType){
+   toast("미니게임 장소에는 미니게임 종류를 선택해 주세요.");
+   return;
+ }
  const missionId=(crypto&&typeof crypto.randomUUID==="function")
    ?crypto.randomUUID()
    :("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
@@ -1526,7 +1550,7 @@ async function addMission(){
    wolf_answer:wolfAnswer,
    active:true,
    concept_type,
-   mini_game_type:concept_type==="MINIGAME"?mini_game_type:null
+   mini_game_type:missionMiniType
  }).select().single();
 
  if(r.error){
