@@ -397,7 +397,19 @@ async function unlockSound(){
   }catch(e){a.muted=false;}
  }
 }
+async function activateStageAudio(){
+ try{
+  soundEnabled=true;
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(AC){
+   if(!audioContext)audioContext=new AC();
+   if(audioContext.state==="suspended")await audioContext.resume();
+  }
+  soundUnlocked=true;
+ }catch(e){console.warn("단계별 오디오 활성화 실패:",e);}
+}
 async function playSound(name,eventKey=""){
+ await activateStageAudio();
  if(!soundEnabled||!soundUnlocked||!audio[name])return;
  const key=eventKey||name,now=Date.now();
  if(key===lastSoundEvent && now-lastSoundAt<2500)return;
@@ -413,6 +425,11 @@ async function playSound(name,eventKey=""){
    console.warn("사운드 재생 실패:",name,e);
  }
 }
+document.addEventListener("pointerdown",()=>{unlockSound().catch(()=>{});},{once:true});
+document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:true});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
+window.addEventListener("focus",()=>activateStageAudio());
+
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
@@ -462,7 +479,7 @@ async function join(){
  const btn=el("joinBtn"),name=el("name").value.trim();if(!name){toast("이름을 입력해 주세요.");return;}
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
  try{
-  unlockSound();
+  await unlockSound();
   if(name==="관리자"){
  localStorage.removeItem("wolf_game_player_v7");
  localStorage.setItem("wolf_game_admin_v7","1");
@@ -831,7 +848,9 @@ async function deadSheepFound(location){
  closeOverlay();const btn=el("deadSheepBtn"),done=busy(btn,"신고 중...");
  try{
   const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
-  await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:new Date().toISOString(),notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
+  const investigationStartedAt=new Date().toISOString();
+  await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
+  await playSound("deadSheepFound","dead-sheep-reporter-"+investigationStartedAt);
   toast("죽은 양 발견이 접수되었습니다.");
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
 }
@@ -1050,7 +1069,7 @@ function realtime(){
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
     if(g.phase==="INVESTIGATION" && g.notice && g.notice!==lastNotice){
       lastNotice=g.notice;
-      playSound("deadSheepFound","admin-dead-sheep-"+g.current_round+"-"+g.investigation_started_at);
+      activateStageAudio().then(()=>playSound("deadSheepFound","admin-dead-sheep-"+g.current_round+"-"+g.investigation_started_at));
     }
     renderAdmin();
     return;
@@ -1063,7 +1082,10 @@ function realtime(){
   }
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
-   if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound","dead-sheep-"+g.dead_sheep_location+"-"+g.investigation_started_at);}
+   if(g.phase==="INVESTIGATION"){
+     openOverlay("☠️","죽은 양 발견",g.notice,"alarm");
+     activateStageAudio().then(()=>playSound("deadSheepFound","dead-sheep-reporter-"+g.investigation_started_at));
+   }
    else if(g.phase==="TRIAL"){
      openOverlay("⚖️","재판 시작",g.notice,"alarm");
      // 플레이어는 재판 BGM을 절대 재생하지 않고 재판 시작 효과음만 재생합니다.
