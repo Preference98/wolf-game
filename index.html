@@ -250,6 +250,7 @@ let lastSoundEvent="",lastSoundAt=0,fadeBusy=false,roleRevealTimer=null,countdow
 
 const SOUND_FILES={
  roleSelectionBgm:"sounds/role-selection-bgm.mp3",
+ gameStartBgm:"sounds/game-start-bgm.mp3",
  countdown5:"sounds/countdown-5.mp3",
  countdown4:"sounds/countdown-4.mp3",
  countdown3:"sounds/countdown-3.mp3",
@@ -540,6 +541,7 @@ async function markReady(){
  await renderAdmin();
 }
 async function renderPlayer(){
+ stopGameStartBgm();
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"){await route();return;}
  if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
@@ -681,12 +683,14 @@ async function startGame(){
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
  if(!players.length||!players.every(x=>x.card_selected)){toast("모든 플레이어의 양과 늑대 선정이 완료되지 않았습니다.");return;}
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
+ stopRoleSelectionBgm();
  await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
+ await startGameStartBgm();
  toast("게임 시작 준비");
 }
 async function startGameStartBgm(){
  try{
-  const a=audio.roleSelectionBgm;
+  const a=audio.gameStartBgm;
   if(!a)return;
   a.loop=true;a.volume=.45;
   if(audioContext && audioContext.state==="suspended")await audioContext.resume();
@@ -696,7 +700,7 @@ async function startGameStartBgm(){
 }
 function stopGameStartBgm(){
  try{
-  const a=audio.roleSelectionBgm;
+  const a=audio.gameStartBgm;
   if(a){a.pause();a.currentTime=0;}
  }catch(e){}
 }
@@ -715,7 +719,7 @@ async function renderGameCountdown(p,g){
  if(countdownTimer)clearInterval(countdownTimer);
 
  const sequence=async()=>{
-   // Announcement + BGM start at the same moment.
+   // 게임 시작 안내문과 전용 BGM을 동시에 시작합니다.
    content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
    await startGameStartBgm();
    await new Promise(r=>setTimeout(r,5000));
@@ -733,6 +737,7 @@ async function renderGameCountdown(p,g){
    await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
    await new Promise(r=>setTimeout(r,4000));
 
+   stopGameStartBgm();
    const latest=await settings();
    if(latest.phase==="COUNTDOWN")await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
    countdownTimer=null;
