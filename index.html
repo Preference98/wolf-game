@@ -509,13 +509,28 @@ async function join(){
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}finally{done();}
 }
 
+
+function renderPermanentDeathScreen(){
+ const stage=el("deathCountdown");
+ if(!stage)return;
+ stage.querySelector(".deathCountdownStage").innerHTML=
+   '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">사망 처리 완료</h1>'+
+   '<p style="font-size:28px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
+   '<p class="muted">게임 전체 초기화 전까지 이 화면이 유지됩니다.</p></div>';
+ showScreen("deathCountdown");
+ stopAllTimers();
+}
 async function route(){
  try{
   // 페이지 전환으로도 현재 브라우저 세션의 사운드 허용 상태를 유지합니다.
   if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
-  if(p.status!=="ALIVE"){stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직이거나 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';return;}
+  if(p.status!=="ALIVE"){
+   if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){renderPermanentDeathScreen();return;}
+   stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직이거나 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';return;
+  }
+  localStorage.removeItem("wolf_game_death_lock_v1");
   const g=await settings();
   if(g.phase==="ROLE_INTRO"){stopAllTimers();await renderRoleIntro();return;}
   if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
@@ -835,8 +850,14 @@ async function confirmDeathByPlayer(notificationId){
    '<div><div class="symbol">☠️</div><h1 class="deathLockTitle">사망 처리 완료</h1>'+
    '<p style="font-size:28px;font-weight:900;color:#ff3347">당신은 아무말도 할 수 없고,<br>절대로 움직여서도 안됩니다.</p>'+
    '<p class="muted">게임 전체 초기화 전까지 이 화면이 유지됩니다.</p></div>';
+ localStorage.setItem("wolf_game_death_lock_v1","1");
  const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
- if(r.error){toast("사망 처리 실패: "+r.error.message);return;}
+ if(r.error){
+   localStorage.removeItem("wolf_game_death_lock_v1");
+   toast("사망 처리 실패: "+r.error.message);
+   return;
+ }
+ renderPermanentDeathScreen();
  await db.from("notifications").delete().eq("id",notificationId);
 }
 
