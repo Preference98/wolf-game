@@ -326,25 +326,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><h2>미션 장소 관리</h2><p class="muted">시체발견 장소와 완전히 별개의 장소입니다. 생존 양 수만큼 앞에서부터 활성화됩니다.</p><div id="missionLocationList"></div>
 <div class="grid"><input id="newMissionLocationName" placeholder="미션 장소 이름"><select id="newMissionLocationConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select></div>
 <button onclick="addMissionLocation()">미션 장소 추가</button></div>
-<div class="card"><h2>미션 관리</h2>
-<p class="muted">미션은 관리자가 미리 등록합니다. 게임 시작 시 각 장소의 컨셉에 맞는 미션 중 하나가 라운드마다 랜덤 선택됩니다.</p>
-<div class="grid">
-<select id="newMissionLocation"><option value="">미션 장소 선택</option></select>
-<select id="newMissionConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select>
-<input id="newMissionTitle" placeholder="미션 이름">
-</div>
-<div class="grid">
-<input id="newMissionMiniType" placeholder="미니게임 종류 (예: WIRING)">
-<input id="newMissionDescription" placeholder="설명">
-<input id="newMissionQuestion" placeholder="문제">
-<input id="newMissionAnswer" placeholder="정답">
-<input id="newMissionWolfQuestion" placeholder="늑대용 문제/정보">
-<input id="newMissionWolfAnswer" placeholder="늑대용 정답">
-</div>
-<button onclick="addMission()">미션 추가</button>
-<div id="missionAdminList"></div>
-</div>
-<div class="card"><h2>NFC 테스트 모드</h2><p class="muted">테스트 모드에서는 NFC 태그 없이 미션을 열 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 테스트 모드: OFF</button></div>
+<div class="card"><h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button></div>
 
 <div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
 <textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea><button onclick="sendNotice()">전체 알림 전송</button></div>
@@ -366,7 +348,7 @@ const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
-let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null;
+let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
 // 공통 타이머 정리 함수
 // 새로고침/Realtime 상태 변경으로 route()가 다시 실행될 때도
@@ -839,7 +821,7 @@ async function renderPlayer(){
    showScreen("player");
    el("missions").innerHTML='<div class="errorbox">미션 준비 중 오류가 발생했습니다.<br><small>'+esc(e.message||String(e))+'</small></div>';
    return;
- }el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;el("totalMissionCount").innerHTML='총 미션 <b>'+locs.length+'개</b>';el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";const box=el("missions");box.innerHTML="";for(const loc of locs){const m=await getOrCreateRoundMission(loc,g.current_round),done=cs.some(x=>String(x.mission_id)===String(m.id)),nfcOk=nfcTestMode||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===String(loc.id),label=loc.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐";box.innerHTML+=`<div class="missionRow ${done?'completed':''}"><div><b>${esc(loc.name)}</b><div class="small">${label}</div></div><span class="pill">${done?"클리어":(nfcOk?"미완료":"NFC 필요")}</span>${!done&&!nfcOk?'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(loc.id)+'\')">NFC 인증</button>':(!done?'<button onclick="event.stopPropagation();openMission(\''+esc(m.id)+'\')">입장</button>':"")}</div>`;}if(!locs.length)box.innerHTML='<div class="muted">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';el("deadSheepBtn").disabled=false;el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';showScreen("player");startRoundTimer(g);}
+ }el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;el("totalMissionCount").innerHTML='총 미션 <b>'+locs.length+'개</b>';el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";const box=el("missions");box.innerHTML="";for(const loc of locs){const m=await getOrCreateRoundMission(loc,g.current_round),done=cs.some(x=>String(x.mission_id)===String(m.id)),nfcOk=g.nfc_enabled===false||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===String(loc.id),label=loc.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐";box.innerHTML+=`<div class="missionRow ${done?'completed':''}"><div><b>${esc(loc.name)}</b><div class="small">${label}</div></div><span class="pill">${done?"클리어":(nfcOk?"미완료":"NFC 필요")}</span>${!done&&!nfcOk?'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(loc.id)+'\')">NFC 인증</button>':(!done?'<button onclick="event.stopPropagation();openMission(\''+esc(m.id)+'\')">입장</button>':"")}</div>`;}if(!locs.length)box.innerHTML='<div class="muted">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';el("deadSheepBtn").disabled=false;el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';showScreen("player");startRoundTimer(g);}
 
 async function getOrCreateRoundMission(location,round){
   await ensureRoundMissionSetup(round);
@@ -998,12 +980,7 @@ async function renderAdmin(){
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?mls.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mnfc_'+x.id+'" value="'+esc(x.nfc_tag||"")+'" placeholder="NFC 태그값" style="flex:1"><button onclick="saveMissionLocationNfc(\''+esc(x.id)+'\')">NFC 저장</button></div></div><button class="danger" onclick="removeMissionLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 미션 장소가 없습니다.</div>";
-  const ms=await allMissions();
-  const missionLocSel=el("newMissionLocation");
-  if(missionLocSel)missionLocSel.innerHTML='<option value="">미션 장소 선택</option>'+mls.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+'</option>').join("");
-  const mal=el("missionAdminList");
-  if(mal)mal.innerHTML=ms.length?ms.map(x=>'<div class="item row"><div style="flex:1"><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.location||"")+' · '+(x.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐")+(x.mini_game_type?" · "+esc(x.mini_game_type):"")+'</div></div><button class="danger" onclick="removeMission(\''+esc(x.id)+'\')">비활성화</button></div>').join(""):"<div class='muted'>등록된 미션이 없습니다.</div>";
-  el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");
+  el("nfcBtn").textContent="NFC 기능: "+(g.nfc_enabled===false?"OFF":"ON");
   const readyBtn=el("readyBtn"),roleBtn=el("roleStartBtn"),gameBtn=el("gameStartBtn");
   readyBtn.disabled=!!g.ready || g.phase!=="LOBBY";
   roleBtn.disabled=!g.ready || (g.phase!=="LOBBY" && g.phase!=="ROLE_SELECT");
@@ -1236,7 +1213,20 @@ async function removeMission(id){
  toast("미션을 비활성화했습니다.");await renderAdmin();
 }
 async function addMissionLocation(){const name=el("newMissionLocationName").value.trim(),concept_type=el("newMissionLocationConcept").value;if(!name){toast("미션 장소 이름을 입력해 주세요.");return}const existing=await db.from("mission_locations").select("id").eq("name",name).maybeSingle();if(existing.error)throw new Error(existing.error.message);if(existing.data){toast("이미 존재하는 미션 장소입니다.");return}const max=(await db.from("mission_locations").select("sort_order").order("sort_order",{ascending:false}).limit(1)).data||[];const sort=(max[0]?.sort_order||0)+1;const r=await db.from("mission_locations").insert({name,sort_order:sort,active:true,concept_type});if(r.error){toast("미션 장소 추가 실패: "+r.error.message);return}el("newMissionLocationName").value="";toast("미션 장소를 추가했습니다.");await renderAdmin()}
-async function removeMissionLocation(id,name){const used=await db.from("missions").select("id").eq("mission_location_id",id).eq("active",true).limit(1);if(used.data?.length){toast("이 장소에 연결된 미션이 있어 제거할 수 없습니다.");return}const r=await db.from("mission_locations").update({active:false}).eq("id",id);if(r.error){toast("미션 장소 제거 실패: "+r.error.message);return}toast(name+" 미션 장소를 제거했습니다.");await renderAdmin()}
+async function removeMissionLocation(id,name){
+ try{
+  // 장소를 비활성화하는 대신 실제 행을 삭제합니다.
+  // 먼저 라운드 연결과 해당 장소의 미션을 제거한 뒤 장소를 삭제합니다.
+  const rr=await db.from("round_mission_locations").delete().eq("mission_location_id",id);
+  if(rr.error)throw new Error("라운드 미션 연결 삭제 실패: "+rr.error.message);
+  const mr=await db.from("missions").delete().or("mission_location_id.eq."+id+",location_id.eq."+id);
+  if(mr.error)throw new Error("해당 장소의 미션 삭제 실패: "+mr.error.message);
+  const lr=await db.from("mission_locations").delete().eq("id",id);
+  if(lr.error)throw new Error("미션 장소 삭제 실패: "+lr.error.message);
+  toast(name+" 미션 장소를 삭제했습니다.");
+  await renderAdmin();
+ }catch(e){toast(e.message||String(e));}
+}
 async function saveMissionLocationNfc(id){const v=el("mnfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("미션 장소 NFC 태그를 저장했습니다.");await renderAdmin()}
 async function saveLocationNfc(id){const v=el("nfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("NFC 태그를 저장했습니다.");await renderAdmin()}
 async function scanNfcForLocation(locationId){
@@ -1252,7 +1242,15 @@ async function scanNfcForLocation(locationId){
   };
  }catch(e){toast("NFC 스캔 실패: "+(e.message||String(e)));}
 }
-function toggleNfc(){nfcTestMode=!nfcTestMode;el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");toast(nfcTestMode?"NFC 없이 미션 테스트가 가능합니다.":"NFC 테스트 모드를 껐습니다.");}
+async function toggleNfc(){
+ try{
+  const g=await settings();
+  const next=g.nfc_enabled===false;
+  await set({nfc_enabled:next});
+  toast(next?"NFC 기능을 켰습니다.":"NFC 기능을 껐습니다.");
+  await renderAdmin();
+ }catch(e){toast("NFC 설정 변경 실패: "+(e.message||e));}
+}
 async function sendNotice(){
  const msg=el("adminMessage").value.trim();if(!msg){toast("알림 내용을 입력해 주세요.");return;}
  const r=await db.from("notifications").insert({message:msg,target_player:null,notification_type:"ADMIN"});if(r.error){toast("알림 전송 실패: "+r.error.message);return;}
@@ -1311,6 +1309,12 @@ function realtime(){
     }
     renderAdmin();
     return;
+  }
+  // 관리자가 NFC 기능을 ON/OFF한 경우에만 플레이어 미션 화면을 즉시 갱신합니다.
+  // 다른 game_settings 변경까지 무조건 renderPlayer()하지 않도록 값의 변화를 비교합니다.
+  if(typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled){
+    lastNfcEnabled=g.nfc_enabled;
+    await renderPlayer();
   }
   if(g.winner==="SHEEP" && g.winner!==lastNotice){
    lastNotice="WIN_SHEEP"; await renderVictory("SHEEP"); return;
@@ -1396,7 +1400,7 @@ async function boot(){
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
-window.addMission=addMission;window.removeMission=removeMission;window.addMissionLocation=addMissionLocation;window.removeMissionLocation=removeMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
+window.addMissionLocation=addMissionLocation;window.removeMissionLocation=removeMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
 window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.selectRoleCard=selectRoleCard;window.revealRolesIfReady=revealRolesIfReady;
