@@ -652,55 +652,62 @@ async function startGame(){
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
  await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  toast("게임 시작 준비");
- const cg=await settings();
- await renderGameCountdown(null,cg);
 }
 async function renderGameCountdown(p,g){
+ // This screen is for players only. Admin remains on the admin dashboard.
+ if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+
  stopRoleSelectionBgm();
  const startedAt=Date.parse(g.round_started_at||"");
- if(!startedAt){
-   console.warn("카운트다운 시작 시간이 없습니다.");
-   return;
- }
+ if(!startedAt)return;
+
+ // Do not restart the same countdown every time realtime/route fires.
+ if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
+
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
- if(!root.querySelector(".gameStartStage")){
-   root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
- }
+ root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
  const content=el("gameStartContent");
  if(!content)return;
 
  if(countdownTimer)clearInterval(countdownTimer);
- let lastStep=-1;
+
+ // Timeline:
+ // 0.0 - 3.0s : message
+ // 3.0 - 8.0s : 5,4,3,2,1 (one second each)
+ // 8.0 - 10.5s: game start title
+ // 10.5s       : PLAY
  const tick=async()=>{
    const latest=await settings();
    if(latest.phase!=="COUNTDOWN"){
      clearInterval(countdownTimer);countdownTimer=null;
      return;
    }
+
    const elapsed=(Date.now()-startedAt)/1000;
 
-   if(elapsed<1.8){
-     if(lastStep!==0){
-       lastStep=0;
+   if(elapsed<3){
+     if(content.dataset.step!=="message"){
+       content.dataset.step="message";
        content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
      }
      return;
    }
 
-   const countdown=Math.ceil(6.8-elapsed);
-   if(countdown>=1 && countdown<=5){
-     if(lastStep!==countdown){
-       lastStep=countdown;
-       content.innerHTML='<div class="gameStartCount">'+countdown+'</div>';
-       await playSound("countdown"+countdown,"game-countdown-"+g.current_round+"-"+countdown);
+   if(elapsed<8){
+     const n=5-Math.floor(elapsed-3);
+     const step="count"+n;
+     if(content.dataset.step!==step){
+       content.dataset.step=step;
+       content.innerHTML='<div class="gameStartCount">'+n+'</div>';
+       await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n);
      }
      return;
    }
 
-   if(elapsed<8.0){
-     if(lastStep!==6){
-       lastStep=6;
+   if(elapsed<10.5){
+     if(content.dataset.step!=="title"){
+       content.dataset.step="title";
        content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
        await playSound("gameStart","game-start-title-"+g.current_round);
      }
@@ -713,8 +720,9 @@ async function renderGameCountdown(p,g){
      await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
    }
  };
+
  await tick();
- countdownTimer=setInterval(tick,120);
+ countdownTimer=setInterval(tick,100);
 }
 
 async function nextRound(){
@@ -800,11 +808,7 @@ function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
-    if(g.phase==="COUNTDOWN"){
-      await renderGameCountdown(null,g);
-    } else {
-      renderAdmin();
-    }
+    renderAdmin();
     return;
   }
   if(g.winner==="SHEEP" && g.winner!==lastNotice){
@@ -819,7 +823,6 @@ function realtime(){
    lastNotice=g.notice;
    if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound","dead-sheep-"+g.dead_sheep_location+"-"+g.investigation_started_at);}
    else if(g.phase==="TRIAL"){openOverlay("⚖️","재판 시작",g.notice,"alarm");playSound("trialStart","trial-"+g.current_round+"-"+g.notice);}
-   else if(g.started&&g.phase==="PLAY"){playSound("gameStart","game-start-"+g.current_round);}
   }
   route();
  }).subscribe();
