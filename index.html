@@ -417,18 +417,22 @@ async function renderLobby(p,g){
 }
 
 
-function startRoleSelectionBgm(){
+async function startRoleSelectionBgm(){
  try{
   const a=audio.roleSelectionBgm;if(!a)return;
   a.loop=true;a.volume=.45;
-  if(a.paused){a.currentTime=0;a.play().catch(e=>console.warn("역할 선정 BGM:",e));}
- }catch(e){console.warn(e);}
+  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
+  if(a.paused){
+    a.currentTime=0;
+    await a.play();
+  }
+ }catch(e){console.warn("역할 선정 BGM 재생 실패:",e);}
 }
 function stopRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(a){a.pause();a.currentTime=0;}}catch(e){}}
 
 async function renderRoleIntro(){
  const screenTransition=showScreen("roleIntro");
- // 화면이 표시되는 즉시 BGM을 시작합니다.
+ // roleIntro의 DOM 표시 직후 BGM 재생을 시작합니다.
  startRoleSelectionBgm();
  await screenTransition;
  await new Promise(r=>setTimeout(r,2500));
@@ -679,20 +683,44 @@ async function startGame(){
  await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  toast("게임 시작 준비");
 }
+async function startGameStartBgm(){
+ try{
+  const a=audio.roleSelectionBgm;
+  if(!a)return;
+  a.loop=true;a.volume=.45;
+  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
+  a.currentTime=0;
+  await a.play();
+ }catch(e){console.warn("게임 시작 BGM 재생 실패:",e);}
+}
+function stopGameStartBgm(){
+ try{
+  const a=audio.roleSelectionBgm;
+  if(a){a.pause();a.currentTime=0;}
+ }catch(e){}
+}
+
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
- stopRoleSelectionBgm();
+
  if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
+
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
  const content=el("gameStartContent");
  if(!content)return;
+
  if(countdownTimer)clearInterval(countdownTimer);
 
  const sequence=async()=>{
-   content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
+   // Announcement + BGM start at the same moment.
+   content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
+   await startGameStartBgm();
    await new Promise(r=>setTimeout(r,5000));
+
+   // Stop the announcement BGM before the numeric countdown.
+   stopGameStartBgm();
 
    for(let n=5;n>=1;n--){
      content.innerHTML='<div class="gameStartCount">'+n+'</div>';
@@ -709,7 +737,7 @@ async function renderGameCountdown(p,g){
    countdownTimer=null;
  };
  countdownTimer={running:true};
- sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
+ sequence().catch(e=>{console.error("게임 시작 연출:",e);stopGameStartBgm();countdownTimer=null;});
 }
 
 async function nextRound(){
