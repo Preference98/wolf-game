@@ -104,6 +104,16 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @keyframes startCountPulse{from{opacity:0;transform:scale(1.5)}45%{opacity:1}to{opacity:1;transform:scale(1)}}
 @keyframes startTitleIn{from{opacity:0;transform:scale(1.2)}to{opacity:1;transform:scale(1)}}
 
+
+/* GAME COUNTDOWN v18 */
+.gameStartStage{position:fixed!important;inset:0!important;z-index:1000!important;display:flex!important;align-items:center;justify-content:center;background:radial-gradient(circle,#260006 0,#000 70%);text-align:center}
+.gameStartMessage{font-family:Cinzel,serif;font-size:clamp(28px,6vw,64px);font-weight:900;text-shadow:0 0 30px #b00012;animation:startMessageIn .8s ease-out both}
+.gameStartCount{font-family:Cinzel,serif;font-size:clamp(120px,28vw,260px);font-weight:900;line-height:1;color:#fff;text-shadow:0 0 30px #f00018,0 0 90px #90000c;animation:startCountPulse .9s ease-out both}
+.gameStartTitle{font-family:Cinzel,serif;font-size:clamp(48px,10vw,110px);font-weight:900;color:#fff;text-shadow:0 0 35px #f00018,0 0 90px #90000c;animation:startTitleIn .9s ease-out both}
+@keyframes startMessageIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes startCountPulse{0%{opacity:0;transform:scale(1.45)}35%{opacity:1}100%{opacity:1;transform:scale(1)}}
+@keyframes startTitleIn{from{opacity:0;transform:scale(1.18)}to{opacity:1;transform:scale(1)}}
+
 </style>
 </head>
 <body>
@@ -227,6 +237,11 @@ let lastSoundEvent="",lastSoundAt=0,fadeBusy=false,roleRevealTimer=null,countdow
 
 const SOUND_FILES={
  roleSelectionBgm:"sounds/role-selection-bgm.mp3",
+ countdown5:"sounds/countdown-5.mp3",
+ countdown4:"sounds/countdown-4.mp3",
+ countdown3:"sounds/countdown-3.mp3",
+ countdown2:"sounds/countdown-2.mp3",
+ countdown1:"sounds/countdown-1.mp3",
  login:"sounds/login.mp3",
  gameStart:"sounds/game-start.mp3",
  trialStart:"sounds/trial-start.mp3",
@@ -360,6 +375,7 @@ async function route(){
   if(g.phase==="ROLE_INTRO"){stopAllTimers();await renderRoleIntro();return;}
   if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
   if(g.phase==="ROLE_REVEAL"){stopAllTimers();await renderRoleReveal(p,g);return;}
+  if(g.phase==="COUNTDOWN"){stopAllTimers();await renderGameCountdown(p,g);return;}
   if(g.phase==="INVESTIGATION"){stopRoundTimer();await renderInvestigation(p,g);return;}
   if(g.phase==="TRIAL"){stopAllTimers();showTrialLock();return;}
   if(g.phase==="FINISHED"){stopAllTimers();return;}
@@ -374,7 +390,13 @@ async function renderLobby(p,g){
 }
 
 
-function startRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(!a)return;a.loop=true;a.volume=.45;a.currentTime=0;a.play().catch(e=>console.warn("역할 선정 BGM:",e));}catch(e){console.warn(e);}}
+function startRoleSelectionBgm(){
+ try{
+  const a=audio.roleSelectionBgm;if(!a)return;
+  a.loop=true;a.volume=.45;
+  if(a.paused){a.currentTime=0;a.play().catch(e=>console.warn("역할 선정 BGM:",e));}
+ }catch(e){console.warn(e);}
+}
 function stopRoleSelectionBgm(){try{const a=audio.roleSelectionBgm;if(a){a.pause();a.currentTime=0;}}catch(e){}}
 
 async function renderRoleIntro(){
@@ -391,7 +413,8 @@ async function renderRoleIntro(){
 }
 
 async function renderRoleSelect(p,g){
- showScreen("roleSelect");
+ startRoleSelectionBgm();
+ await showScreen("roleSelect");
  const r=await db.from("players").select("*").order("card_position");
  if(r.error){toast(r.error.message);return;}
  const players=r.data||[], chosen=p.card_selected===true;
@@ -425,7 +448,7 @@ async function revealRolesIfReady(){
  await set({phase:"ROLE_REVEAL",notice:"모든 플레이어가 카드를 선택했습니다."});
 }
 async function renderRoleReveal(p,g){
- stopRoleSelectionBgm();
+ startRoleSelectionBgm();
  await showScreen("roleReveal");
  const isWolf=p.role==="WOLF";
  const stageClass=isWolf?"wolf":"sheep";
@@ -614,33 +637,71 @@ async function startGame(){
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
  if(!players.length||!players.every(x=>x.card_selected)){toast("모든 플레이어의 양과 늑대 선정이 완료되지 않았습니다.");return;}
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
- await set({started:true,phase:"PLAY",roles_selected:true,notice:"게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
+ await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  toast("게임 시작 준비");
- await playGameCountdown();
- await renderAdmin();
+ const cg=await settings();
+ await renderGameCountdown(null,cg);
 }
-async function playGameCountdown(){
+async function renderGameCountdown(p,g){
+ stopRoleSelectionBgm();
+ const startedAt=Date.parse(g.round_started_at||"");
+ if(!startedAt){
+   console.warn("카운트다운 시작 시간이 없습니다.");
+   return;
+ }
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
- root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
- const content=el("gameStartContent");
-
- // First show the pre-start message briefly.
- content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
- await new Promise(r=>setTimeout(r,1800));
-
- // Five-second countdown.
- for(let i=5;i>=1;i--){
-   content.innerHTML='<div class="gameStartCount">'+i+'</div>';
-   await playSound("gameStart","countdown-"+i+"-"+Date.now()).catch(()=>{});
-   await new Promise(r=>setTimeout(r,1000));
+ if(!root.querySelector(".gameStartStage")){
+   root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
  }
+ const content=el("gameStartContent");
+ if(!content)return;
 
- // Final title before entering the game.
- content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
- await playSound("gameStart","game-start-title-"+Date.now()).catch(()=>{});
- await new Promise(r=>setTimeout(r,1200));
- await route();
+ if(countdownTimer)clearInterval(countdownTimer);
+ let lastStep=-1;
+ const tick=async()=>{
+   const latest=await settings();
+   if(latest.phase!=="COUNTDOWN"){
+     clearInterval(countdownTimer);countdownTimer=null;
+     return;
+   }
+   const elapsed=(Date.now()-startedAt)/1000;
+
+   if(elapsed<1.8){
+     if(lastStep!==0){
+       lastStep=0;
+       content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
+     }
+     return;
+   }
+
+   const countdown=Math.ceil(6.8-elapsed);
+   if(countdown>=1 && countdown<=5){
+     if(lastStep!==countdown){
+       lastStep=countdown;
+       content.innerHTML='<div class="gameStartCount">'+countdown+'</div>';
+       await playSound("countdown"+countdown,"game-countdown-"+g.current_round+"-"+countdown);
+     }
+     return;
+   }
+
+   if(elapsed<8.0){
+     if(lastStep!==6){
+       lastStep=6;
+       content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
+       await playSound("gameStart","game-start-title-"+g.current_round);
+     }
+     return;
+   }
+
+   clearInterval(countdownTimer);countdownTimer=null;
+   const latest2=await settings();
+   if(latest2.phase==="COUNTDOWN"){
+     await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
+   }
+ };
+ await tick();
+ countdownTimer=setInterval(tick,120);
 }
 
 async function nextRound(){
@@ -725,7 +786,14 @@ async function autoLobbyAfterVictory(){
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},payload=>{
   const g=payload.new||{};
-  if(localStorage.getItem("wolf_game_admin_v7")==="1"){renderAdmin();return;}
+  if(localStorage.getItem("wolf_game_admin_v7")==="1"){
+    if(g.phase==="COUNTDOWN"){
+      await renderGameCountdown(null,g);
+    } else {
+      renderAdmin();
+    }
+    return;
+  }
   if(g.winner==="SHEEP" && g.winner!==lastNotice){
    lastNotice="WIN_SHEEP"; openOverlay("🐑","양이 승리했습니다.", "모두 그레이스홀로 모여주세요.","win"); playSound("sheepWin","winner-sheep");
    setTimeout(()=>autoLobbyAfterVictory(),5000);
