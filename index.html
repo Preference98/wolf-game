@@ -343,7 +343,7 @@ const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
-let lastSoundEvent="",lastSoundAt=0,fadeBusy=false,roleRevealTimer=null,countdownTimer=null;
+let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null;
 
 const SOUND_FILES={
  roleSelectionBgm:"sounds/role-selection-bgm.mp3",
@@ -355,6 +355,7 @@ const SOUND_FILES={
  countdown2:"sounds/countdown-2.mp3",
  countdown1:"sounds/countdown-1.mp3",
  login:"sounds/login.mp3",
+ button:"sounds/button.mp3",
  gameStart:"sounds/game-start.mp3",
  trialStart:"sounds/trial-start.mp3",
  sheepWin:"sounds/sheep-win.mp3",
@@ -425,6 +426,12 @@ async function playSound(name,eventKey=""){
    console.warn("사운드 재생 실패:",name,e);
  }
 }
+document.addEventListener("click",(event)=>{
+ const btn=event.target.closest("button");
+ if(btn && !btn.disabled && !btn.hasAttribute("data-no-button-sound")){
+   playSound("button","button-click-"+Date.now());
+ }
+},true);
 document.addEventListener("pointerdown",()=>{unlockSound().catch(()=>{});},{once:true});
 document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:true});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
@@ -814,8 +821,8 @@ function ignoreDeathConfirmation(){
 }
 
 async function confirmDeathByPlayer(notificationId){
+ await playSound("death","death-confirm-"+notificationId);
  await showScreen("deathWarning");
- await playSound("death","death-"+notificationId);
  await new Promise(r=>setTimeout(r,2000));
 
  await showScreen("deathCountdown");
@@ -850,7 +857,6 @@ async function deadSheepFound(location){
   const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
   const investigationStartedAt=new Date().toISOString();
   await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
-  await playSound("deadSheepFound","dead-sheep-reporter-"+investigationStartedAt);
   toast("죽은 양 발견이 접수되었습니다.");
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
 }
@@ -1067,9 +1073,12 @@ function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
-    if(g.phase==="INVESTIGATION" && g.notice && g.notice!==lastNotice){
-      lastNotice=g.notice;
-      activateStageAudio().then(()=>playSound("deadSheepFound","admin-dead-sheep-"+g.current_round+"-"+g.investigation_started_at));
+    if(g.phase==="INVESTIGATION" && g.investigation_started_at){
+      const investigationKey=String(g.current_round)+"-"+String(g.investigation_started_at);
+      if(investigationKey!==lastInvestigationSoundKey){
+        lastInvestigationSoundKey=investigationKey;
+        activateStageAudio().then(()=>playSound("deadSheepFound","investigation-"+investigationKey));
+      }
     }
     renderAdmin();
     return;
@@ -1084,7 +1093,11 @@ function realtime(){
    lastNotice=g.notice;
    if(g.phase==="INVESTIGATION"){
      openOverlay("☠️","죽은 양 발견",g.notice,"alarm");
-     activateStageAudio().then(()=>playSound("deadSheepFound","dead-sheep-reporter-"+g.investigation_started_at));
+     const investigationKey=String(g.current_round)+"-"+String(g.investigation_started_at);
+     if(investigationKey!==lastInvestigationSoundKey){
+       lastInvestigationSoundKey=investigationKey;
+       activateStageAudio().then(()=>playSound("deadSheepFound","investigation-"+investigationKey));
+     }
    }
    else if(g.phase==="TRIAL"){
      openOverlay("⚖️","재판 시작",g.notice,"alarm");
