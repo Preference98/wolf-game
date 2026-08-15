@@ -687,7 +687,7 @@ async function missions(){const r=await db.from("missions").select("*").eq("acti
 
 async function activeMissionLocationsForRound(round, playerCount){const all=await db.from("mission_locations").select("*").eq("active",true).order("id");if(all.error)throw new Error("미션 장소 목록 오류\\n"+all.error.message);const n=Math.max(0,Math.min((playerCount||0)-1,(all.data||[]).length));const arr=[...(all.data||[])];let seed=0;for(const ch of String(round||1))seed=(seed*31+ch.charCodeAt(0))>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};for(let j=arr.length-1;j>0;j--){const k=Math.floor(rnd()*(j+1));[arr[j],arr[k]]=[arr[k],arr[j]];}return arr.slice(0,n);}
 function randomMissionTypeForLocation(location){
- const miniGames=["WIRING","MATCHING","CIRCUIT","PIPES","REACTION","MEMORY","SAFE","DNA","SHAPE","TRACE"];
+ const miniGames=["WIRING","MATCHING","CIRCUIT","MEMORY","SAFE","SHAPE","TRACE"];
  const puzzles=["NUMBER_RULE","LOGIC","SHAPE_RULE","SEQUENCE","MEMORY_PUZZLE","CALCULATION"];
  const type=String(location?.concept_type||"PUZZLE").toUpperCase();
  const pool=type==="MINIGAME"?miniGames:puzzles;
@@ -767,14 +767,49 @@ async function ensureRoundMissionSetup(round){
    const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
    if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
    const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
-   const mr=await db.from("missions").select("*")
+   // 우선 새 구조(mission_location_id)로 찾고,
+   // 예전에 등록된 미션이 location_id 또는 location으로만 연결되어 있어도
+   // 정상적으로 찾아서 현재 장소에 다시 연결합니다.
+   let pool=[];
+   const exact=await db.from("missions").select("*")
      .eq("active",true)
      .eq("concept_type",concept)
      .eq("mission_location_id",loc.id);
-   if(mr.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+mr.error.message);
-   const pool=mr.data||[];
+   if(exact.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+exact.error.message);
+   pool=exact.data||[];
+
+   if(!pool.length){
+     const legacyId=await db.from("missions").select("*")
+       .eq("active",true)
+       .eq("concept_type",concept)
+       .eq("location_id",loc.id);
+     if(legacyId.error)throw new Error("기존 미션 연결 조회 실패 ("+loc.name+"): "+legacyId.error.message);
+     pool=legacyId.data||[];
+   }
+
+   if(!pool.length){
+     const legacyName=await db.from("missions").select("*")
+       .eq("active",true)
+       .eq("concept_type",concept)
+       .eq("location",loc.name);
+     if(legacyName.error)throw new Error("장소명 기준 미션 조회 실패 ("+loc.name+"): "+legacyName.error.message);
+     pool=legacyName.data||[];
+   }
+
    if(!pool.length)throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
+
    const selected=pool[Math.floor(Math.random()*pool.length)];
+
+   // 과거 형식으로 저장된 미션이면 현재 장소 연결을 자동으로 복구합니다.
+   if(String(selected.mission_location_id||"")!==String(loc.id) ||
+      String(selected.location_id||"")!==String(loc.id)){
+     const fix=await db.from("missions").update({
+       mission_location_id:loc.id,
+       location_id:loc.id,
+       location:loc.name
+     }).eq("id",String(selected.id));
+     if(fix.error)throw new Error("미션 장소 연결 복구 실패 ("+loc.name+"): "+fix.error.message);
+   }
    const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
    if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
  }
