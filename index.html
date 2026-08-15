@@ -505,6 +505,17 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateSt
 window.addEventListener("focus",()=>activateStageAudio());
 
 function el(id){return document.getElementById(id);}
+function ensureEl(id,parentId="mission",tag="div"){
+ const existing=el(id);
+ if(existing)return existing;
+ const parent=el(parentId);
+ if(!parent)throw new Error("화면 요소 '"+parentId+"'를 찾을 수 없습니다.");
+ const node=document.createElement(tag);
+ node.id=id;
+ parent.appendChild(node);
+ return node;
+}
+
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
@@ -1525,7 +1536,7 @@ async function boot(){
  }
 }
 
-window.logout=logout;window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
+window.ensureEl=ensureEl;window.logout=logout;window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.addMissionLocation=addMissionLocation;window.removeMissionLocation=removeMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
