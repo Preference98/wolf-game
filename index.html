@@ -94,6 +94,16 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @keyframes roleFlip{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
 @media(max-width:600px){.roleSelectBoard{gap:9px}.playingCard .cardInner{border-width:5px;padding:8px}.playingCard:before{inset:9px}.roleRevealStage .revealCard{width:82vw;height:78vh}}
 
+
+/* GAME START COUNTDOWN v17 */
+.gameStartStage{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#250006 0,#000 68%);text-align:center}
+.gameStartMessage{font-family:Cinzel,serif;font-size:clamp(28px,6vw,64px);font-weight:900;letter-spacing:2px;text-shadow:0 0 30px #b00012;animation:startMessageIn .8s ease-out both}
+.gameStartCount{font-family:Cinzel,serif;font-size:clamp(120px,28vw,260px);font-weight:900;line-height:1;text-shadow:0 0 35px #f00018,0 0 80px #90000c;animation:startCountPulse .85s ease-out both}
+.gameStartTitle{font-family:Cinzel,serif;font-size:clamp(48px,10vw,110px);font-weight:900;text-shadow:0 0 35px #f00018,0 0 80px #90000c;animation:startTitleIn .9s ease-out both}
+@keyframes startMessageIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes startCountPulse{from{opacity:0;transform:scale(1.5)}45%{opacity:1}to{opacity:1;transform:scale(1)}}
+@keyframes startTitleIn{from{opacity:0;transform:scale(1.2)}to{opacity:1;transform:scale(1)}}
+
 </style>
 </head>
 <body>
@@ -611,18 +621,28 @@ async function startGame(){
 }
 async function playGameCountdown(){
  await showScreen("gameCountdown");
- const n=el("countdownNum"),title=el("countdownTitle");
- title.textContent="";
+ const root=el("gameCountdown");
+ root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
+ const content=el("gameStartContent");
+
+ // First show the pre-start message briefly.
+ content.innerHTML='<div class="gameStartMessage">잠시후 게임이 시작됩니다.</div>';
+ await new Promise(r=>setTimeout(r,1800));
+
+ // Five-second countdown.
  for(let i=5;i>=1;i--){
-   n.textContent=i;
+   content.innerHTML='<div class="gameStartCount">'+i+'</div>';
+   await playSound("gameStart","countdown-"+i+"-"+Date.now()).catch(()=>{});
    await new Promise(r=>setTimeout(r,1000));
  }
- n.textContent="";
- title.textContent="게임 시작";
- await playSound("gameStart","game-start-title-"+Date.now());
- await new Promise(r=>setTimeout(r,1100));
+
+ // Final title before entering the game.
+ content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
+ await playSound("gameStart","game-start-title-"+Date.now()).catch(()=>{});
+ await new Promise(r=>setTimeout(r,1200));
  await route();
 }
+
 async function nextRound(){
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
