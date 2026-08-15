@@ -1,69 +1,790 @@
 <!doctype html>
-<html lang="ko"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>늑대게임</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap');
-*{box-sizing:border-box}html,body{margin:0;background:#000;color:#eee;font-family:"Noto Sans KR",sans-serif}body{background:radial-gradient(circle at 50% 0,#250005,#050505 45%,#000)}
-.wrap{max-width:620px;margin:auto;min-height:100vh;background:#030303;box-shadow:0 0 80px #50000055}
-header{text-align:center;padding:10px;border-bottom:1px solid #350006}.title{display:block;width:min(440px,95%);height:110px;object-fit:cover;object-position:center 20%;margin:auto}.sub{font-size:10px;color:#777;letter-spacing:3px}
-main{padding:18px}.screen{display:none}.active{display:block}.card{background:#0b0b0b;border:1px solid #292929;border-radius:12px;padding:16px;margin-bottom:13px;box-shadow:inset 0 0 20px #000}
-h1{font-family:Cinzel,"Noto Sans KR";margin:0 0 8px;text-shadow:0 0 12px red}.muted{color:#999;font-size:13px;line-height:1.6}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
-button{border:1px solid #85000b;border-radius:8px;padding:11px 13px;background:linear-gradient(#d20c18,#6c0005);color:#fff;font-weight:900}button.secondary{background:#171717;border-color:#444}button.danger{background:#4a0005}button.success{background:#075a2d;border-color:#18a45a}button:disabled{opacity:.35}
-input,textarea,select{width:100%;padding:12px;background:#050505;border:1px solid #3c3c3c;border-radius:8px;color:#fff;margin:7px 0 12px}.item{padding:12px 0;border-bottom:1px solid #222}.item:last-child{border:0}.mission{display:flex;justify-content:space-between;align-items:center}
-.notice{padding:14px;background:#171717;border-left:3px solid #aaa;margin-bottom:12px;border-radius:8px}.alert{background:#390006;border-color:#f00}.success{background:#05351b;border-color:#1bc268}.timer{text-align:center;font-size:32px;font-weight:900;font-family:Cinzel}.dangerText{color:#f33}.question{font-size:19px;line-height:1.6;margin:15px 0}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#151515;padding:11px;border-radius:8px}.stat b{display:block;font-size:20px;margin-top:4px}
-.overlay{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;padding:18px;z-index:99}.overlay.show{display:flex}.modal{width:min(500px,100%);background:#050505;border:1px solid #c0000d;padding:28px;border-radius:14px;text-align:center;box-shadow:0 0 80px #f0000066}.win .modal{border-color:#d9ae45;box-shadow:0 0 80px #d9ae4544}.icon{font-size:55px}
-</style></head><body><div class="wrap">
-<header><img class="title" src="wolf_game_title.png" alt="늑대게임"><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:#eee;font-family:"Noto Sans KR",Arial,sans-serif}
+body{background:radial-gradient(circle at 50% 0,#220004 0,#050505 42%,#000 78%);overflow-x:hidden}
+.wrap{max-width:620px;margin:auto;min-height:100vh;background:#030303;box-shadow:0 0 90px #5c000044}
+header{text-align:center;padding:9px 12px;border-bottom:1px solid #360007;background:#050505}
+.title{display:block;width:min(440px,96%);height:112px;object-fit:cover;object-position:center 20%;margin:auto}
+.sub{font-size:9px;color:#777;letter-spacing:3px}
+main{padding:18px}
+.screen{display:none}.screen.active{display:block}
+.card{background:linear-gradient(145deg,#111,#050505);border:1px solid #292929;border-radius:12px;padding:16px;margin-bottom:13px;box-shadow:inset 0 0 20px #000}
+h1{font-family:Cinzel,"Noto Sans KR",serif;font-size:25px;margin:0 0 8px;text-shadow:0 0 12px #f00000}
+h2{font-size:18px;margin:0 0 10px}
+.muted{color:#949494;font-size:13px;line-height:1.65}
+.small{font-size:11px;color:#777}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pill{border:1px solid #555;background:#151515;border-radius:99px;padding:5px 10px;font-size:11px}
+button{border:1px solid #81000a;border-radius:8px;padding:11px 13px;background:linear-gradient(#d20b17,#690005);color:#fff;font-weight:900;cursor:pointer;transition:.12s transform,.12s filter,.12s opacity}
+button:hover{filter:brightness(1.12)}
+button:active{transform:scale(.97)}
+button.busy{opacity:.65;cursor:wait}
+button.secondary{background:#161616;border-color:#444;color:#ddd}
+button.danger{background:#4b0006;border-color:#a6000c}
+button.success{background:#075c2d;border-color:#16a65a}
+button:disabled{opacity:.35;cursor:not-allowed}
+input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid #3c3c3c;background:#070707;color:#fff;margin:7px 0 12px;font-size:15px}
+.item{padding:12px 0;border-bottom:1px solid #222}.item:last-child{border:0}
+.mission{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.notice{padding:13px 14px;border-radius:9px;background:#171717;border-left:3px solid #aaa;margin-bottom:12px}
+.notice.alert{background:#380006;border-left-color:#f00000}
+.notice.success{background:#05351c;border-left-color:#18b961}
+.question{font-size:19px;line-height:1.6;margin:15px 0}
+.timer{text-align:center;font-size:32px;font-weight:900;font-family:Cinzel,serif;margin:15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:#151515;border:1px solid #292929;border-radius:9px;padding:11px}
+.stat b{display:block;font-size:20px;margin-top:4px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:200;background:#171717;border:1px solid #777;border-left:3px solid #e00012;border-radius:8px;padding:12px 16px;max-width:90%;box-shadow:0 10px 40px #000;transition:.2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.overlay{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;padding:18px;z-index:100}
+.overlay.show{display:flex}
+.modal{width:min(500px,100%);background:#070707;border:1px solid #97000b;border-radius:14px;padding:26px;text-align:center;box-shadow:0 0 80px #f0000044}
+.modal .icon{font-size:52px}.modal h1{font-size:29px}
+.modal.confirm{border-color:#777;box-shadow:0 0 60px #000}
+.modal.confirm .buttons{display:flex;gap:9px}.modal.confirm .buttons button{flex:1}
+.overlay.alarm .modal{border-color:#f00000;box-shadow:0 0 100px #f0000066}
+.overlay.win .modal{border-color:#d4ad43;box-shadow:0 0 90px #d4ad433d}
+.errorbox{background:#350006;border:1px solid #8e0010;color:#ffb9bf;padding:12px;border-radius:8px;font-size:13px;white-space:pre-wrap}
+.statusline{min-height:20px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <img class="title" src="wolf_game_title.png" alt="늑대게임">
+  <div class="sub">REAL-WORLD SURVIVAL GAME</div>
+</header>
 <main>
-<section id="login" class="screen active"><div class="card"><h1>게임 입장</h1><p class="muted">이름을 입력하십시오. <b>관리자</b> 입력 시 관리자 화면으로 입장합니다.</p><input id="name" placeholder="성명"><button style="width:100%" onclick="join()">입장</button></div></section>
-<section id="lobby" class="screen"><div class="card"><div class="row"><h1>대기실</h1><span id="role"></span></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div></section>
-<section id="player" class="screen"><div id="noticeBox"></div><div class="card"><div class="row"><h1 id="state">양 생존 중...</h1><span id="round"></span></div><p id="phase" class="muted"></p></div><div id="awaken"></div><div class="card"><h2>미션</h2><p class="muted">전체 완료 현황은 공개되지 않습니다.</p><div id="missions"></div></div><button style="width:100%" onclick="confirmBody()">☠️ 시체 발견</button><br><br><button class="secondary" style="width:100%" onclick="enableSound()">🔊 알림 소리 테스트</button></section>
-<section id="mission" class="screen"><button class="secondary" onclick="renderPlayer()">← 돌아가기</button><div class="card"><div id="meta" class="muted"></div><h1 id="mt"></h1><p id="md" class="muted"></p><div id="timer" class="timer">03:00</div><div id="q" class="question"></div><input id="ans" placeholder="답 입력"><button style="width:100%" onclick="submitAnswer()">답안 제출</button><div id="mr"></div></div></section>
-<section id="admin" class="screen"><div class="card"><h1>관리자 대시보드</h1><div id="stats" class="grid"></div></div>
-<div class="card"><h2>게임 제어</h2><div class="grid"><button onclick="startGame()">게임 시작</button><button onclick="nextRound()">다음 라운드</button><button onclick="trial()">재판 시작</button><button onclick="resetGame()">게임 초기화</button><button class="success" onclick="forceWin('SHEEP')">🐑 양 승리</button><button class="danger" onclick="forceWin('WOLF')">🐺 늑대 승리</button></div></div>
-<div class="card"><h2>시간 설정</h2><label class="muted">라운드 진행 시간</label><select id="roundMin"><option>10</option><option selected>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select><label class="muted">양 제한 시간</label><select id="sheepMin"><option>5</option><option selected>8</option><option>10</option><option>12</option><option>15</option></select><button onclick="saveTiming()">저장</button></div>
-<div class="card"><h2>NFC 테스트</h2><p class="muted">OFF면 실제 NFC 없이 미션을 테스트할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 모드: OFF</button></div>
-<div class="card"><h2>전체 알림</h2><textarea id="msg" placeholder="메시지"></textarea><button onclick="sendNotice()">전송</button></div>
-<div class="card"><h2>플레이어</h2><div id="plist"></div></div></section>
-</main></div>
-<div id="overlay" class="overlay"><div class="modal"><div id="oi" class="icon">🔔</div><h1 id="ot"></h1><p id="om" class="muted"></p><button id="ob" onclick="closeOverlay()">확인</button></div></div>
+
+<section id="login" class="screen active">
+  <div class="card">
+    <h1>게임 입장</h1>
+    <p class="muted">이름을 입력하십시오. <b>관리자</b>를 입력하면 관리자 화면으로 입장합니다.</p>
+    <input id="name" placeholder="성명" autocomplete="name">
+    <button id="joinBtn" style="width:100%" onclick="join()">입장</button>
+    <div id="loginStatus" class="statusline"></div>
+  </div>
+</section>
+
+<section id="lobby" class="screen">
+  <div class="card">
+    <div class="row"><h1>대기실</h1><span class="pill" id="role"></span></div>
+    <div id="lobbyNotice" class="notice"></div>
+    <div id="roleText" class="muted"></div>
+  </div>
+</section>
+
+<section id="player" class="screen">
+  <div id="noticeBox"></div>
+  <div class="card">
+    <div class="row"><h1 id="stateTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
+    <p class="muted" id="phase"></p>
+  </div>
+  <div class="card">
+    <h2>미션</h2>
+    <p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p>
+    <div id="missions"></div>
+  </div>
+  <div class="card">
+    <button id="bodyBtn" style="width:100%" onclick="confirmBody()">☠️ 시체 발견</button>
+  </div>
+  <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
+</section>
+
+<section id="mission" class="screen">
+  <button class="secondary" onclick="renderPlayer()">← 돌아가기</button>
+  <div class="card">
+    <div id="mMeta" class="small"></div>
+    <h1 id="mTitle"></h1>
+    <p id="mDesc" class="muted"></p>
+    <div id="timer" class="timer">03:00</div>
+    <div id="question" class="question"></div>
+    <input id="answer" placeholder="답 입력">
+    <button id="answerBtn" style="width:100%" onclick="submitAnswer()">답안 제출</button>
+    <div id="missionResult"></div>
+  </div>
+</section>
+
+<section id="admin" class="screen">
+  <div class="card">
+    <h1>관리자 대시보드</h1>
+    <div id="stats" class="grid"></div>
+  </div>
+
+  <div class="card">
+    <h2>게임 제어</h2>
+    <div class="grid">
+      <button onclick="confirmAction('게임 시작','게임을 시작하고 역할을 배정하시겠습니까?','startGame')">게임 시작</button>
+      <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드로 이동하시겠습니까?','nextRound')">다음 라운드</button>
+      <button onclick="confirmAction('재판 시작','모든 플레이어에게 재판 시작을 알리시겠습니까?','startTrial')">재판 시작</button>
+      <button class="danger" onclick="confirmAction('게임 초기화','플레이어 역할과 완료 미션 등 게임 상태를 완전히 초기화하시겠습니까?','resetGame')">게임 초기화</button>
+      <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 전체 플레이어에게 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
+      <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 전체 플레이어에게 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>라운드 시간</h2>
+    <label class="small">한 라운드 진행 시간 (기본 15분)</label>
+    <select id="roundMinutes"><option>10</option><option selected>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select>
+    <button onclick="saveTiming()">시간 설정 저장</button>
+  </div>
+
+  <div class="card">
+    <h2>NFC 테스트 모드</h2>
+    <p class="muted">테스트 모드에서는 NFC 태그 없이 미션을 열 수 있습니다. 실제 NFC 연동은 이후 단계에서 연결합니다.</p>
+    <button id="nfcBtn" onclick="toggleNfc()">NFC 테스트 모드: OFF</button>
+  </div>
+
+  <div class="card">
+    <h2>전체 알림</h2>
+    <textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea>
+    <button onclick="sendNotice()">알림 전송</button>
+  </div>
+
+  <div class="card">
+    <h2>플레이어</h2>
+    <div id="playerList"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="overlay" class="overlay">
+  <div id="modal" class="modal">
+    <div id="modalIcon" class="icon">🔔</div>
+    <h1 id="modalTitle"></h1>
+    <p id="modalMessage" class="muted"></p>
+    <div id="modalButtons"></div>
+  </div>
+</div>
+
 <script>
-const URL="https://nfmryuvkdiiqxznhhcjg.supabase.co",KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u",db=supabase.createClient(URL,KEY);
-let meId=localStorage.getItem("wg_player"),timer=null,endAt=0,current=null,sound=false,nfc=false,lastNotice="";
-function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active")}
-async function settings(){return (await db.from("game_settings").select("*").eq("id",1).single()).data}
-async function me(){return meId?(await db.from("players").select("*").eq("id",meId).maybeSingle()).data:null}
-async function missions(){return (await db.from("missions").select("*").eq("active",true).order("id")).data||[]}
-async function comps(r){return (await db.from("mission_completions").select("*").eq("game_round",r)).data||[]}
-function beep(type="normal"){try{let c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);g.gain.value=.1;if(type==="siren"){o.type="sawtooth";o.frequency.setValueAtTime(450,c.currentTime);o.frequency.linearRampToValueAtTime(1000,c.currentTime+.35);o.frequency.linearRampToValueAtTime(400,c.currentTime+.7);o.start();o.stop(c.currentTime+.9)}else if(type==="win"){o.type="triangle";o.frequency.value=880;o.start();o.stop(c.currentTime+.6)}else{o.frequency.value=700;o.start();o.stop(c.currentTime+.18)}}catch(e){}}
-function enableSound(){sound=true;beep();alert("알림 소리가 활성화되었습니다.")}
-function overlay(icon,title,msg,kind="",confirm=false){document.getElementById("oi").textContent=icon;document.getElementById("ot").textContent=title;document.getElementById("om").textContent=msg;document.getElementById("ob").textContent=confirm?"신고하기":"확인";document.getElementById("ob").onclick=confirm?bodyFound:closeOverlay;let x=document.getElementById("overlay");x.className="overlay show "+kind;if(kind==="win")beep("win");else if(kind==="alarm")beep("siren");else if(sound)beep()}
-function closeOverlay(){document.getElementById("overlay").className="overlay"}
-async function join(){let n=document.getElementById("name").value.trim();if(!n)return alert("이름을 입력하세요.");if(n==="관리자"){localStorage.setItem("wg_admin","1");show("admin");renderAdmin();return}let p=(await db.from("players").select("*").eq("name",n).maybeSingle()).data;if(!p){let r=await db.from("players").insert({name:n}).select().single();if(r.error)return alert(r.error.message);p=r.data}meId=p.id;localStorage.setItem("wg_player",meId);sound=true;beep();route()}
-async function route(){if(localStorage.getItem("wg_admin")==="1"){show("admin");renderAdmin();return}let p=await me(),g=await settings();if(!p)return show("login");if(g.started)renderPlayer();else{document.getElementById("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";document.getElementById("roleText").textContent=p.role==="WOLF"?"당신은 늑대입니다.":p.role==="SHEEP"?"당신은 양입니다.":"게임 시작을 기다리십시오.";document.getElementById("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";show("lobby")}}
-async function renderPlayer(){let p=await me(),g=await settings(),ms=await missions(),cs=await comps(g.current_round);if(!p)return show("login");document.getElementById("state").textContent=p.status==="ALIVE"?"양 생존 중...":"☠️ 탈락";document.getElementById("round").textContent="ROUND "+g.current_round;document.getElementById("phase").textContent=g.notice||g.phase;document.getElementById("noticeBox").innerHTML=g.notice?`<div class="notice">${g.notice}</div>`:"";document.getElementById("awaken").innerHTML=g.wolf_awakened?'<div class="notice alert"><b>🐺 늑대가 각성했다</b><br>양의 제한 시간 초과로 늑대에게 어드밴티지가 적용되었습니다.</div>':"";let mine=cs.some(x=>x.player_id===p.id),b=document.getElementById("missions");b.innerHTML="";ms.forEach(m=>{let own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id);let dis=mine||own||p.status!=="ALIVE"||(!nfc);b.innerHTML+=`<div class="item mission"><div><b>${m.location}</b><div class="muted">${m.title}</div></div><button ${dis?"disabled":""} onclick="openMission('${m.id}')">${own?"완료":"수행"}</button></div>`});show("player")}
-async function openMission(id){let p=await me(),g=await settings(),ms=await missions(),m=ms.find(x=>x.id===id);if(!m)return;let cs=await comps(g.current_round);if(p.role==="SHEEP"&&cs.some(x=>x.player_id===p.id))return alert("이미 미션을 완료했습니다.");current=m;document.getElementById("meta").textContent=m.id+" · "+m.location;document.getElementById("mt").textContent=m.title;document.getElementById("md").textContent=m.description;document.getElementById("q").textContent=p.role==="WOLF"?m.wolf_question:m.question;document.getElementById("ans").value="";document.getElementById("mr").innerHTML="";endAt=Date.now()+180000;timer=setInterval(tick,250);tick();show("mission")}
-function tick(){let x=Math.max(0,endAt-Date.now()),s=Math.ceil(x/1000);document.getElementById("timer").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");if(!x)clearInterval(timer)}
-async function submitAnswer(){if(!current||Date.now()>endAt)return;let p=await me(),g=await settings(),a=document.getElementById("ans").value.trim(),correct=p.role==="WOLF"?current.wolf_answer:current.answer;if(a!==correct){document.getElementById("mr").innerHTML='<div class="notice alert">오답입니다.</div>';return}if(p.role==="SHEEP"){let cs=await comps(g.current_round);if(cs.some(x=>x.mission_id===current.id)){document.getElementById("mr").innerHTML='<div class="notice alert">이미 완료된 미션입니다.</div>';return}await db.from("mission_completions").insert({game_round:g.current_round,mission_id:current.id,player_id:p.id});let after=await comps(g.current_round),ms=await missions();if(ms.length&&after.length>=ms.length)await set({phase:"FINISHED",winner:"SHEEP",notice:"🐑 양이 모든 미션을 완료했습니다!"})}else{await db.from("wolf_attempts").insert({game_round:g.current_round,mission_id:current.id,player_id:p.id});let cs=await comps(g.current_round),count=g.wolf_awakened?2:1;for(let i=0;i<count&&cs.length;i++)await db.from("mission_completions").delete().eq("id",cs[cs.length-1-i].id)}renderPlayer()}
-async function set(v){let r=await db.from("game_settings").update(v).eq("id",1);if(r.error)alert(r.error.message)}
-function confirmBody(){overlay("☠️","시체 발견","정말 시체를 발견했다고 신고하시겠습니까?","alarm",true)}
-async function bodyFound(){closeOverlay();await set({phase:"TRIAL",body_found:true,notice:"☠️ 시체가 발견되었습니다!"})}
-async function renderAdmin(){let g=await settings(),p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions();document.getElementById("stats").innerHTML=`<div class="stat">ROUND<b>${g.current_round}</b></div><div class="stat">생존<b>${p.filter(x=>x.status==="ALIVE").length}</b></div><div class="stat">미션<b>${c.length}/${m.length}</b></div><div class="stat">상태<b>${g.phase}</b></div>`;document.getElementById("roundMin").value=g.round_duration_minutes||15;document.getElementById("sheepMin").value=g.sheep_limit_minutes||8;document.getElementById("nfcBtn").textContent="NFC 모드: "+(nfc?"ON":"OFF");document.getElementById("plist").innerHTML=p.map(x=>`<div class="item row"><div><b>${x.name}</b><div class="muted">${x.role} · ${x.status}</div></div><button class="danger" onclick="removePlayer('${x.id}')">퇴장</button></div>`).join("")}
-async function startGame(){let p=(await db.from("players").select("*")).data||[];if(!p.length)return alert("참가자가 없습니다.");p.sort(()=>Math.random()-.5);let w=Math.max(1,Math.floor(p.length/5));for(let i=0;i<p.length;i++)await db.from("players").update({role:i<w?"WOLF":"SHEEP",status:"ALIVE"}).eq("id",p[i].id);await set({started:true,phase:"PLAY",notice:"게임이 시작되었습니다.",winner:null,body_found:false,wolf_awakened:false,round_started_at:new Date().toISOString()});renderAdmin()}
-async function trial(){await set({phase:"TRIAL",notice:"⚖️ 재판이 시작되었습니다."});renderAdmin()}
-async function nextRound(){let g=await settings();await db.from("mission_completions").delete().eq("game_round",g.current_round);await db.from("wolf_attempts").delete().eq("game_round",g.current_round);await set({current_round:g.current_round+1,phase:"PLAY",notice:"ROUND "+(g.current_round+1)+" 시작",winner:null,body_found:false,wolf_awakened:false,round_started_at:new Date().toISOString()});renderAdmin()}
-async function forceWin(w){await set({phase:"FINISHED",winner:w,notice:w==="SHEEP"?"🐑 양이 승리했습니다!":"🐺 늑대가 승리했습니다!"})}
-async function resetGame(){if(!confirm("게임을 완전히 초기화합니까?"))return;await db.from("mission_completions").delete().gte("id",0);await db.from("wolf_attempts").delete().gte("id",0);await db.from("players").update({role:"UNASSIGNED",status:"ALIVE"}).gte("created_at","1970-01-01");await set({current_round:1,phase:"LOBBY",started:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,body_found:false,wolf_awakened:false,round_started_at:null});renderAdmin()}
-async function removePlayer(id){let r=await db.from("players").update({status:"REMOVED"}).eq("id",id);if(r.error)return alert("퇴장 처리 실패: "+r.error.message);renderAdmin()}
-async function saveTiming(){await set({round_duration_minutes:+document.getElementById("roundMin").value,sheep_limit_minutes:+document.getElementById("sheepMin").value});alert("저장했습니다.")}
-async function sendNotice(){let m=document.getElementById("msg").value.trim();if(!m)return;await db.from("notifications").insert({message:m});await set({notice:"🔔 "+m});document.getElementById("msg").value=""}
-function toggleNfc(){nfc=!nfc;document.getElementById("nfcBtn").textContent="NFC 모드: "+(nfc?"ON":"OFF");alert(nfc?"테스트용 NFC 우회 모드가 켜졌습니다.":"실제 NFC 모드입니다.")}
-async function awaken(){let g=await settings();if(!g.started||g.phase==="FINISHED"||g.wolf_awakened||!g.round_started_at)return;let t=(Date.now()-new Date(g.round_started_at).getTime())/60000;if(t>=+(g.sheep_limit_minutes||8))await set({wolf_awakened:true,notice:"🐺 늑대가 각성했다"});else if(t>=+(g.round_duration_minutes||15))await set({phase:"TRIAL",notice:"⏰ 라운드 시간이 종료되었습니다."})}
-db.channel("wg-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},p=>{let g=p.new;if(localStorage.getItem("wg_admin")==="1"){renderAdmin();return}if(g.winner==="SHEEP")overlay("🐑","양의 승리!",g.notice,"win");else if(g.winner==="WOLF")overlay("🐺","늑대의 승리!",g.notice,"win");else if(g.notice!==lastNotice){lastNotice=g.notice||"";if(g.body_found)overlay("☠️","시체가 발견되었습니다!",g.notice,"alarm");else if(g.wolf_awakened)overlay("🐺","늑대가 각성했다",g.notice,"alarm");else if(g.phase==="TRIAL")overlay("⚖️","재판 시작",g.notice);else if(sound)overlay("🔔","관리자 알림",g.notice)}route()}).subscribe();
-db.channel("wg-comps").on("postgres_changes",{event:"*","schema":"public","table":"mission_completions"},()=>{if(localStorage.getItem("wg_admin")==="1")renderAdmin();else renderPlayer()}).subscribe();
-setInterval(awaken,1000);
-if(localStorage.getItem("wg_admin")==="1"){show("admin");renderAdmin()}else if(meId)route();else show("login");
-</script></body></html>
+(function(){
+"use strict";
+
+const SUPABASE_URL = "https://nfmryuvkdiiqxznhhcjg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
+
+let db = null;
+let playerId = localStorage.getItem("wolf_game_player_v5");
+let currentMission = null;
+let missionTimer = null;
+let missionEndAt = 0;
+let soundEnabled = false;
+let nfcTestMode = false;
+let lastNotice = "";
+let pendingAdminAction = null;
+
+function el(id){ return document.getElementById(id); }
+
+function toast(message){
+  const t = el("toast");
+  t.textContent = message;
+  t.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+function buttonBusy(button, busyText){
+  if(!button) return ()=>{};
+  const old = button.textContent;
+  button.disabled = true;
+  button.classList.add("busy");
+  button.textContent = busyText || "처리 중...";
+  return ()=>{
+    button.disabled = false;
+    button.classList.remove("busy");
+    button.textContent = old;
+  };
+}
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  el(id).classList.add("active");
+}
+
+function showError(containerId, message){
+  el(containerId).innerHTML = '<div class="errorbox">'+escapeHtml(message)+'</div>';
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function unlockSound(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    const ctx = new AC();
+    if(ctx.state === "suspended") ctx.resume();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    g.gain.value = 0.035;
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 620;
+    o.start();
+    o.stop(ctx.currentTime + 0.08);
+    soundEnabled = true;
+  }catch(e){}
+}
+
+function sound(kind){
+  if(!soundEnabled) return;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); g.gain.value=.08;
+    if(kind==="siren"){
+      o.type="sawtooth";
+      o.frequency.setValueAtTime(480,ctx.currentTime);
+      o.frequency.linearRampToValueAtTime(1000,ctx.currentTime+.3);
+      o.frequency.linearRampToValueAtTime(420,ctx.currentTime+.65);
+      o.start(); o.stop(ctx.currentTime+.85);
+    }else if(kind==="win"){
+      o.type="triangle"; o.frequency.value=880; o.start(); o.stop(ctx.currentTime+.55);
+    }else{
+      o.frequency.value=700; o.start(); o.stop(ctx.currentTime+.16);
+    }
+  }catch(e){}
+}
+
+function openOverlay(icon,title,message,kind,buttonsHtml){
+  el("modalIcon").textContent=icon;
+  el("modalTitle").textContent=title;
+  el("modalMessage").textContent=message || "";
+  el("modalButtons").innerHTML=buttonsHtml || '<button onclick="closeOverlay()">확인</button>';
+  const ov=el("overlay");
+  ov.className="overlay show "+(kind||"");
+}
+
+function closeOverlay(){
+  el("overlay").className="overlay";
+}
+
+function confirmBody(){
+  openOverlay("☠️","시체 발견 확인","정말 시체를 발견했다고 신고하시겠습니까?","alarm",
+    '<div class="modal confirm"><div class="buttons"><button class="secondary" onclick="closeOverlay()">취소</button><button class="danger" onclick="bodyFound()">시체 발견 신고</button></div></div>');
+}
+
+function confirmAction(title,message,action){
+  pendingAdminAction=action;
+  openOverlay("⚠️",title,message,"",
+    '<div class="buttons" style="display:flex;gap:9px"><button class="secondary" onclick="closeOverlay()">취소</button><button onclick="runConfirmedAdminAction()">확인</button></div>');
+}
+
+async function runConfirmedAdminAction(){
+  const action=pendingAdminAction;
+  pendingAdminAction=null;
+  closeOverlay();
+  if(action && typeof window[action]==="function") await window[action]();
+}
+
+async function apiReady(){
+  if(!db) throw new Error("Supabase 연결 객체를 만들지 못했습니다. 페이지를 새로고침해 주세요.");
+}
+
+async function getSettings(){
+  await apiReady();
+  const r=await db.from("game_settings").select("*").eq("id",1).single();
+  if(r.error) throw new Error("게임 설정을 불러오지 못했습니다.\n"+r.error.message);
+  return r.data;
+}
+
+async function getMe(){
+  if(!playerId) return null;
+  await apiReady();
+  const r=await db.from("players").select("*").eq("id",playerId).maybeSingle();
+  if(r.error) throw new Error("플레이어 정보를 불러오지 못했습니다.\n"+r.error.message);
+  return r.data;
+}
+
+async function getMissions(){
+  await apiReady();
+  const r=await db.from("missions").select("*").eq("active",true).order("id");
+  if(r.error) throw new Error("미션을 불러오지 못했습니다.\n"+r.error.message);
+  return r.data || [];
+}
+
+async function getCompletions(round){
+  await apiReady();
+  const r=await db.from("mission_completions").select("*").eq("game_round",round);
+  if(r.error) throw new Error("미션 완료 상태를 불러오지 못했습니다.\n"+r.error.message);
+  return r.data || [];
+}
+
+async function updateSettings(values){
+  const r=await db.from("game_settings").update(values).eq("id",1);
+  if(r.error) throw new Error(r.error.message);
+}
+
+async function join(){
+  const btn=el("joinBtn");
+  const name=el("name").value.trim();
+  if(!name){ toast("이름을 입력해 주세요."); el("name").focus(); return; }
+
+  const done=buttonBusy(btn,"접속 중...");
+  el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
+
+  try{
+    unlockSound();
+
+    // "관리자" is never inserted into players.
+    if(name === "관리자"){
+      localStorage.setItem("wolf_game_admin_v5","1");
+      toast("관리자로 로그인되었습니다.");
+      showScreen("admin");
+      await renderAdmin();
+      return;
+    }
+
+    await apiReady();
+
+    let r=await db.from("players").select("*").eq("name",name).maybeSingle();
+    if(r.error) throw new Error("플레이어 조회 실패\n"+r.error.message);
+
+    let p=r.data;
+    if(!p){
+      r=await db.from("players").insert({name:name,role:"UNASSIGNED",status:"ALIVE"}).select().single();
+      if(r.error) throw new Error("플레이어 등록 실패\n"+r.error.message);
+      p=r.data;
+    }
+
+    playerId=p.id;
+    localStorage.setItem("wolf_game_player_v5",playerId);
+    toast("접속되었습니다.");
+    await route();
+  }catch(e){
+    console.error(e);
+    showError("loginStatus",e.message || String(e));
+  }finally{
+    done();
+  }
+}
+
+async function route(){
+  try{
+    if(localStorage.getItem("wolf_game_admin_v5")==="1"){
+      showScreen("admin");
+      await renderAdmin();
+      return;
+    }
+    const p=await getMe();
+    if(!p){showScreen("login");return;}
+    const g=await getSettings();
+    if(g.started) await renderPlayer();
+    else await renderLobby(p,g);
+  }catch(e){
+    console.error(e);
+    showError("loginStatus",e.message || String(e));
+    showScreen("login");
+  }
+}
+
+async function renderLobby(p,g){
+  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
+  el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":
+    p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
+  el("lobbyNotice").textContent=g.notice || "게임 시작을 기다리고 있습니다.";
+  showScreen("lobby");
+}
+
+async function renderPlayer(){
+  const p=await getMe();
+  const g=await getSettings();
+  const ms=await getMissions();
+  const cs=await getCompletions(g.current_round);
+  if(!p){showScreen("login");return;}
+
+  el("stateTitle").textContent=p.status==="ALIVE"?"양 생존 중...":"☠️ 탈락";
+  el("round").textContent="ROUND "+g.current_round;
+  el("phase").textContent=g.notice || g.phase;
+  el("noticeBox").innerHTML=g.notice?'<div class="notice">'+escapeHtml(g.notice)+'</div>':"";
+
+  const myDone=cs.some(x=>x.player_id===p.id);
+  const box=el("missions");
+  box.innerHTML="";
+
+  ms.forEach(m=>{
+    const own=cs.some(x=>x.player_id===p.id && x.mission_id===m.id);
+    const disabled=myDone || own || p.status!=="ALIVE" || !nfcTestMode;
+    box.innerHTML += '<div class="item mission"><div><b>'+escapeHtml(m.location)+'</b><div class="muted">'+escapeHtml(m.title)+'</div></div>'+
+      '<button '+(disabled?"disabled":"")+' onclick="openMission(\''+escapeHtml(m.id)+'\')">'+(own?"완료":"수행")+'</button></div>';
+  });
+
+  showScreen("player");
+}
+
+async function openMission(id){
+  try{
+    const p=await getMe(),g=await getSettings(),ms=await getMissions();
+    const m=ms.find(x=>x.id===id);
+    if(!m) throw new Error("미션을 찾을 수 없습니다.");
+
+    const cs=await getCompletions(g.current_round);
+    if(p.role==="SHEEP" && cs.some(x=>x.player_id===p.id)){
+      toast("이미 미션을 완료했습니다."); return;
+    }
+
+    currentMission=m;
+    el("mMeta").textContent=m.id+" · "+m.location;
+    el("mTitle").textContent=m.title;
+    el("mDesc").textContent=m.description || "";
+    el("question").textContent=p.role==="WOLF"?m.wolf_question:m.question;
+    el("answer").value="";
+    el("missionResult").innerHTML="";
+    missionEndAt=Date.now()+180000;
+    clearInterval(missionTimer);
+    missionTimer=setInterval(tickMission,250);
+    tickMission();
+    toast("미션을 불러왔습니다.");
+    showScreen("mission");
+  }catch(e){toast(e.message||String(e));}
+}
+
+function tickMission(){
+  const left=Math.max(0,missionEndAt-Date.now());
+  const sec=Math.ceil(left/1000);
+  el("timer").textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
+  if(left<=0) clearInterval(missionTimer);
+}
+
+async function submitAnswer(){
+  const btn=el("answerBtn");
+  if(!currentMission || Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}
+  const done=buttonBusy(btn,"제출 중...");
+  try{
+    const p=await getMe(),g=await getSettings();
+    const answer=el("answer").value.trim();
+    const correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer;
+
+    if(answer!==correct){
+      el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';
+      toast("오답입니다.");
+      return;
+    }
+
+    if(p.role==="SHEEP"){
+      const cs=await getCompletions(g.current_round);
+      if(cs.some(x=>x.mission_id===currentMission.id)){
+        el("missionResult").innerHTML='<div class="notice alert">이미 다른 플레이어가 완료한 미션입니다.</div>';
+        toast("이미 완료된 미션입니다.");
+        return;
+      }
+      if(cs.some(x=>x.player_id===p.id)){toast("이미 미션을 완료했습니다.");return;}
+
+      const r=await db.from("mission_completions").insert({
+        game_round:g.current_round,mission_id:currentMission.id,player_id:p.id
+      });
+      if(r.error) throw new Error("미션 완료 저장 실패\n"+r.error.message);
+
+      const after=await getCompletions(g.current_round);
+      const all=await getMissions();
+      toast("미션 완료!");
+      if(all.length && after.length>=all.length){
+        await updateSettings({
+          phase:"FINISHED",
+          winner:"SHEEP",
+          notice:"🐑 양이 모든 미션을 완료했습니다!"
+        });
+      }
+    }else{
+      const r=await db.from("wolf_attempts").insert({
+        game_round:g.current_round,mission_id:currentMission.id,player_id:p.id
+      });
+      if(r.error) throw new Error("늑대 미션 저장 실패\n"+r.error.message);
+      toast("늑대 미션 완료!");
+      // 늑대가 양의 완료 미션을 지우는 효과는 기존 명세에 따라 1개만 적용.
+      const cs=await getCompletions(g.current_round);
+      if(cs.length) await db.from("mission_completions").delete().eq("id",cs[cs.length-1].id);
+    }
+    await renderPlayer();
+  }catch(e){
+    console.error(e);
+    el("missionResult").innerHTML='<div class="errorbox">'+escapeHtml(e.message||String(e))+'</div>';
+  }finally{done();}
+}
+
+function enableSound(){
+  unlockSound();
+  toast("알림 소리가 활성화되었습니다.");
+}
+
+async function bodyFound(){
+  closeOverlay();
+  const btn=el("bodyBtn");
+  const done=buttonBusy(btn,"신고 중...");
+  try{
+    await updateSettings({
+      phase:"TRIAL",
+      body_found:true,
+      notice:"☠️ 시체가 발견되었습니다!"
+    });
+    toast("시체 발견이 접수되었습니다.");
+  }catch(e){toast("시체 발견 처리 실패: "+e.message);}
+  finally{done();}
+}
+
+function confirmBody(){
+  openOverlay("☠️","시체 발견","정말 시체를 발견했다고 신고하시겠습니까?","alarm",
+    '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="bodyFound()">시체 발견 신고</button></div>');
+}
+
+async function renderAdmin(){
+  try{
+    const g=await getSettings();
+    const p=(await db.from("players").select("*").order("created_at")).data || [];
+    const c=await getCompletions(g.current_round);
+    const m=await getMissions();
+
+    el("stats").innerHTML=
+      '<div class="stat">ROUND<b>'+g.current_round+'</b></div>'+
+      '<div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div>'+
+      '<div class="stat">미션 완료<b>'+c.length+'/'+m.length+'</b></div>'+
+      '<div class="stat">상태<b>'+escapeHtml(g.phase)+'</b></div>';
+
+    el("roundMinutes").value=g.round_duration_minutes||15;
+
+    el("playerList").innerHTML=p.length?p.map(x=>
+      '<div class="item row"><div><b>'+escapeHtml(x.name)+'</b><div class="muted">'+escapeHtml(x.role)+' · '+escapeHtml(x.status)+'</div></div>'+
+      '<button class="danger" onclick="confirmRemovePlayer(\''+escapeHtml(x.id)+'\',\''+escapeHtml(x.name)+'\')">퇴장</button></div>'
+    ).join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+
+    el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");
+    showScreen("admin");
+  }catch(e){
+    console.error(e);
+    showError("playerList",e.message||String(e));
+  }
+}
+
+async function startGame(){
+  const p=(await db.from("players").select("*")).data||[];
+  if(!p.length){toast("참가자가 없습니다.");return;}
+  const btn=document.querySelector('#admin button[onclick*="startGame"]');
+  const done=buttonBusy(btn,"게임 시작 중...");
+  try{
+    p.sort(()=>Math.random()-.5);
+    const wolves=Math.max(1,Math.floor(p.length/5));
+    for(let i=0;i<p.length;i++){
+      const r=await db.from("players").update({role:i<wolves?"WOLF":"SHEEP",status:"ALIVE"}).eq("id",p[i].id);
+      if(r.error)throw new Error(r.error.message);
+    }
+    await updateSettings({
+      started:true,phase:"PLAY",notice:"게임이 시작되었습니다.",
+      winner:null,body_found:false,round_started_at:new Date().toISOString()
+    });
+    toast("게임이 시작되었습니다.");
+    await renderAdmin();
+  }catch(e){toast("게임 시작 실패: "+e.message);}
+  finally{done();}
+}
+
+async function nextRound(){
+  const g=await getSettings();
+  const btn=document.querySelector('#admin button[onclick*="nextRound"]');
+  const done=buttonBusy(btn,"다음 라운드 준비 중...");
+  try{
+    await db.from("mission_completions").delete().eq("game_round",g.current_round);
+    await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
+    const next=g.current_round+1;
+    await updateSettings({
+      current_round:next,phase:"PLAY",notice:"ROUND "+next+" 시작",
+      winner:null,body_found:false,round_started_at:new Date().toISOString()
+    });
+    toast("다음 라운드가 시작되었습니다.");
+    await renderAdmin();
+  }catch(e){toast("다음 라운드 처리 실패: "+e.message);}
+  finally{done();}
+}
+
+async function startTrial(){
+  await updateSettings({phase:"TRIAL",notice:"⚖️ 재판이 시작되었습니다."});
+  toast("재판 시작 알림을 전송했습니다.");
+  await renderAdmin();
+}
+
+async function resetGame(){
+  const done=buttonBusy(document.querySelector('#admin button[onclick*="resetGame"]'),"초기화 중...");
+  try{
+    await db.from("mission_completions").delete().gte("id",0);
+    await db.from("wolf_attempts").delete().gte("id",0);
+    await db.from("players").update({role:"UNASSIGNED",status:"ALIVE"}).gte("created_at","1970-01-01");
+    await updateSettings({
+      current_round:1,phase:"LOBBY",started:false,
+      notice:"게임 시작을 기다리고 있습니다.",
+      winner:null,body_found:false,round_started_at:null
+    });
+    toast("게임이 초기화되었습니다.");
+    await renderAdmin();
+  }catch(e){toast("초기화 실패: "+e.message);}
+  finally{done();}
+}
+
+async function forceSheepWin(){
+  await updateSettings({phase:"FINISHED",winner:"SHEEP",notice:"🐑 양이 승리했습니다! (관리자 테스트)"});
+  toast("양 승리 화면 테스트를 실행했습니다.");
+}
+
+async function forceWolfWin(){
+  await updateSettings({phase:"FINISHED",winner:"WOLF",notice:"🐺 늑대가 승리했습니다! (관리자 테스트)"});
+  toast("늑대 승리 화면 테스트를 실행했습니다.");
+}
+
+async function saveTiming(){
+  const btn=document.querySelector('#admin button[onclick*="saveTiming"]');
+  const done=buttonBusy(btn,"저장 중...");
+  try{
+    await updateSettings({round_duration_minutes:Number(el("roundMinutes").value)});
+    toast("라운드 시간이 저장되었습니다.");
+    await renderAdmin();
+  }catch(e){toast("시간 설정 저장 실패: "+e.message);}
+  finally{done();}
+}
+
+function toggleNfc(){
+  nfcTestMode=!nfcTestMode;
+  el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");
+  toast(nfcTestMode?"NFC 없이 미션 테스트가 가능합니다.":"NFC 테스트 모드를 껐습니다.");
+  if(!localStorage.getItem("wolf_game_admin_v5")) renderPlayer();
+}
+
+async function sendNotice(){
+  const btn=document.querySelector('#admin button[onclick*="sendNotice"]');
+  const msg=el("adminMessage").value.trim();
+  if(!msg){toast("알림 내용을 입력해 주세요.");return;}
+  const done=buttonBusy(btn,"전송 중...");
+  try{
+    const r=await db.from("notifications").insert({message:msg});
+    if(r.error)throw new Error(r.error.message);
+    await updateSettings({notice:"🔔 "+msg});
+    el("adminMessage").value="";
+    toast("알림을 전송했습니다.");
+  }catch(e){toast("알림 전송 실패: "+e.message);}
+  finally{done();}
+}
+
+function confirmRemovePlayer(id,name){
+  pendingAdminAction=()=>removePlayer(id,name);
+  openOverlay("🚪","플레이어 퇴장","「"+name+"」 플레이어를 퇴장시키겠습니까?","",
+    '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="runPendingFunction()">퇴장</button></div>');
+}
+
+async function runPendingFunction(){
+  const fn=pendingAdminAction; pendingAdminAction=null; closeOverlay();
+  if(typeof fn==="function")await fn();
+}
+
+async function removePlayer(id,name){
+  try{
+    const r=await db.from("players").update({status:"REMOVED"}).eq("id",id);
+    if(r.error)throw new Error(r.error.message);
+    toast(name+" 플레이어를 퇴장 처리했습니다.");
+    await renderAdmin();
+  }catch(e){toast("플레이어 퇴장 실패: "+e.message);}
+}
+
+function setupRealtime(){
+  if(!db)return;
+  db.channel("wolf-game-v5-settings")
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},payload=>{
+      const g=payload.new||{};
+      if(localStorage.getItem("wolf_game_admin_v5")==="1"){renderAdmin();return;}
+
+      if(g.winner==="SHEEP"){
+        openOverlay("🐑","양의 승리!",g.notice||"양이 승리했습니다.","win");
+        sound("win");
+      }else if(g.winner==="WOLF"){
+        openOverlay("🐺","늑대의 승리!",g.notice||"늑대가 승리했습니다.","win");
+        sound("win");
+      }else if(g.notice && g.notice!==lastNotice){
+        lastNotice=g.notice;
+        if(g.body_found){
+          openOverlay("☠️","시체가 발견되었습니다!",g.notice,"alarm");
+          sound("siren");
+        }else if(g.phase==="TRIAL"){
+          openOverlay("⚖️","재판 시작",g.notice,"");
+          sound("normal");
+        }else if(soundEnabled){
+          openOverlay("🔔","관리자 알림",g.notice,"");
+          sound("normal");
+        }
+      }
+      route();
+    }).subscribe();
+
+  db.channel("wolf-game-v5-completions")
+    .on("postgres_changes",{event:"*","schema":"public",table:"mission_completions"},()=>{
+      if(localStorage.getItem("wolf_game_admin_v5")==="1")renderAdmin();
+      else if(document.getElementById("player").classList.contains("active"))renderPlayer();
+    }).subscribe();
+
+  db.channel("wolf-game-v5-notices")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{
+      const n=payload.new||{};
+      if(localStorage.getItem("wolf_game_admin_v5")!=="1" && (!n.target_player || n.target_player===playerId)){
+        openOverlay("🔔","관리자 알림",n.message||"",""); sound("normal");
+      }
+    }).subscribe();
+}
+
+async function boot(){
+  try{
+    if(typeof window.supabase==="undefined"){
+      throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
+    }
+    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    setupRealtime();
+
+    el("name").addEventListener("keydown",e=>{if(e.key==="Enter")join();});
+
+    if(localStorage.getItem("wolf_game_admin_v5")==="1"){
+      showScreen("admin"); await renderAdmin(); return;
+    }
+    if(playerId) await route();
+    else showScreen("login");
+  }catch(e){
+    console.error(e);
+    showError("loginStatus",e.message||String(e));
+  }
+}
+
+window.join=join;
+window.confirmBody=confirmBody;
+window.bodyFound=bodyFound;
+window.closeOverlay=closeOverlay;
+window.confirmAction=confirmAction;
+window.runConfirmedAdminAction=runConfirmedAdminAction;
+window.runPendingFunction=runPendingFunction;
+window.renderPlayer=renderPlayer;
+window.openMission=openMission;
+window.submitAnswer=submitAnswer;
+window.enableSound=enableSound;
+window.startGame=startGame;
+window.nextRound=nextRound;
+window.startTrial=startTrial;
+window.resetGame=resetGame;
+window.forceSheepWin=forceSheepWin;
+window.forceWolfWin=forceWolfWin;
+window.saveTiming=saveTiming;
+window.toggleNfc=toggleNfc;
+window.sendNotice=sendNotice;
+window.confirmRemovePlayer=confirmRemovePlayer;
+
+boot();
+})();
+</script>
+</body>
+</html>
