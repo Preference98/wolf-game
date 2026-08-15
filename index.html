@@ -200,9 +200,151 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 
 /* MISSION SYSTEM v49 */
 .miniGame{margin:18px 0;min-height:240px}.wireGrid,.matchGrid,.rotateGrid,.pipeGrid,.memoryGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.wireNode,.matchCard,.rotateTile,.pipeTile,.memoryCell,.safeKey,.shapeChoice{border:1px solid #444;background:#111;color:#fff;border-radius:10px;min-height:54px;font-size:20px;display:flex;align-items:center;justify-content:center}.wireNode.selected{outline:3px solid #35d878}.matchCard{aspect-ratio:1;font-size:30px}.matchCard.done{opacity:.25}.rotateTile,.pipeTile{aspect-ratio:1;font-size:34px}.memoryCell.active{background:#35d878;color:#000}.safeKeys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:360px;margin:auto}.safeDisplay{font-size:30px;letter-spacing:8px;text-align:center;margin:15px}.traceArea{height:260px;border:1px solid #333;border-radius:12px;background:#080808;overflow:hidden;touch-action:none}.tracePath{text-align:center;padding-top:70px;font-size:42px;letter-spacing:10px}
+/* 게임별 기본 UI */
+.wireGrid,.matchGrid,.rotateGrid,.pipeGrid{display:grid;grid-template-columns:repeat(4,minmax(65px,1fr));gap:10px;max-width:620px;margin:20px auto}
+.wireGrid button,.matchCard,.rotateTile,.pipeTile{min-height:70px;border:1px solid #4b5563;border-radius:12px;background:#374151;color:white;font-size:28px}
+.wireGrid button.selected{outline:4px solid #facc15}
+.wireGrid button.done,.matchCard.done{opacity:.35}
+.matchCard{font-size:30px}
+.memoryGrid{display:grid;grid-template-columns:repeat(4,70px);gap:10px;justify-content:center;margin:20px}
+.memoryCell{width:70px;height:70px;border-radius:10px;border:1px solid #4b5563;background:#374151}
+.memoryCell.active{background:#facc15;color:#111}
+#ra button{border:0;border-radius:14px;background:#374151;color:#fff}
+#mg,#cg,#pg,#ra{min-height:260px}
+input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:#111827;color:#fff}
+.feedbackOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center}
+.feedbackCard{width:min(90vw,520px);padding:36px 24px;border-radius:22px;text-align:center;background:#fff;color:#111}
+.feedbackCard.success{border:7px solid #22c55e}
+.feedbackCard.failure{border:7px solid #ef4444}
+.feedbackIcon{font-size:70px;font-weight:900}
+.feedbackTitle{font-size:34px;font-weight:900;margin:10px 0}
+.feedbackText{font-size:18px}
+.wireNode{transition:transform .12s,filter .12s,opacity .12s}
+.wireNode.dragging{transform:translate(-50%,-50%) scale(1.18)!important;cursor:grabbing!important;filter:brightness(1.35);box-shadow:0 0 0 7px rgba(255,255,255,.2),0 0 18px currentColor!important}
+.wireNode.connected{background:#064e3b!important;border-color:#22c55e!important;color:#86efac!important;box-shadow:0 0 0 5px rgba(34,197,94,.22),0 0 18px rgba(34,197,94,.5)!important;cursor:default!important}
+.wireNode.wrong{animation:wireWrong .22s linear 2;border-color:#ef4444!important;color:#fecaca!important}
+@keyframes wireWrong{50%{transform:translate(-50%,-50%) translateX(7px)}}
 
-.screenTopAction{display:flex;justify-content:flex-end;margin:0 0 10px}.logoutBtn{width:auto!important;padding:9px 16px!important;font-size:14px!important}
-.missionFeedback{margin:18px 0;padding:24px 16px;border-radius:14px;text-align:center;font-weight:900;border:2px solid}.missionFeedback.success{background:#063b20;border-color:#18d477;box-shadow:0 0 24px rgba(24,212,119,.25)}.missionFeedback.failure{background:#4a0508;border-color:#ff3347;box-shadow:0 0 24px rgba(255,51,71,.25)}.feedbackIcon{font-size:54px;line-height:1}.feedbackTitle{font-size:30px;margin:10px 0}.feedbackText{font-size:17px;color:#eee;line-height:1.6}</style>
+.matchCard.revealed{outline:3px solid #60a5fa;transform:scale(1.04)}
+.matchCard.matched{background:#064e3b!important;border-color:#22c55e!important;color:#bbf7d0!important}
+.matchCard.wrong{background:#450a0a!important;border-color:#ef4444!important;color:#fecaca!important;animation:matchWrong .2s linear 2}
+.matchCard.failed{opacity:.55!important;filter:grayscale(.8)}
+@keyframes matchWrong{50%{transform:translateX(6px)}}
+
+.rotateTile{font-family:inherit}
+.rotateTile:hover{filter:brightness(1.12)}
+.memoryCell{font-family:inherit;cursor:pointer}
+.memoryCell.wrong{background:#450a0a!important;border-color:#ef4444!important;animation:memoryWrong .2s linear 2}
+@keyframes memoryWrong{50%{transform:translateX(6px)}}
+.safeGame{max-width:760px;margin:0 auto}
+.safeModel{width:min(92vw,520px);margin:18px auto 10px;filter:drop-shadow(0 14px 20px rgba(0,0,0,.35))}
+.safeTop{height:46px;background:linear-gradient(#374151,#1f2937);border:3px solid #111827;border-bottom:0;border-radius:18px 18px 0 0;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.safeBrand{font-size:12px;font-weight:900;letter-spacing:2px;color:#d1d5db}
+.safeLight{width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 12px #22c55e}
+.safeDoor{position:relative;height:330px;background:linear-gradient(145deg,#6b7280,#374151 55%,#1f2937);border:5px solid #111827;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 4px #9ca3af,inset 0 0 40px rgba(0,0,0,.5);transition:filter .3s,transform .3s}
+.safeDoor.opened{filter:brightness(1.3)}
+.safeDoor.locked{animation:safeShake .25s linear 2}
+.safeDial{position:absolute;left:50%;top:44%;width:126px;height:126px;transform:translate(-50%,-50%);border-radius:50%;background:#111827;border:9px solid #9ca3af;box-shadow:inset 0 0 0 6px #374151,0 5px 10px rgba(0,0,0,.45)}
+.safeDialInner{position:absolute;inset:15px;border-radius:50%;background:repeating-conic-gradient(#9ca3af 0deg 3deg,#374151 3deg 15deg);border:5px solid #111827}
+.safeDialMark{position:absolute;top:3px;left:50%;width:4px;height:20px;background:#ef4444;transform:translateX(-50%);border-radius:3px}
+.safePanel{position:absolute;left:50%;top:62%;transform:translateX(-50%);width:190px;padding:10px 12px;border-radius:8px;background:#111827;border:3px solid #0b0f14;box-shadow:inset 0 0 12px rgba(0,0,0,.8)}
+.safeDisplay{height:38px;display:flex;align-items:center;justify-content:center;background:#020617;color:#22c55e;border:2px solid #14532d;border-radius:4px;font-family:monospace;font-size:26px;font-weight:900;letter-spacing:7px;text-shadow:0 0 8px #22c55e}
+.safeLabel{text-align:center;color:#9ca3af;font-size:9px;letter-spacing:3px;margin-top:5px}
+.safeHandle{position:absolute;right:38px;top:47%;width:58px;height:100px}
+.safeHandleBar{position:absolute;right:0;top:8px;width:42px;height:84px;border:9px solid #d1d5db;border-left:0;border-radius:0 14px 14px 0;box-shadow:0 4px 8px rgba(0,0,0,.45)}
+.safeBolt{position:absolute;width:18px;height:18px;border-radius:50%;background:#111827;border:3px solid #9ca3af;box-shadow:inset 0 0 4px #000}
+.bolt1{left:14px;top:18px}.bolt2{right:14px;top:18px}.bolt3{left:14px;bottom:18px}.bolt4{right:14px;bottom:18px}
+.safeBase{height:22px;background:#111827;border-radius:0 0 18px 18px}
+.safeInput{max-width:420px;margin:16px auto}
+.safeInputTitle{text-align:center;font-weight:800;margin-bottom:8px}
+.safeEntry{height:48px;display:flex;align-items:center;justify-content:center;border:2px solid #4b5563;border-radius:10px;background:#111827;color:#f9fafb;font-family:monospace;font-size:26px;letter-spacing:8px;margin-bottom:10px}
+.safeKeys{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.safeKey{height:52px;border:2px solid #4b5563;border-radius:10px;background:#374151;color:#fff;font-size:20px;font-weight:800;cursor:pointer}
+.safeKey:hover{filter:brightness(1.15)}
+.safeKey:disabled{opacity:.45;cursor:default}
+@keyframes safeShake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+.shapeGame{max-width:760px;margin:0 auto;text-align:center}
+.shapeHeader{display:flex;justify-content:center;align-items:stretch;gap:14px;flex-wrap:wrap}
+.shapeTargetCard{min-width:210px;padding:14px 24px;border:2px solid #60a5fa;border-radius:18px;background:#172554}
+.shapeCaption{font-size:13px;color:#bfdbfe;font-weight:800;margin-bottom:4px}
+.shapeTarget{height:95px;display:flex;align-items:center;justify-content:center;font-size:72px;line-height:1}
+.shapeTargetName{font-size:18px;font-weight:900;margin-top:4px}
+#shapeTimer{min-width:150px;display:flex;align-items:center;justify-content:center}
+.shapeChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:620px;margin:20px auto}
+.shapeChoice{min-height:135px;border:2px solid #4b5563;border-radius:18px;background:#1f2937;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .12s,filter .12s,border-color .12s}
+.shapeChoice:hover{transform:scale(1.03);filter:brightness(1.12)}
+.shapeVisual{font-size:64px;line-height:1}
+.shapeChoiceName{font-size:13px;color:#d1d5db;font-weight:800}
+.shapeChoice.correct{border-color:#22c55e!important;background:#064e3b!important;box-shadow:0 0 18px rgba(34,197,94,.4)}
+.shapeChoice.incorrect{border-color:#ef4444!important;background:#450a0a!important;animation:shapeWrong .2s linear 2}
+@keyframes shapeWrong{50%{transform:translateX(6px)}}
+@media(max-width:560px){.shapeChoices{grid-template-columns:repeat(2,1fr);gap:10px}.shapeChoice{min-height:115px}.shapeVisual{font-size:54px}}
+
+.shapeSequenceGame{max-width:760px;margin:0 auto;text-align:center;padding:18px;border-radius:22px;background:radial-gradient(circle at 50% 0,#334155,#0f172a 68%);border:2px solid #475569}
+.shapeBadge{display:inline-block;padding:6px 12px;border-radius:999px;background:#1e3a8a;color:#bfdbfe;font-weight:900;margin-bottom:8px}
+.shapeInstruction{margin-bottom:12px;color:#e2e8f0}
+.shapeReference{margin:12px auto;padding:14px;max-width:330px;border-radius:16px;background:#020617;border:2px solid #60a5fa;box-shadow:0 0 18px rgba(96,165,250,.18)}
+.shapeReference span{display:block;font-size:12px;color:#93c5fd;margin-bottom:5px}
+.shapeReference strong{font-size:38px;letter-spacing:8px}
+.shapeSequenceChoices{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:600px;margin:18px auto}
+.shapeSequenceChoice{min-height:105px;border:2px solid #475569;border-radius:16px;background:#1e293b;color:#fff;cursor:pointer;padding:12px}
+.shapeSequenceChoice:hover{filter:brightness(1.15);transform:scale(1.02)}
+.sequenceShapes{display:flex;justify-content:center;gap:16px;font-size:42px}
+.sequenceText{display:block;margin-top:6px;color:#cbd5e1;font-size:14px;font-weight:800}
+.shapeSequenceChoice.correct{border-color:#22c55e!important;background:#064e3b!important}
+.shapeSequenceChoice.incorrect{border-color:#ef4444!important;background:#450a0a!important}
+.traceGame{max-width:820px;margin:0 auto;text-align:center}
+.traceTitle{font-size:25px;font-weight:900;margin-bottom:10px}
+.traceBoard{position:relative;width:min(92vw,700px);aspect-ratio:700/380;margin:16px auto;border:3px solid #475569;border-radius:20px;background:#0b1120;overflow:hidden;touch-action:none}
+.traceSvg{position:absolute;inset:0;width:100%;height:100%}
+.traceGuide{fill:none;stroke:#60a5fa;stroke-width:16;stroke-linecap:round;filter:drop-shadow(0 0 7px #60a5fa)}
+.traceDot{position:absolute;left:52px;top:287px;width:28px;height:28px;margin:-14px;border-radius:50%;background:#fff;border:5px solid #22c55e;box-shadow:0 0 16px #22c55e;z-index:5}
+.traceStartLabel,.traceGoalLabel{position:absolute;z-index:6;padding:5px 9px;border-radius:8px;background:#020617;border:1px solid #64748b;font-weight:900;font-size:12px}
+.traceStartLabel{left:15px;bottom:14px;color:#86efac}
+.traceGoalLabel{right:15px;top:14px;color:#fde68a}
+.traceDot.traceSuccess{background:#22c55e;border-color:#dcfce7}
+.traceDot.traceFail{background:#ef4444;border-color:#fee2e2}
+@media(max-width:560px){.shapeSequenceChoices{grid-template-columns:1fr}.sequenceShapes{font-size:36px}}
+
+.shapeRandomGame{max-width:760px;margin:0 auto;text-align:center;padding:18px;border-radius:22px;background:radial-gradient(circle at 50% 0,#334155,#0f172a 70%);border:2px solid #475569}
+.shapeRandomTitle{font-size:25px;font-weight:900;margin-bottom:8px}
+.shapeRandomInstruction{color:#e2e8f0;margin-bottom:12px}
+.shapeRandomTarget{width:190px;height:160px;margin:12px auto;border:3px solid #60a5fa;border-radius:20px;background:#020617;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 25px rgba(96,165,250,.2)}
+.shapeRandomCaption{font-size:12px;color:#93c5fd;font-weight:800}
+.shapeRandomSymbol{font-size:82px;line-height:1.05;text-shadow:0 0 15px rgba(255,255,255,.25)}
+.shapeRandomName{font-weight:900;color:#e2e8f0}
+.shapeRandomChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:620px;margin:16px auto}
+.shapeRandomChoice{min-height:120px;border:2px solid #475569;border-radius:16px;background:#1e293b;color:#fff;cursor:pointer;font-size:15px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:transform .12s,filter .12s}
+.shapeRandomChoice:hover{transform:scale(1.03);filter:brightness(1.15)}
+.shapeRandomChoiceSymbol{font-size:60px;line-height:1}
+.shapeRandomChoice.correct{background:#064e3b!important;border-color:#22c55e!important}
+.shapeRandomChoice.incorrect{background:#450a0a!important;border-color:#ef4444!important}
+.traceBoard{position:relative;width:min(92vw,700px);aspect-ratio:700/380;margin:16px auto;border:3px solid #475569;border-radius:20px;background:#0b1120;overflow:hidden;touch-action:none}
+.traceSvg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.traceSvg path{fill:none;stroke:#60a5fa;stroke-width:16;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px #60a5fa)}
+.traceDot{position:absolute;left:9.29%;top:78.95%;width:28px;height:28px;margin:-14px;border-radius:50%;background:#fff;border:5px solid #22c55e;box-shadow:0 0 16px #22c55e;z-index:5;pointer-events:none}
+.traceDot.traceSuccess{background:#22c55e;border-color:#dcfce7}
+.traceDot.traceFail{background:#ef4444;border-color:#fee2e2}
+.traceStartLabel,.traceGoalLabel{position:absolute;z-index:6;padding:5px 9px;border-radius:8px;background:#020617;border:1px solid #64748b;font-weight:900;font-size:12px}
+.traceStartLabel{left:14px;bottom:14px;color:#86efac}
+.traceGoalLabel{right:14px;top:14px;color:#fde68a}
+@media(max-width:560px){.shapeRandomChoices{grid-template-columns:repeat(2,1fr)}.shapeRandomChoice{min-height:105px}.shapeRandomChoiceSymbol{font-size:52px}}
+
+.shapeReferenceIcons,.sequenceShapes{display:flex;justify-content:center;align-items:center;gap:18px}
+.shapeChoiceIcon{display:inline-flex;width:58px;height:58px;align-items:center;justify-content:center;font-size:50px;line-height:1;text-shadow:0 0 10px rgba(255,255,255,.2)}
+.shapeReferenceIcons .shapeChoiceIcon{font-size:68px;width:70px;height:70px}
+
+
+.wolfMiniOutcome{margin:18px 0;padding:30px 20px;border-radius:20px;text-align:center;background:#111;border:4px solid #555;box-shadow:0 12px 30px rgba(0,0,0,.35)}
+.wolfMiniOutcome.success{border-color:#22c55e;background:linear-gradient(145deg,#052e16,#07140b)}
+.wolfMiniOutcome.failure{border-color:#ef4444;background:linear-gradient(145deg,#450a0a,#160707)}
+.wolfMiniOutcomeIcon{font-size:68px;font-weight:900;line-height:1}
+.wolfMiniOutcomeTitle{font-size:30px;font-weight:900;margin:10px 0}
+.wolfMiniOutcomeText{font-size:17px;color:#ddd;line-height:1.6;white-space:pre-line}
+.wolfMiniCancel{margin-top:22px;min-width:140px}
+
+</style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -219,12 +361,10 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 </section>
 
 <section id="lobby" class="screen">
-<div class="screenTopAction"><button class="secondary logoutBtn" onclick="logout()">로그아웃</button></div>
 <div class="card"><div class="row"><h1>대기실</h1><span class="pill" id="role"></span></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
 </section>
 
 <section id="player" class="screen">
-<div class="screenTopAction"><button class="secondary logoutBtn" onclick="logout()">로그아웃</button></div>
 <div id="noticeBox"></div>
 <div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p></div>
@@ -306,7 +446,6 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 </section>
 
 <section id="admin" class="screen">
-<div class="screenTopAction"><button class="secondary logoutBtn" onclick="logout()">로그아웃</button></div>
 <div class="card"><h1>관리자 대시보드</h1><div id="stats" class="grid"></div></div>
 
 <div class="card"><h2>게임 준비 및 진행</h2><div class="grid">
@@ -328,7 +467,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><h2>시체발견 장소 관리</h2><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 미션 장소와 별도로 관리됩니다.</p><div id="locationList"></div>
 <div class="grid"><input id="newLocation" placeholder="시체발견 장소 이름"></div>
 <button onclick="addLocation()">시체발견 장소 추가</button></div>
-<div class="card"><h2>미션 장소 관리</h2><p class="muted"><b>미션은 별도 등록하지 않습니다.</b> 장소의 컨셉에 따라 내장된 미니게임/두뇌퍼즐이 입장할 때마다 자동으로 랜덤 선택됩니다.</p><p class="muted">시체발견 장소와 완전히 별개의 장소입니다. 게임 시작 시 전체 활성 장소 중 플레이어 수-1개가 매 라운드 랜덤으로 활성화됩니다.</p><div id="missionLocationList"></div>
+<div class="card"><h2>미션 장소 관리</h2><p class="muted">시체발견 장소와 완전히 별개의 장소입니다. 생존 양 수만큼 앞에서부터 활성화됩니다.</p><div id="missionLocationList"></div>
 <div class="grid"><input id="newMissionLocationName" placeholder="미션 장소 이름"><select id="newMissionLocationConcept"><option value="MINIGAME">미니게임</option><option value="PUZZLE">두뇌퍼즐</option></select></div>
 <button onclick="addMissionLocation()">미션 장소 추가</button></div>
 <div class="card"><h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button></div>
@@ -351,7 +490,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 "use strict";
 const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
-let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null,currentMissionLocation=null;
+let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
@@ -505,18 +644,6 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateSt
 window.addEventListener("focus",()=>activateStageAudio());
 
 function el(id){return document.getElementById(id);}
-window.el=el;
-function ensureEl(id,parentId="mission",tag="div"){
- const existing=el(id);
- if(existing)return existing;
- const parent=el(parentId);
- if(!parent)throw new Error("화면 요소 '"+parentId+"'를 찾을 수 없습니다.");
- const node=document.createElement(tag);
- node.id=id;
- parent.appendChild(node);
- return node;
-}
-
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
@@ -567,91 +694,96 @@ function randomMissionTypeForLocation(location){
  return pool[Math.floor(Math.random()*pool.length)];
 }
 async function ensureRoundMissionSetup(round){
- const playersR=await db.from("players").select("id").eq("status","ALIVE");
- if(playersR.error)throw new Error("플레이어 수 조회 실패: "+playersR.error.message);
+ const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
+ const expected=Math.max(0,players.length-1);
 
- const expected=Math.max(0,(playersR.data||[]).length-1);
- if(expected===0)return [];
-
- const locR=await db.from("mission_locations")
-   .select("*").eq("active",true).order("id");
- if(locR.error)throw new Error("미션 장소 목록 조회 실패: "+locR.error.message);
-
- const allLocations=locR.data||[];
- if(!allLocations.length)throw new Error("등록된 활성 미션 장소가 없습니다.");
- if(allLocations.length<expected){
-   throw new Error("활성 미션 장소가 "+allLocations.length+"개뿐이라 플레이어 "+(playersR.data||[]).length+"명에 필요한 "+expected+"개를 배정할 수 없습니다.");
+ const allR=await db.from("mission_locations").select("*").eq("active",true).order("id");
+ if(allR.error)throw new Error("미션 장소 목록 조회 실패: "+allR.error.message);
+ // 같은 이름의 활성 장소가 중복 등록되어 있으면 한 곳만 사용합니다.
+ const activeByName=new Map();
+ for(const loc of (allR.data||[])){
+   const key=String(loc.name||"").trim();
+   if(!activeByName.has(key))activeByName.set(key,loc);
  }
+ const activeUnique=[...activeByName.values()];
+ const targetCount=Math.min(expected,activeUnique.length);
 
- // 중요: 이 함수는 플레이어 화면 렌더링에서도 호출됩니다.
- // 이미 이번 라운드의 장소가 확정되어 있다면 다시 랜덤 추첨하지 않습니다.
- const existing=await db.from("round_mission_locations")
-   .select("*")
-   .eq("game_round",round)
-   .order("sort_order")
-   .order("id");
- if(existing.error)throw new Error("라운드 미션 장소 조회 실패: "+existing.error.message);
+ const existingR=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order").order("id");
+ if(existingR.error)throw new Error("라운드 미션 설정 조회 실패: "+existingR.error.message);
+ let rows=existingR.data||[];
 
- const rows=existing.data||[];
- const validIds=new Set(allLocations.map(x=>String(x.id)));
- const uniqueRows=[];
- const seen=new Set();
-
+ // 잘못 만들어진 중복 장소 행 제거: 동일 장소 ID 또는 동일 장소 이름은 한 번만 남깁니다.
+ const activeIds=new Set(activeUnique.map(x=>String(x.id)));
+ const seenIds=new Set(),seenNames=new Set(),keep=[],removeIds=[];
  for(const row of rows){
-   const id=String(row.mission_location_id);
-   if(validIds.has(id)&&!seen.has(id)){
-     seen.add(id);
-     uniqueRows.push(row);
+   const loc=activeUnique.find(x=>String(x.id)===String(row.mission_location_id));
+   const nameKey=String(loc?.name||row.mission_location_id).trim();
+   if(!activeIds.has(String(row.mission_location_id)) ||
+      seenIds.has(String(row.mission_location_id)) ||
+      seenNames.has(nameKey)){
+     if(row.id!=null)removeIds.push(row.id);
+     continue;
+   }
+   seenIds.add(String(row.mission_location_id));seenNames.add(nameKey);keep.push(row);
+ }
+ if(removeIds.length){
+   const dr=await db.from("round_mission_locations").delete().in("id",removeIds);
+   if(dr.error)throw new Error("중복 라운드 미션 제거 실패: "+dr.error.message);
+ }
+ rows=keep;
+
+ // 현재 라운드의 장소 수가 플레이어 수-1과 다르면 부족분만 채웁니다.
+ if(rows.length<targetCount){
+   const used=new Set(rows.map(x=>String(x.mission_location_id)));
+   const candidates=activeUnique.filter(x=>!used.has(String(x.id)));
+   // 라운드마다 후보 순서를 섞어 랜덤 배치합니다.
+   for(let i=candidates.length-1;i>0;i--){
+     const j=Math.floor(Math.random()*(i+1));
+     [candidates[i],candidates[j]]=[candidates[j],candidates[i]];
+   }
+   const add=candidates.slice(0,targetCount-rows.length);
+   if(add.length){
+     const ins=await db.from("round_mission_locations")
+       .insert(add.map((loc,i)=>({
+         game_round:round,
+         mission_location_id:loc.id,
+         sort_order:rows.length+i
+       }))).select();
+     if(ins.error)throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
+     rows=rows.concat(ins.data||[]);
    }
  }
+ if(rows.length>targetCount)rows=rows.slice(0,targetCount);
 
- // 게임 시작 시 startGame()이 기존 행을 삭제한 뒤 이 함수를 호출하므로
- // 보통 여기서 정확히 expected개가 만들어집니다.
- if(uniqueRows.length===expected){
-   return uniqueRows;
+ // 각 활성 장소에 대해 관리자가 등록한 동일 컨셉의 미션 중 하나를 선택합니다.
+ const locIds=rows.map(x=>x.mission_location_id).filter(Boolean);
+ if(!locIds.length)return [];
+ const lr=await db.from("mission_locations").select("*").in("id",locIds);
+ if(lr.error)throw new Error("라운드 미션 장소 조회 실패: "+lr.error.message);
+ const locations=lr.data||[];
+
+ for(const row of rows){
+   if(row.mission_id)continue;
+   const loc=locations.find(x=>String(x.id)===String(row.mission_location_id));
+   if(!loc)throw new Error("라운드 미션 장소를 찾을 수 없습니다. 장소 ID: "+row.mission_location_id);
+   const concept=String(loc.concept_type||"PUZZLE").toUpperCase();
+   const mr=await db.from("missions").select("*")
+     .eq("active",true)
+     .eq("concept_type",concept)
+     .eq("mission_location_id",loc.id);
+   if(mr.error)throw new Error("등록 미션 조회 실패 ("+loc.name+"): "+mr.error.message);
+   const pool=mr.data||[];
+   if(!pool.length)throw new Error("미션 장소 '"+loc.name+"'에 등록된 "+(concept==="MINIGAME"?"미니게임":"두뇌퍼즐")+" 미션이 없습니다. 관리자에서 미션을 먼저 등록해 주세요. (장소 ID: "+loc.id+", 컨셉: "+concept+")");
+   const selected=pool[Math.floor(Math.random()*pool.length)];
+   const ur=await db.from("round_mission_locations").update({mission_id:String(selected.id)}).eq("id",row.id);
+   if(ur.error)throw new Error("라운드 미션 연결 실패: "+ur.error.message);
  }
-
- // 아직 이번 라운드의 배정이 없다면 전체 활성 장소 중 랜덤으로 선택합니다.
- // 기존에 일부 잘못된 행이 있다면 그 행은 버리고 새로 구성합니다.
- if(rows.length){
-   const ids=rows.map(x=>x.id).filter(Boolean);
-   const dr=await db.from("round_mission_locations").delete().in("id",ids);
-   if(dr.error)throw new Error("잘못된 라운드 미션 장소 정리 실패: "+dr.error.message);
- }
-
- const shuffled=[...allLocations];
- for(let i=shuffled.length-1;i>0;i--){
-   const j=Math.floor(Math.random()*(i+1));
-   [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
- }
- const selected=shuffled.slice(0,expected);
-
- const insertRows=selected.map((loc,i)=>({
-   game_round:round,
-   mission_location_id:loc.id,
-   sort_order:i
- }));
-
- const ins=await db.from("round_mission_locations").insert(insertRows).select();
- if(ins.error)throw new Error("라운드 미션 장소 생성 실패: "+ins.error.message);
-
- return ins.data||[];
+ const done=await db.from("round_mission_locations").select("*").eq("game_round",round).order("sort_order");
+ if(done.error)throw new Error("라운드 미션 재조회 실패: "+done.error.message);
+ return done.data||[];
 }
-
-async function getRoundMissionLocations(round){
- const r=await db.from("round_mission_locations")
-   .select("id,game_round,mission_location_id,sort_order")
-   .eq("game_round",round)
-   .order("sort_order")
-   .order("id");
- if(r.error)throw new Error("라운드 미션 장소 조회 실패: "+r.error.message);
- const rows=r.data||[];
- if(!rows.length)return [];
- const ids=rows.map(x=>x.mission_location_id).filter(Boolean);
- const lr=await db.from("mission_locations").select("*").in("id",ids);
- if(lr.error)throw new Error("미션 장소 조회 실패: "+lr.error.message);
- return rows.map(row=>lr.data.find(loc=>String(loc.id)===String(row.mission_location_id))).filter(Boolean);
-}
+async function activeMissionLocations(round){return getRoundMissionLocations(round);}
+async function getRoundMissionLocations(round){const rows=await ensureRoundMissionSetup(round);if(!rows.length)return [];const ids=rows.map(x=>x.mission_location_id),r=await db.from("mission_locations").select("*").in("id",ids);if(r.error)throw new Error(r.error.message);return rows.map(x=>r.data.find(y=>String(y.id)===String(x.mission_location_id))).filter(Boolean);}
 async function allMissions(){const r=await db.from("missions").select("*").order("id");if(r.error)throw new Error("미션 목록 오류\\n"+r.error.message);return r.data||[];}
 async function activeMissionLocations(){const r=await db.from("mission_locations").select("*").eq("active",true).order("sort_order").order("id");if(r.error)throw new Error("미션 장소 오류\\n"+r.error.message);return r.data||[];}
 async function getMissionLocation(id){const r=await db.from("mission_locations").select("*").eq("id",id).maybeSingle();if(r.error)throw new Error(r.error.message);return r.data;}
@@ -660,31 +792,6 @@ async function comps(round){const r=await db.from("mission_completions").select(
 async function locations(){const r=await db.from("game_locations").select("*").eq("active",true).order("sort_order").order("id");if(r.error)throw new Error("장소 불러오기 오류\n"+r.error.message);return r.data||[];}
 async function set(v){const r=await db.from("game_settings").update(v).eq("id",1);if(r.error)throw new Error(r.error.message);}
 
-async function logout(){
- try{
-  stopAllTimers();
-  if(countdownTimer?.cancel)countdownTimer.cancel();
-  countdownTimer=null;
-  clearInterval(roundTimer);roundTimer=null;
-  clearInterval(missionTimer);missionTimer=null;
-  localStorage.removeItem("wolf_game_player_v7");
-  localStorage.removeItem("wolf_game_admin_v7");
-  localStorage.removeItem("wolf_game_nfc_location");
-  localStorage.removeItem("wolf_game_death_lock_v1");
-  playerId=null;
-  currentMission=null;
-  currentScreen=null;
-  if(typeof currentRole!=="undefined")currentRole=null;
-  if(el("name"))el("name").value="";
-  if(el("loginStatus"))el("loginStatus").innerHTML="";
-  await showScreen("login");
- }catch(e){
-  console.error("로그아웃 오류:",e);
-  localStorage.removeItem("wolf_game_player_v7");
-  localStorage.removeItem("wolf_game_admin_v7");
-  window.location.reload();
- }
-}
 async function join(){
  const btn=el("joinBtn"),name=el("name").value.trim();if(!name){toast("이름을 입력해 주세요.");return;}
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
@@ -871,12 +978,11 @@ async function markReady(){
  const g=await settings();
  if(g.phase==="FINISHED" && g.winner){
    const next=g.current_round+1;
-   clearMissionCompletionForRound(g.current_round);
+   await db.from("mission_completions").delete().eq("game_round",g.current_round);
    await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
    await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
    await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
-   Object.keys(localStorage).filter(k=>k.startsWith("wolf_round_started_at_")).forEach(k=>localStorage.removeItem(k));
- toast("다음 라운드 대기 화면으로 전환했습니다.");
+   toast("다음 라운드 대기 화면으로 전환했습니다.");
    await renderAdmin();return;
  }
  const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
@@ -887,54 +993,35 @@ async function markReady(){
 }
 function formatRoundTime(ms){
  const total=Math.max(0,Math.ceil(ms/1000));
- const min=Math.floor(total/60),sec=total%60;
+ const min=Math.floor(total/60), sec=total%60;
  return String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
 }
 function tickRoundTimer(){
+ if(!roundTimer)return;
  const timerEl=el("roundTimer");
  if(!timerEl)return;
  const started=window.__roundTimerStartedAt;
  const duration=window.__roundTimerDurationMs;
- if(!started||!duration){
-   timerEl.textContent="--:--";
-   return;
- }
+ if(!started||!duration){timerEl.textContent="00:00";return;}
  const left=Math.max(0,started+duration-Date.now());
  timerEl.textContent=formatRoundTime(left);
  timerEl.classList.toggle("warn",left>0&&left<=60000);
  timerEl.classList.toggle("end",left<=0);
- if(left<=0)stopRoundTimer();
+ if(left<=0){
+   clearInterval(roundTimer);roundTimer=null;
+ }
 }
 function startRoundTimer(g){
  stopRoundTimer();
  const timerEl=el("roundTimer");
  if(!timerEl)return;
-
  const minutes=Number(g?.round_duration_minutes);
- const safeMinutes=(Number.isFinite(minutes)&&minutes>=1)?minutes:15;
- window.__roundTimerDurationMs=safeMinutes*60*1000;
-
- let startedMs=Date.parse(g?.round_started_at||"");
- if(!Number.isFinite(startedMs)){
-   // 구버전 라운드에서 시작 시간이 없을 경우 이 브라우저에서만
-   // 한 번 기준점을 만들고, renderPlayer가 다시 호출되어도 초기화하지 않습니다.
-   startedMs=Number(localStorage.getItem("wolf_round_started_at_"+g.current_round)||0);
-   if(!startedMs){
-     startedMs=Date.now();
-     localStorage.setItem("wolf_round_started_at_"+g.current_round,String(startedMs));
-   }
- }
- window.__roundTimerStartedAt=startedMs;
-
+ const duration=(Number.isFinite(minutes)&&minutes>0?minutes:15)*60*1000;
+ const startedMs=Date.parse(g?.round_started_at||"");
+ window.__roundTimerStartedAt=Number.isFinite(startedMs)?startedMs:Date.now();
+ window.__roundTimerDurationMs=duration;
  tickRoundTimer();
  roundTimer=setInterval(tickRoundTimer,250);
-}
-function showTrialLock(){
- stopAllTimers();
- const screen=el("trialLock");
- if(!screen)return;
- screen.innerHTML='<div class="lock"><div><div class="symbol">⚖️</div><h1>재판이 시작되었습니다.</h1><p class="muted" style="font-size:18px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>';
- showScreen("trialLock");
 }
 async function renderPlayer(){
  stopGameStartBgm();
@@ -948,262 +1035,29 @@ async function renderPlayer(){
    cs=await comps(g.current_round);
  }catch(e){
    console.error("플레이어 미션 준비 실패:",e);
-   // 장소 배정 오류만 화면을 막습니다. 특정 장소의 미션 누락은 입장 시 정확히 표시합니다.
    showScreen("player");
-   el("missions").innerHTML='<div class="errorbox">미션 장소 준비 중 오류가 발생했습니다.<br><small>'+esc(e.message||String(e))+'</small></div>';
+   el("missions").innerHTML='<div class="errorbox">미션 준비 중 오류가 발생했습니다.<br><small>'+esc(e.message||String(e))+'</small></div>';
    return;
- }
-
- // 완료 여부는 현재 플레이어/라운드/장소 단위로 관리합니다.
- const completedLocationIds=new Set();
- for(const loc of locs){
-   if(await isMissionLocationCompleted(g.current_round,p.id,loc.id)){
-     completedLocationIds.add(String(loc.id));
-   }
- }
-
- el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';
- el("round").textContent="ROUND "+g.current_round;
- el("phase").textContent=g.notice||g.phase;
- el("totalMissionCount").innerHTML='총 미션 장소 <b>'+locs.length+'개</b>';
- el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";
-
- const nfcArea=ensureEl("playerNfcArea","player");
- nfcArea.innerHTML=g.nfc_enabled===false
-   ? '<div class="notice">NFC 기능이 꺼져 있습니다. 아래 장소의 입장 버튼으로 들어갈 수 있습니다.</div>'
-   : '<button class="secondary" style="width:100%;font-size:18px;padding:16px" onclick="scanNfcForRound()">📱 NFC 태그하기</button>';
-
- const box=el("missions");box.innerHTML="";
- for(const loc of locs){
-   const done=completedLocationIds.has(String(loc.id));
-   const label=String(loc.concept_type).toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
-   const authorized=g.nfc_enabled===false ||
-     localStorage.getItem("wolf_game_nfc_location")===String(loc.id);
-   const action=done
-     ? ""
-     : (g.nfc_enabled===false
-        ? '<button onclick="event.stopPropagation();openMission(\''+esc(loc.id)+'\')">입장</button>'
-        : (authorized
-           ? '<button onclick="event.stopPropagation();openMission(\''+esc(loc.id)+'\')">입장</button>'
-           : '<span class="pill">NFC 태그 필요</span>'));
-   box.innerHTML+=`<div class="missionRow ${done?'completed':''}">
-     <div><b>${esc(loc.name)}</b><div class="small">${label}</div></div>
-     <span class="pill">${done?"클리어":(authorized||g.nfc_enabled===false?"입장 가능":"NFC 필요")}</span>${action}
-   </div>`;
- }
- if(!locs.length)box.innerHTML='<div class="muted">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';
-
- el("deadSheepBtn").disabled=false;
- el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';
- showScreen("player");
- startRoundTimer(g);
-}
-const BUILTIN_MINIGAMES=[
- "WIRING","MATCHING","CIRCUIT","PIPES","REACTION",
- "MEMORY","SAFE","DNA","SHAPE","TRACE"
-];
-
-const BUILTIN_PUZZLES=[
- {type:"NUMBER_RULE",title:"숫자 규칙",question:"다음 숫자에 들어갈 숫자는 무엇인가요? 2, 4, 8, 16, ?",answer:"32"},
- {type:"NUMBER_RULE",title:"숫자 규칙",question:"다음 숫자에 들어갈 숫자는 무엇인가요? 3, 6, 12, 24, ?",answer:"48"},
- {type:"SEQUENCE",title:"수열 퍼즐",question:"다음 숫자에 들어갈 숫자는 무엇인가요? 5, 10, 15, 20, ?",answer:"25"},
- {type:"CALCULATION",title:"계산 퍼즐",question:"12 × 3 - 5의 값은 무엇인가요?",answer:"31"},
- {type:"LOGIC",title:"논리 퍼즐",question:"모든 늑대는 생명체입니다. 철수는 늑대입니다. 그렇다면 철수는 무엇입니까?",answer:"생명체"},
- {type:"SHAPE_RULE",title:"규칙 찾기",question:"○, △, ○, △, ○ 다음에 올 도형은 무엇인가요?",answer:"△"},
- {type:"MEMORY_PUZZLE",title:"기억 퍼즐",question:"다음 순서를 그대로 입력하세요: 3-1-4-2",answer:"3142"},
- {type:"NUMBER_RULE",title:"숫자 규칙",question:"다음 숫자에 들어갈 숫자는 무엇인가요? 1, 4, 9, 16, ?",answer:"25"}
-];
-
-function randomBuiltinMission(location){
- const concept=String(location?.concept_type||"PUZZLE").trim().toUpperCase();
- if(concept==="MINIGAME"){
-   const type=BUILTIN_MINIGAMES[Math.floor(Math.random()*BUILTIN_MINIGAMES.length)];
-   return {
-     id:"builtin-"+location.id+"-"+type+"-"+Date.now()+"-"+Math.random().toString(36).slice(2),
-     location:location.name,
-     location_id:location.id,
-     mission_location_id:location.id,
-     title:"미니게임",
-     description:"입장할 때마다 무작위 미니게임이 선택됩니다.",
-     question:"",
-     answer:"",
-     wolf_question:"",
-     wolf_answer:"",
-     active:true,
-     concept_type:"MINIGAME",
-     mini_game_type:type
-   };
- }
- const p=BUILTIN_PUZZLES[Math.floor(Math.random()*BUILTIN_PUZZLES.length)];
- return {
-   id:"builtin-"+location.id+"-"+p.type+"-"+Date.now()+"-"+Math.random().toString(36).slice(2),
-   location:location.name,
-   location_id:location.id,
-   mission_location_id:location.id,
-   title:p.title,
-   description:"입장할 때마다 무작위 두뇌퍼즐이 선택됩니다.",
-   question:p.question,
-   answer:p.answer,
-   wolf_question:p.question,
-   wolf_answer:p.answer,
-   active:true,
-   concept_type:"PUZZLE",
-   mini_game_type:null
- };
-}
+ }el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;el("totalMissionCount").innerHTML='총 미션 <b>'+locs.length+'개</b>';el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";const box=el("missions");box.innerHTML="";for(const loc of locs){const m=await getOrCreateRoundMission(loc,g.current_round),done=cs.some(x=>String(x.mission_id)===String(m.id)),nfcOk=g.nfc_enabled===false||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===String(loc.id),label=loc.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐";box.innerHTML+=`<div class="missionRow ${done?'completed':''}"><div><b>${esc(loc.name)}</b><div class="small">${label}</div></div><span class="pill">${done?"클리어":(nfcOk?"미완료":"NFC 필요")}</span>${!done&&!nfcOk?'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(loc.id)+'\')">NFC 인증</button>':(!done?'<button onclick="event.stopPropagation();openMission(\''+esc(m.id)+'\')">입장</button>':"")}</div>`;}if(!locs.length)box.innerHTML='<div class="muted">이번 라운드에 활성화된 미션 장소가 없습니다.</div>';el("deadSheepBtn").disabled=false;el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';showScreen("player");startRoundTimer(g);}
 
 async function getOrCreateRoundMission(location,round){
- // DB의 missions를 조회하거나 미리 등록된 미션을 요구하지 않습니다.
- // 장소의 컨셉만 기준으로 내장 미션 풀에서 입장 순간 하나를 랜덤 선택합니다.
- return randomBuiltinMission(location);
+  await ensureRoundMissionSetup(round);
+  const row=await db.from("round_mission_locations")
+    .select("mission_id")
+    .eq("game_round",round)
+    .eq("mission_location_id",location.id)
+    .order("id",{ascending:true})
+    .limit(1)
+    .maybeSingle();
+  if(row.error) throw new Error("라운드 미션 연결 조회 실패: "+row.error.message);
+  if(!row.data?.mission_id) throw new Error("이 장소의 라운드 미션이 아직 생성되지 않았습니다.");
+  const r=await db.from("missions").select("*").eq("id",row.data.mission_id).single();
+  if(r.error) throw new Error("라운드 미션 조회 실패: "+r.error.message);
+  return r.data;
 }
-
-function tickMission(){
- const timerEl=el("missionTimer");
- if(!timerEl)return;
- const left=Math.max(0,missionEndAt-Date.now());
- const total=Math.ceil(left/1000);
- const min=Math.floor(total/60),sec=total%60;
- timerEl.textContent=String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
- timerEl.classList.toggle("warn",left>0&&left<=30000);
- if(left<=0){
-   if(missionTimer){clearInterval(missionTimer);missionTimer=null;}
-   timerEl.textContent="00:00";
-   const answer=el("answer"),btn=el("answerBtn");
-   if(answer)answer.disabled=true;
-   if(btn)btn.disabled=true;
- }
-}
-async function openMission(locationId){
- try{
-  const p=await me(),g=await settings();
-  if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
-
-  const loc=await getMissionLocation(locationId);
-  if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
-
-  // 반드시 이번 라운드에 관리자가 활성화한 장소인지 확인합니다.
-  const roundLocs=await getRoundMissionLocations(g.current_round);
-  if(!roundLocs.some(x=>String(x.id)===String(loc.id))){
-    toast("이번 라운드에 활성화되지 않은 미션 장소입니다.");
-    return;
-  }
-
-  // 성공 완료 여부는 플레이어/라운드/장소 단위로 관리합니다.
-  if(await isMissionLocationCompleted(g.current_round,p.id,loc.id)){
-    toast("이미 클리어한 미션 장소입니다.");
-    return;
-  }
-
-  // 입장할 때마다 새로 랜덤 선택합니다.
-  const m=randomBuiltinMission(loc);
-  currentMission=m;
-  currentMissionLocation=loc;
-
-  const meta=ensureEl("mMeta"),title=ensureEl("mTitle"),desc=ensureEl("mDesc"),
-        question=ensureEl("question"),answer=ensureEl("answer","mission","input"),
-        answerBtn=ensureEl("answerBtn","mission","button"),
-        result=ensureEl("missionResult"),mini=ensureEl("miniGame");
-
-  meta.textContent=(loc.name||"미션")+" · "+(m.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐");
-  title.textContent=m.title||"미션";
-  desc.textContent=m.description||"";
-  question.textContent="";
-  answer.value="";
-  result.innerHTML="";
-  mini.innerHTML="";
-  answer.style.display=m.concept_type==="PUZZLE"?"":"none";
-  answerBtn.style.display=m.concept_type==="PUZZLE"?"":"none";
-  answer.disabled=false;answerBtn.disabled=false;
-
-  missionEndAt=Date.now()+180000;
-  clearInterval(missionTimer);
-  missionTimer=setInterval(tickMission,250);
-  tickMission();
-  await showScreen("mission");
-
-  if(m.concept_type==="MINIGAME")launchMiniGame(m);
-  else question.textContent=p.role==="WOLF"?(m.wolf_question||m.question||"문제가 없습니다."):(m.question||"문제가 없습니다.");
- }catch(e){
-  console.error("openMission 오류:",e);
-  toast("미션 입장 오류: "+(e.message||String(e)));
- }
-}
-
-async function isMissionLocationCompleted(round,playerId,locationId){
- const r=await db.from("round_mission_completions")
-   .select("id")
-   .eq("game_round",round)
-   .eq("player_id",playerId)
-   .eq("mission_location_id",locationId)
-   .limit(1);
- if(r.error)throw new Error("미션 완료 상태 조회 실패: "+r.error.message);
- return !!(r.data&&r.data.length);
-}
-async function markMissionLocationCompleted(round,playerId,locationId){
- const r=await db.from("round_mission_completions").insert({
-   game_round:round,
-   player_id:playerId,
-   mission_location_id:locationId
- });
- if(r.error && r.error.code!=="23505")throw new Error("미션 완료 처리 실패: "+r.error.message);
-}
-async function clearMissionCompletionForRound(round){
- const r=await db.from("round_mission_completions").delete().eq("game_round",round);
- if(r.error)throw new Error("미션 완료 상태 초기화 실패: "+r.error.message);
-}
-async function showMissionFeedback(success,message){
- const result=el("missionResult");
- if(!result)return;
- result.innerHTML=success
-   ?'<div class="missionFeedback success"><div class="feedbackIcon">✓</div><div class="feedbackTitle">미션 성공!</div><div class="feedbackText">'+esc(message||"미션을 완료했습니다.")+'</div></div>'
-   :'<div class="missionFeedback failure"><div class="feedbackIcon">✕</div><div class="feedbackTitle">미션 실패</div><div class="feedbackText">'+esc(message||"정답이 아닙니다. 다시 시도해 주세요.")+'</div></div>';
- result.scrollIntoView({behavior:"smooth",block:"center"});
-}
-
-async function completeCurrentMission(){
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
- if(!currentMission||!currentMissionLocation)throw new Error("현재 미션 정보가 없습니다.");
-
- if(await isMissionLocationCompleted(g.current_round,p.id,currentMissionLocation.id)){
-   toast("이미 완료한 미션 장소입니다.");
-   return;
- }
-
- await markMissionLocationCompleted(g.current_round,p.id,currentMissionLocation.id);
-
- await playSound("gameStart","mission-success-"+g.current_round+"-"+currentMissionLocation.id+"-"+Date.now()).catch(()=>{});
- await showMissionFeedback(true,currentMissionLocation.name+"의 미션을 완료했습니다.");
- stopMissionTimer();
-
- const answer=el("answer"),btn=el("answerBtn");
- if(answer)answer.disabled=true;
- if(btn)btn.disabled=true;
-
- await new Promise(r=>setTimeout(r,1400));
- await renderPlayer();
-}
-
-async function submitAnswer(){
- const btn=el("answerBtn");
- if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}
- const done=busy(btn,"제출 중...");
- try{
-   const p=await me();
-   const correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer;
-   const a=el("answer").value.trim();
-
-   if(a!==String(correct??"")){
-     await showMissionFeedback(false,"정답이 아닙니다. 답을 다시 확인하고 제출해 주세요.");
-     return;
-   }
-   await completeCurrentMission();
- }catch(e){
-   await showMissionFeedback(false,e.message||String(e));
- }finally{done();}
-}
-
+async function openMission(id){try{const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const m=(await allMissions()).find(x=>String(x.id)===String(id));if(!m)throw new Error("미션을 찾을 수 없습니다.");const loc=await getMissionLocation(m.mission_location_id||m.location_id),cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(m.id))){toast("이미 완료된 미션입니다.");return;}window.__miniOutcomeLocked=false;currentMission=m;el("mMeta").textContent=(loc?.name||"미션")+" · "+(m.concept_type==="MINIGAME"?"미니게임":"두뇌퍼즐");el("mTitle").textContent=m.title;el("mDesc").textContent=m.description||"";el("question").textContent="";el("answer").value="";el("missionResult").innerHTML="";if(el("miniGame"))el("miniGame").innerHTML="";el("answer").style.display=m.concept_type==="PUZZLE"?"":"none";el("answerBtn").style.display=m.concept_type==="PUZZLE"?"":"none";missionEndAt=Date.now()+180000;clearInterval(missionTimer);missionTimer=setInterval(tickMission,250);tickMission();showScreen("mission");if(m.concept_type==="MINIGAME")launchMiniGame(m);else el("question").textContent=m.question||"문제가 없습니다.";}catch(e){toast(e.message||String(e));}}
+async function completeCurrentMission(){const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}const cs=await comps(g.current_round);if(cs.some(x=>String(x.mission_id)===String(currentMission.id))){toast("이미 완료된 미션입니다.");return;}if(p.role==="SHEEP"){const r=await db.from("mission_completions").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id});if(r.error)throw new Error(r.error.message);toast("미션 완료!");}else toast("늑대 미션 완료!");await renderPlayer();}
+async function submitAnswer(){const btn=el("answerBtn");if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
 async function enableSound(){
  await unlockSound();
  toast("알림 소리가 활성화되었습니다.");
@@ -1338,9 +1192,8 @@ async function renderAdmin(){
   }else{
     stopAllAdminBgm();
   }
-  const p=(await db.from("players").select("*").order("created_at")).data||[],ls=await locations();
-  const activeRoundLocations=await getRoundMissionLocations(g.current_round);
-  el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">활성 미션 장소<b>'+activeRoundLocations.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
+  const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
+  el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+c.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;
   el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
@@ -1369,14 +1222,12 @@ async function startGame(){
 
    // 게임 시작 상태를 먼저 저장합니다. 미션 생성 문제 때문에
    // 관리자 화면에서 게임시작 버튼이 아무 반응 없이 끝나는 것을 막습니다.
-   localStorage.removeItem("wolf_game_nfc_location");
-   clearMissionCompletionForRound(g.current_round);
    await set({
      started:true,phase:"COUNTDOWN",roles_selected:true,
      notice:"잠시후 게임이 시작됩니다.",winner:null,
      dead_sheep_found:false,dead_sheep_location:null,
      investigation_started_at:null,
-     round_started_at:null
+     round_started_at:new Date().toISOString()
    });
 
    await startGameStartBgm();
@@ -1385,11 +1236,9 @@ async function startGame(){
      ()=>playSound("gameStart","game-start-admin-"+g.current_round),15000
    );
 
-   // 매 라운드 게임 시작 순간에 이전 라운드 연결을 버리고
-   // 전체 활성 미션 장소 중 플레이어 수-1개를 새로 랜덤 배치합니다.
+   // 미션 생성은 게임 시작 후 처리합니다. 실패해도 게임 시작 자체는 유지하고
+   // 플레이어 화면에서 구체적인 오류를 확인할 수 있도록 합니다.
    try{
-     const oldRound=await db.from("round_mission_locations").delete().eq("game_round",g.current_round);
-     if(oldRound.error)throw new Error("기존 라운드 미션 초기화 실패: "+oldRound.error.message);
      await ensureRoundMissionSetup(g.current_round);
    }catch(missionError){
      console.error("라운드 미션 자동 생성 실패:",missionError);
@@ -1470,13 +1319,7 @@ async function renderGameCountdown(p,g){
    await new Promise(r=>setTimeout(r,4000));
 
    const latest=await settings();
-   if(latest.phase==="COUNTDOWN"){
-     await set({
-       phase:"PLAY",
-       notice:"게임이 시작되었습니다.",
-       round_started_at:new Date().toISOString()
-     });
-   }
+   if(latest.phase==="COUNTDOWN")await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
    countdownTimer=null;
  };
  countdownTimer={running:true};
@@ -1489,47 +1332,28 @@ async function nextRound(){
  try{
   await db.from("mission_completions").delete().eq("game_round",g.current_round);
   await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
-  await db.from("round_mission_locations").delete().eq("game_round",g.current_round);
   const next=g.current_round+1;
   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
-  Object.keys(localStorage).filter(k=>k.startsWith("wolf_round_started_at_")).forEach(k=>localStorage.removeItem(k));
- toast("다음 라운드 대기 상태입니다.");
+  toast("다음 라운드 대기 상태입니다.");
   await renderAdmin();
  }catch(e){toast("다음 라운드 처리 실패: "+e.message);}finally{done();}
 }
 async function startTrial(){
- const btn=document.querySelector('#admin button[onclick*="startTrial"]');
- const done=busy(btn,"재판 시작 중...");
- try{
-  const g=await settings();
-  if(g.phase!=="INVESTIGATION" && g.phase!=="PLAY"){
-    toast("현재 재판을 시작할 수 있는 상태가 아닙니다.");
-    return;
-  }
-  stopAllAdminBgm();
-  await set({
-    phase:"TRIAL",
-    notice:"재판 시작 - 모두 그레이스홀로 모여주십시오.",
-    investigation_started_at:null
-  });
-  await startAdminLoopBgm("trialBgm");
-  toast("재판이 시작되었습니다.");
-  await renderAdmin();
- }catch(e){
-  console.error("재판 시작 실패:",e);
-  toast("재판 시작 실패: "+(e.message||String(e)));
- }finally{done();}
+ const g=await settings();
+ stopAllAdminBgm();
+ await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오."});
+ await startAdminLoopBgm("trialBgm");
+ toast("재판 시작 알림을 전송했습니다.");await renderAdmin();
 }
 async function resetGame(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const done=busy(document.querySelector('#admin button[onclick*="resetGame"]'),"초기화 중...");
  try{
-  Object.keys(localStorage).filter(k=>k.startsWith("wolf_mission_complete:")).forEach(k=>localStorage.removeItem(k));await db.from("wolf_attempts").delete().gte("id",0);
+  await db.from("mission_completions").delete().gte("id",0);await db.from("wolf_attempts").delete().gte("id",0);
   await db.from("players").update({role:"UNASSIGNED",status:"ALIVE"}).gte("created_at","1970-01-01");
   await set({current_round:1,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
-  Object.keys(localStorage).filter(k=>k.startsWith("wolf_round_started_at_")).forEach(k=>localStorage.removeItem(k));
- toast("게임이 초기화되었습니다.");await renderAdmin();
+  toast("게임이 초기화되었습니다.");await renderAdmin();
  }catch(e){toast("초기화 실패: "+e.message);}finally{done();}
 }
 async function finishRound(winner){
@@ -1552,7 +1376,7 @@ async function saveTiming(){
 async function addMission(){
  const locationId=el("newMissionLocation").value;
  const title=el("newMissionTitle").value.trim();
- const selectedConcept=el("newMissionConcept").value;
+ const concept_type=el("newMissionConcept").value;
  const mini_game_type=el("newMissionMiniType").value.trim()||null;
  const description=el("newMissionDescription").value.trim();
  const question=el("newMissionQuestion").value.trim();
@@ -1569,12 +1393,6 @@ async function addMission(){
  }
  const loc=await getMissionLocation(locationId);
  if(!loc){toast("미션 장소를 찾을 수 없습니다.");return}
- const concept_type=String(loc.concept_type||selectedConcept||"PUZZLE").trim().toUpperCase();
- const missionMiniType=concept_type==="MINIGAME" ? mini_game_type : null;
- if(concept_type==="MINIGAME" && !missionMiniType){
-   toast("미니게임 장소에는 미니게임 종류를 선택해 주세요.");
-   return;
- }
  const missionId=(crypto&&typeof crypto.randomUUID==="function")
    ?crypto.randomUUID()
    :("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
@@ -1592,7 +1410,7 @@ async function addMission(){
    wolf_answer:wolfAnswer,
    active:true,
    concept_type,
-   mini_game_type:missionMiniType
+   mini_game_type:concept_type==="MINIGAME"?mini_game_type:null
  }).select().single();
 
  if(r.error){
@@ -1630,62 +1448,19 @@ async function removeMissionLocation(id,name){
 }
 async function saveMissionLocationNfc(id){const v=el("mnfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("미션 장소 NFC 태그를 저장했습니다.");await renderAdmin()}
 async function saveLocationNfc(id){const v=el("nfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("NFC 태그를 저장했습니다.");await renderAdmin()}
-async function scanNfcForRound(){
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 미션 NFC를 사용할 수 없습니다.");return;}
- if(g.nfc_enabled===false){toast("관리자가 NFC 기능을 껐습니다.");return;}
- const active=await getRoundMissionLocations(g.current_round);
- if(!active.length){toast("이번 라운드에 활성화된 미션 장소가 없습니다.");return;}
-
- if(nfcTestMode){
-   toast("NFC 테스트 모드가 켜져 있습니다. 실제 NFC 기능을 사용하려면 테스트 모드를 꺼 주세요.");
-   return;
- }
- if(!("NDEFReader" in window)){
-   toast("이 브라우저는 Web NFC를 지원하지 않습니다. NFC 기능을 사용하려면 지원 브라우저가 필요합니다.");
-   return;
- }
-
- try{
-   const reader=new NDEFReader();
-   await reader.scan();
-   toast("NFC 태그를 휴대폰에 접촉하세요.");
-
-   reader.onreading=async event=>{
-     let value="";
-     for(const rec of (event.message?.records||[])){
-       try{
-         if(rec.recordType==="text"){
-           const text=new TextDecoder(rec.encoding||"utf-8").decode(rec.data);
-           value+=text;
-         }else{
-           value+=new TextDecoder(rec.encoding||"utf-8").decode(rec.data);
-         }
-       }catch(e){}
-     }
-     value=value.trim();
-
-     const loc=active.find(x=>x.nfc_tag!=null && String(x.nfc_tag).trim()===value);
-     if(!loc){
-       toast("이번 라운드에 활성화된 장소와 일치하는 NFC 태그가 아닙니다.");
-       return;
-     }
-
-     localStorage.setItem("wolf_game_nfc_location",String(loc.id));
-     toast(loc.name+" 인증 완료");
-     await openMission(String(loc.id));
-   };
- }catch(e){
-   toast("NFC 스캔 실패: "+(e.message||String(e)));
- }
-}
-
 async function scanNfcForLocation(locationId){
- // 구버전 버튼 호출과 호환: 특정 장소를 대상으로 스캔하지 않고
- // 현재 라운드 전체 활성 장소를 대상으로 태그를 매칭합니다.
- await scanNfcForRound();
+ if(nfcTestMode){localStorage.setItem("wolf_game_nfc_location",String(locationId));toast("NFC 테스트 인증 완료");await renderPlayer();return}
+ if(!("NDEFReader" in window)){toast("이 브라우저는 Web NFC를 지원하지 않습니다. 관리자에서 NFC 테스트 모드를 켜세요.");return}
+ try{
+  const loc=await getMissionLocation(locationId);if(!loc?.nfc_tag){toast("이 장소에 등록된 NFC 태그가 없습니다.");return}
+  const reader=new NDEFReader();await reader.scan();toast("NFC 태그를 휴대폰에 접촉하세요.");
+  reader.onreading=event=>{
+   const records=event.message?.records||[];let value="";
+   for(const rec of records){try{value+=new TextDecoder(rec.encoding||"utf-8").decode(rec.data)}catch(e){}}
+   if(value.trim()===String(loc.nfc_tag).trim()){localStorage.setItem("wolf_game_nfc_location",String(locationId));toast("NFC 인증 완료");renderPlayer()}else toast("다른 장소의 NFC 태그입니다.");
+  };
+ }catch(e){toast("NFC 스캔 실패: "+(e.message||String(e)));}
 }
-
 async function toggleNfc(){
  try{
   const g=await settings();
@@ -1785,8 +1560,7 @@ function realtime(){
   route();
  }).subscribe();
 
-
- db.channel("wg-v7-mission-completions").on("postgres_changes",{event:"*",schema:"public",table:"round_mission_completions"},()=>{route();}).subscribe();
+ db.channel("wg-v7-comps").on("postgres_changes",{event:"*","schema":"public",table:"mission_completions"},()=>{if(localStorage.getItem("wolf_game_admin_v7")==="1")renderAdmin();else route();}).subscribe();
 
  db.channel("wg-v7-players").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:"id=eq."+playerId},payload=>{
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
@@ -1842,8 +1616,8 @@ async function boot(){
  }
 }
 
-window.ensureEl=ensureEl;window.logout=logout;window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
-window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.completeCurrentMission=completeCurrentMission;window.showMissionFeedback=showMissionFeedback;window.enableSound=enableSound;
+window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
+window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.addMissionLocation=addMissionLocation;window.removeMissionLocation=removeMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
@@ -1855,43 +1629,1341 @@ window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocatio
 boot();
 })();
 
-function launchMiniGame(m){
- const box=ensureEl("miniGame");
- box.innerHTML="";
+function finishMiniGame(success,message){
+  if(window.__miniOutcomeLocked)return;
+  window.__miniOutcomeLocked=true;
+  clearInterval(missionTimer);
+  missionTimer=null;
 
- const type=String(m?.mini_game_type||"").trim().toUpperCase();
- const games={
-   WIRING:miniWiring,
-   MATCHING:miniMatching,
-   CIRCUIT:miniCircuit,
-   PIPES:miniPipes,
-   REACTION:miniReaction,
-   MEMORY:miniMemory,
-   SAFE:miniSafe,
-   DNA:miniDNA,
-   SHAPE:miniShape,
-   TRACE:miniTrace
- };
-
- const game=games[type];
- if(!game){
-   box.innerHTML='<div class="errorbox">등록된 미니게임 종류를 실행할 수 없습니다.<br><small>mini_game_type: '+esc(type||"(없음)")+'</small></div>';
-   throw new Error("지원하지 않는 미니게임 종류: "+(type||"(없음)"));
- }
-
- game(box);
+  (async()=>{
+    try{
+      if(success){
+        const p=await me(),g=await settings();
+        if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){
+          throw new Error("현재는 미션을 완료할 수 없습니다.");
+        }
+        const cs=await comps(g.current_round);
+        if(!cs.some(x=>String(x.mission_id)===String(currentMission?.id)) && p.role==="SHEEP"){
+          const r=await db.from("mission_completions").insert({
+            game_round:g.current_round,
+            mission_id:currentMission.id,
+            player_id:p.id
+          });
+          if(r.error)throw new Error(r.error.message);
+        }
+      }
+      showMiniMissionOutcome(success,message|| (success?"미션을 성공했습니다.":"미션에 실패했습니다."));
+    }catch(e){
+      window.__miniOutcomeLocked=false;
+      toast(e.message||String(e));
+    }
+  })();
 }
-function finishMiniGame(){completeCurrentMission().catch(e=>toast(e.message||String(e)));}
-function miniWiring(r){const c=["🔴","🔵","🟢","🟡"],a=[...c,...c].sort(()=>Math.random()-.5);let p=null,n=0;r.innerHTML='<p class="muted">같은 색 단자를 연결하세요.</p><div class="wireGrid" id="wg"></div>';a.forEach((x,i)=>{const b=document.createElement("button");b.className="wireNode";b.textContent=x;b.onclick=()=>{if(!p){p={x,i};b.classList.add("selected");return}document.querySelectorAll(".wireNode").forEach(z=>z.classList.remove("selected"));if(p.x===x&&p.i!==i){el("wg").children[p.i].disabled=b.disabled=true;if(++n===c.length)finishMiniGame()}p=null};el("wg").appendChild(b)})}
-function miniMatching(r){const a=["🐺","🐑","⚡","🔧","🧬","🔒","🔥","👁️"],v=[...a,...a].sort(()=>Math.random()-.5);let o=[],n=0;r.innerHTML='<p class="muted">같은 그림 두 장씩 찾으세요.</p><div class="matchGrid" id="mg"></div>';v.forEach(x=>{const b=document.createElement("button");b.className="matchCard";b.textContent="❓";b.dataset.v=x;b.onclick=()=>{if(b.disabled||o.length===2)return;b.textContent=x;o.push(b);if(o.length===2){if(o[0].dataset.v===o[1].dataset.v){o.forEach(z=>{z.disabled=true;z.classList.add("done")});o=[];if(++n===a.length)finishMiniGame()}else{showMissionFeedback(false,"두 그림이 서로 다릅니다. 다시 찾아보세요.");setTimeout(()=>{o.forEach(z=>z.textContent="❓");o=[]},650)}}};el("mg").appendChild(b)})}
-function miniCircuit(r){const a=Array(9).fill(0).map(()=>Math.floor(Math.random()*4));r.innerHTML='<p class="muted">회로를 회전해 모두 같은 방향으로 맞추세요.</p><div class="rotateGrid" id="cg"></div>';const draw=()=>{el("cg").innerHTML="";a.forEach((x,i)=>{const b=document.createElement("button");b.className="rotateTile";b.textContent=["↑","→","↓","←"][x];b.onclick=()=>{a[i]=(a[i]+1)%4;draw();if(a.every(v=>v===0))finishMiniGame()};el("cg").appendChild(b)})};draw()}
-function miniPipes(r){const a=Array(9).fill(0).map(()=>Math.floor(Math.random()*4));r.innerHTML='<p class="muted">파이프를 회전해 연결하세요.</p><div class="pipeGrid" id="pg"></div>';const draw=()=>{el("pg").innerHTML="";a.forEach((x,i)=>{const b=document.createElement("button");b.className="pipeTile";b.textContent=["└","┌","┐","┘"][x];b.onclick=()=>{a[i]=(a[i]+1)%4;draw();if(a.every(v=>v===0))finishMiniGame()};el("pg").appendChild(b)})};draw()}
-function miniReaction(r){let n=0;r.innerHTML='<p class="muted">빨간 신호가 나타날 때 누르세요. 5회 성공.</p><div id="ra"></div>';const go=()=>{el("ra").innerHTML='<button style="width:100%;height:130px">대기</button>';setTimeout(()=>{el("ra").innerHTML='<button class="danger" style="width:100%;height:130px;font-size:40px">🔴</button>';el("ra").firstChild.onclick=()=>{if(++n>=5)finishMiniGame();else go()}},500+Math.random()*1000)};go()}
-function miniMemory(r){const q=[0,1,2,5,6],g=document.createElement("div");g.className="memoryGrid";g.id="mem";r.innerHTML='<p class="muted">빛나는 순서를 기억하세요.</p>';r.appendChild(g);let i=0,ready=false;for(let n=0;n<16;n++){const b=document.createElement("button");b.className="memoryCell";b.dataset.i=n;b.onclick=()=>{if(!ready)return;if(+b.dataset.i!==q[i]){toast("순서가 틀렸습니다.");i=0;return}b.classList.add("active");setTimeout(()=>b.classList.remove("active"),150);if(++i===q.length)finishMiniGame()};g.appendChild(b)}q.forEach((x,j)=>setTimeout(()=>g.children[x].classList.add("active"),j*400));setTimeout(()=>{g.querySelectorAll("button").forEach(b=>b.classList.remove("active"));ready=true},q.length*400+500)}
-function miniSafe(r){const code=String(Math.floor(1000+Math.random()*9000));r.innerHTML='<p class="muted">4자리 코드를 기억하세요.</p><div class="safeDisplay" id="sd">'+code+'</div><div class="safeKeys" id="sk"></div>';setTimeout(()=>{el("sd").textContent="••••";"1234567890".split("").forEach(n=>{const b=document.createElement("button");b.className="safeKey";b.textContent=n;b.onclick=()=>{let v=el("sd").dataset.v||"";v+=n;el("sd").dataset.v=v;el("sd").textContent="•".repeat(v.length);if(v.length===4){if(v===code)finishMiniGame();else{toast("코드가 틀렸습니다.");el("sd").dataset.v="";el("sd").textContent="••••"}}};el("sk").appendChild(b)})},1800)}
-function miniDNA(r){const target="ACGT",a=[..."ACGT"].sort(()=>Math.random()-.5);r.innerHTML='<p class="muted">A-C-G-T 순서로 선택하세요.</p><div id="dna" class="miniBoard"></div>';let v="";a.forEach(x=>{const b=document.createElement("button");b.textContent=x;b.onclick=()=>{v+=x;b.disabled=true;if(v.length===4){if(v===target)finishMiniGame();else{toast("순서가 틀렸습니다.");v="";el("dna").querySelectorAll("button").forEach(z=>z.disabled=false)}}};el("dna").appendChild(b)})}
-function miniShape(r){const target="▲ ○ ■",a=["▲ ○ ■","■ ▲ ○","○ ■ ▲","▲ ■ ○"];r.innerHTML='<div class="notice">목표: '+target+'</div><div id="sh" class="miniBoard"></div>';a.forEach(x=>{const b=document.createElement("button");b.className="shapeChoice";b.textContent=x;b.onclick=()=>x===target?finishMiniGame():toast("다른 모양입니다.");el("sh").appendChild(b)})}
-function miniTrace(r){r.innerHTML='<p class="muted">START에서 END까지 선을 따라가세요.</p><div class="traceArea"><div class="tracePath">● ──┐<br>└───┴──●</div></div>';let n=0;r.querySelector(".traceArea").onpointermove=()=>{if(++n>35)finishMiniGame()}}
+
+function showMiniMissionOutcome(success,message){
+  const box=el("miniGame");
+  if(!box)return;
+  box.innerHTML=`
+    <div class="wolfMiniOutcome ${success?"success":"failure"}">
+      <div class="wolfMiniOutcomeIcon">${success?"✓":"✕"}</div>
+      <div class="wolfMiniOutcomeTitle">${success?"미션 성공!":"미션 실패"}</div>
+      <div class="wolfMiniOutcomeText">${esc(message)}</div>
+      <button class="secondary wolfMiniCancel" type="button" onclick="cancelMiniMission()">취소</button>
+    </div>`;
+  el("question").textContent="";
+  el("answer").style.display="none";
+  el("answerBtn").style.display="none";
+}
+
+function cancelMiniMission(){
+  window.__miniOutcomeLocked=false;
+  clearInterval(missionTimer);
+  missionTimer=null;
+  currentMission=null;
+  renderPlayer();
+}
+
+// 독립 테스트용 성공/실패 API를 본 게임의 성공/실패 처리에 연결합니다.
+function testerSuccess(message){finishMiniGame(true,message);}
+function testerFailure(message){finishMiniGame(false,message);}
+
+function launchMiniGame(m){
+  window.__miniOutcomeLocked=false;
+  const f={
+    WIRING:miniWiring,
+    MATCHING:miniMatching,
+    CIRCUIT:miniCircuit,
+    MEMORY:miniMemory,
+    SAFE:miniSafe,
+    SHAPE:miniShape,
+    TRACE:miniTrace
+  }[m.mini_game_type]||miniWiring;
+
+  // 이전 미니게임에서 남아 있을 수 있는 타이머/포인터 정리
+  ["wire","match","direction","memory","safe","shape","trace"].forEach(k=>{
+    const fn=window["__"+k+"Cleanup"];
+    if(typeof fn==="function"){
+      try{fn();}catch(e){console.warn("미니게임 정리 실패",k,e);}
+      try{window["__"+k+"Cleanup"]=null;}catch(e){}
+    }
+  });
+
+  const container=el("miniGame");
+  if(!container)return;
+  container.innerHTML="";
+  try{f(container);}catch(e){
+    console.error("미니게임 실행 오류:",e);
+    testerFailure("미니게임 실행 오류: "+(e.message||String(e)));
+  }
+}
+
+function miniWiring(r){
+  const colors=[
+    {key:"red",label:"빨강",color:"#ef4444"},
+    {key:"blue",label:"파랑",color:"#3b82f6"},
+    {key:"green",label:"초록",color:"#22c55e"},
+    {key:"yellow",label:"노랑",color:"#eab308"},
+    {key:"purple",label:"보라",color:"#a855f7"},
+    {key:"cyan",label:"하늘",color:"#06b6d4"}
+  ];
+
+  // 6개의 색상 = 6개의 배선. 각 색상은 좌/우에 하나씩 배치합니다.
+  const pairs=colors.map((c,i)=>[
+    {...c,id:i*2,side:"left"},
+    {...c,id:i*2+1,side:"right"}
+  ]);
+
+  r.innerHTML=`
+    <div style="text-align:center">
+      <p><b>같은 색 단자를 누른 채 반대편 같은 색 단자로 드래그하세요.</b></p>
+      <p id="wireHelp" class="muted">마우스/손가락을 떼는 순간 연결됩니다.</p>
+      <div id="wireStatus" class="status info" style="margin:10px auto;max-width:700px">
+        연결 완료 <b id="wireCount">0</b> / ${colors.length}
+      </div>
+      <div id="wireTimer" class="status info" style="margin:10px auto;max-width:700px">
+        남은 시간 <b>5초</b>
+      </div>
+      <div id="wireSuccess" style="display:none;margin:12px auto;max-width:700px;padding:18px;border-radius:14px;background:#052e16;border:3px solid #22c55e;color:#bbf7d0;font-size:24px;font-weight:900">
+        🎉 미션 성공!
+      </div>
+      <div id="wireBoard" style="
+        position:relative;width:min(94vw,760px);height:460px;margin:18px auto;
+        border:2px solid #4b5563;border-radius:18px;background:#111827;
+        overflow:hidden;touch-action:none">
+        <svg id="wireSvg" width="100%" height="100%"
+             viewBox="0 0 760 460" preserveAspectRatio="none"
+             style="position:absolute;inset:0;pointer-events:none"></svg>
+        <div id="wireNodes" style="position:absolute;inset:0"></div>
+      </div>
+    </div>`;
+
+  const board=r.querySelector("#wireBoard");
+  const svg=r.querySelector("#wireSvg");
+  const layer=r.querySelector("#wireNodes");
+  const wireCountEl=r.querySelector("#wireCount");
+  const wireStatusEl=r.querySelector("#wireStatus");
+  const wireSuccessEl=r.querySelector("#wireSuccess");
+  const wireTimerEl=r.querySelector("#wireTimer");
+  const connected=new Set();
+  let drag=null, tempLine=null;
+  let wiringCompleted=false;
+  let successShown=false;
+  let wiringFinished=false;
+  let remaining=5;
+  let wiringTimer=null;
+
+  function finishWiringFailure(){
+    if(wiringFinished || wiringCompleted)return;
+    wiringFinished=true;
+    clearInterval(wiringTimer);
+    wiringTimer=null;
+    if(tempLine){tempLine.remove();tempLine=null;}
+    drag=null;
+
+    layer.querySelectorAll(".wireNode").forEach(n=>{
+      n.disabled=true;
+      n.style.pointerEvents="none";
+    });
+
+    wireTimerEl.innerHTML="✕ <b>시간 초과</b>";
+    wireTimerEl.className="status failure";
+    wireStatusEl.innerHTML="✕ <b>미션 실패!</b><br>5초 안에 모든 배선을 연결하지 못했습니다.";
+    wireStatusEl.className="status failure";
+
+    if(typeof testerFailure==="function"){
+      testerFailure("5초 안에 모든 배선을 연결하지 못했습니다.");
+    }
+  }
+
+  function checkWiringComplete(){
+    const count=connected.size;
+    const total=colors.length;
+    const counter=wireCountEl;
+    if(counter) counter.textContent=String(count);
+
+    if(count >= total && !wiringCompleted){
+      wiringCompleted=true;
+      wiringFinished=true;
+      successShown=true;
+      clearInterval(wiringTimer);
+      wiringTimer=null;
+      wireTimerEl.innerHTML="🎉 <b>미션 성공!</b>";
+      wireTimerEl.className="status success";
+
+      const successPanel=wireSuccessEl;
+      if(successPanel){
+        successPanel.style.display="block";
+        successPanel.innerHTML="🎉 미션 성공!<br><span style=\"font-size:16px\">모든 배선을 정확하게 연결했습니다.</span>";
+      }
+
+      const statusBox=wireStatusEl;
+      if(statusBox){
+        statusBox.innerHTML="🎉 <strong>미션 성공!</strong><br>모든 배선을 정확하게 연결했습니다. <b>"+total+"/"+total+"</b>";
+        statusBox.className="status success";
+      }
+
+      // 보드 전체를 잠가 추가 입력으로 성공 상태가 취소되지 않도록 합니다.
+      layer.querySelectorAll(".wireNode").forEach(n=>{
+        n.classList.add("connected");
+        n.disabled=true;
+        n.style.pointerEvents="none";
+      });
+
+      // 독립 테스트 페이지의 공통 성공 UI를 호출합니다.
+      if(typeof testerSuccess==="function"){
+        testerSuccess("미션 성공! 모든 배선을 정확하게 연결했습니다.");
+      }
+      return true;
+    }
+    return false;
+  }
+
+  const positions=[];
+  pairs.forEach((pair,i)=>{
+    const y=48+i*((460-96)/(colors.length-1));
+    positions.push({node:pair[0],x:48,y});
+    positions.push({node:pair[1],x:712,y});
+  });
+
+  function boardPoint(clientX,clientY){
+    const br=board.getBoundingClientRect();
+    return {
+      x:(clientX-br.left)/br.width*760,
+      y:(clientY-br.top)/br.height*460
+    };
+  }
+
+  function nodeCenter(nodeEl){
+    const br=board.getBoundingClientRect(),nr=nodeEl.getBoundingClientRect();
+    return {
+      x:(nr.left+nr.width/2-br.left)/br.width*760,
+      y:(nr.top+nr.height/2-br.top)/br.height*460
+    };
+  }
+
+  function status(text,kind="info"){
+    const box=wireStatusEl;
+    if(!box)return;
+    box.innerHTML=text;
+    box.className="status "+kind;
+  }
+
+  function drawPermanentLine(fromEl,toEl,color){
+    const a=nodeCenter(fromEl),b=nodeCenter(toEl);
+    const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.dataset.permanent="1";
+    line.setAttribute("x1",a.x);line.setAttribute("y1",a.y);
+    line.setAttribute("x2",b.x);line.setAttribute("y2",b.y);
+    line.setAttribute("stroke",color);
+    line.setAttribute("stroke-width","14");
+    line.setAttribute("stroke-linecap","round");
+    line.setAttribute("opacity",".95");
+    svg.appendChild(line);
+    return line;
+  }
+
+  function drawTempLine(fromEl,clientX,clientY){
+    if(tempLine)tempLine.remove();
+    const a=nodeCenter(fromEl),b=boardPoint(clientX,clientY);
+    tempLine=document.createElementNS("http://www.w3.org/2000/svg","line");
+    tempLine.setAttribute("x1",a.x);tempLine.setAttribute("y1",a.y);
+    tempLine.setAttribute("x2",b.x);tempLine.setAttribute("y2",b.y);
+    tempLine.setAttribute("stroke",fromEl.dataset.colorHex);
+    tempLine.setAttribute("stroke-width","8");
+    tempLine.setAttribute("stroke-linecap","round");
+    tempLine.setAttribute("stroke-dasharray","12 8");
+    tempLine.setAttribute("opacity",".7");
+    svg.appendChild(tempLine);
+  }
+
+  function targetAt(clientX,clientY){
+    const els=document.elementsFromPoint(clientX,clientY);
+    return els.find(x=>x.classList?.contains("wireNode"))||null;
+  }
+
+  function finishDrag(ev){
+    if(wiringFinished || wiringCompleted)return;
+    if(!drag)return;
+    const source=drag.el;
+    const target=targetAt(ev.clientX,ev.clientY);
+    if(tempLine){tempLine.remove();tempLine=null;}
+    source.classList.remove("dragging");
+    if(target)target.classList.remove("dropTarget");
+
+    const sourceNode=drag.node;
+    drag=null;
+
+    if(!target || target===source){
+      status("배선을 같은 색 단자 위에 놓아주세요.");
+      return;
+    }
+
+    const targetNode=positions.map(x=>x.node).find(n=>String(n.id)===String(target.dataset.id));
+    if(!targetNode)return;
+
+    if(connected.has(sourceNode.key)){
+      status("이미 연결된 배선입니다.","success");
+      return;
+    }
+
+    if(sourceNode.key!==targetNode.key){
+      source.classList.add("wrong");
+      target.classList.add("wrong");
+      status("✕ 색상이 다릅니다. 같은 색 단자에 연결하세요.","failure");
+      setTimeout(()=>{
+        source.classList.remove("wrong");
+        target.classList.remove("wrong");
+      },600);
+      return;
+    }
+
+    drawPermanentLine(source,target,sourceNode.color);
+    connected.add(sourceNode.key);
+
+    [source,target].forEach(n=>{
+      n.classList.remove("dropTarget");
+      n.classList.add("connected");
+      n.textContent="✓";
+      n.disabled=true;
+    });
+
+    const count=connected.size;
+    wireCountEl.textContent=String(count);
+
+    // 성공 판정은 연결 이벤트와 분리된 중앙 함수에서 확정합니다.
+    if(checkWiringComplete()) return;
+
+    status("✓ "+sourceNode.label+" 배선 연결 완료 · 현재 "+count+" / "+colors.length,"success");
+  }
+
+  positions.forEach(({node,x,y})=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="wireNode";
+    b.dataset.id=String(node.id);
+    b.dataset.color=node.key;
+    b.dataset.colorHex=node.color;
+    b.textContent="●";
+    b.title=node.label+" 단자";
+    b.style.cssText=`
+      position:absolute;
+      left:${(x/760)*100}%;
+      top:${(y/460)*100}%;
+      transform:translate(-50%,-50%);
+      width:58px;height:58px;border-radius:50%;
+      border:5px solid ${node.color};
+      background:#111827;color:${node.color};
+      font-size:28px;font-weight:900;z-index:3;
+      cursor:grab;touch-action:none;
+      box-shadow:0 0 0 4px rgba(255,255,255,.08);
+      padding:0;
+    `;
+
+    b.addEventListener("pointerdown",ev=>{
+      if(connected.has(node.key))return;
+      ev.preventDefault();
+      drag={node,el:b,pointerId:ev.pointerId};
+      b.classList.add("dragging");
+      drawTempLine(b,ev.clientX,ev.clientY);
+      status(node.label+" 배선을 드래그 중...");
+    });
+
+    b.addEventListener("pointermove",ev=>{
+      if(!drag || drag.pointerId!==ev.pointerId)return;
+      ev.preventDefault();
+
+      // 마우스/손가락을 움직이는 동안 임시 선의 끝점이
+      // 현재 포인터 위치를 계속 따라갑니다.
+      drawTempLine(b,ev.clientX,ev.clientY);
+
+      const t=targetAt(ev.clientX,ev.clientY);
+      layer.querySelectorAll(".wireNode.dropTarget")
+        .forEach(x=>x.classList.remove("dropTarget"));
+
+      if(t && t!==b && !t.classList.contains("connected")){
+        t.classList.add("dropTarget");
+      }
+    });
+
+    layer.appendChild(b);
+  });
+
+  // pointer capture를 사용하지 않고 document에서 pointerup을 받습니다.
+  // 따라서 단자를 빠르게 드래그해서 놓아도 마지막 위치를 확실하게 판정합니다.
+  const onDocumentPointerMove=ev=>{
+    if(!drag || drag.pointerId!==ev.pointerId)return;
+    ev.preventDefault();
+
+    drawTempLine(drag.el,ev.clientX,ev.clientY);
+
+    const t=targetAt(ev.clientX,ev.clientY);
+    layer.querySelectorAll(".wireNode.dropTarget")
+      .forEach(x=>x.classList.remove("dropTarget"));
+    if(t && t!==drag.el && !t.classList.contains("connected")){
+      t.classList.add("dropTarget");
+    }
+  };
+
+  const onDocumentPointerCancel=()=>{
+    if(tempLine){tempLine.remove();tempLine=null;}
+    if(drag?.el)drag.el.classList.remove("dragging");
+    layer.querySelectorAll(".dropTarget").forEach(x=>x.classList.remove("dropTarget"));
+    drag=null;
+  };
+
+  document.addEventListener("pointermove",onDocumentPointerMove,{passive:false});
+  document.addEventListener("pointerup",finishDrag);
+  document.addEventListener("pointercancel",onDocumentPointerCancel);
+
+  // 다른 미니게임으로 이동하거나 초기화할 때 이전 배선의 전역 이벤트를 제거합니다.
+  window.__wireCleanup=()=>{
+    document.removeEventListener("pointermove",onDocumentPointerMove);
+    document.removeEventListener("pointerup",finishDrag);
+    document.removeEventListener("pointercancel",onDocumentPointerCancel);
+    if(tempLine){tempLine.remove();tempLine=null;}
+    drag=null;
+  };
+
+  // 브라우저 크기 변경 시 SVG 선 위치를 다시 계산합니다.
+  window.addEventListener("resize",()=>{
+    svg.querySelectorAll('line[data-permanent="1"]').forEach(line=>{
+      // permanent line는 연결된 두 노드를 찾아 다시 그립니다.
+      const all=[...layer.querySelectorAll(".wireNode.connected")];
+      const color=line.getAttribute("stroke");
+      const pair=all.filter(n=>n.dataset.colorHex===color);
+      if(pair.length>=2){
+        const a=nodeCenter(pair[0]),b=nodeCenter(pair[1]);
+        line.setAttribute("x1",a.x);line.setAttribute("y1",a.y);
+        line.setAttribute("x2",b.x);line.setAttribute("y2",b.y);
+      }
+    });
+  });
+
+  // 게임 시작과 동시에 5초 제한시간을 시작합니다.
+  wiringTimer=setInterval(()=>{
+    if(wiringFinished || wiringCompleted){
+      clearInterval(wiringTimer);
+      wiringTimer=null;
+      return;
+    }
+    remaining--;
+    wireTimerEl.innerHTML=`남은 시간 <b>${remaining}초</b>`;
+    if(remaining<=2) wireTimerEl.className="status failure";
+    if(remaining<=0) finishWiringFailure();
+  },1000);
+
+  window.__wireCleanup=()=>{
+    clearInterval(wiringTimer);
+    wiringTimer=null;
+    if(tempLine){tempLine.remove();tempLine=null;}
+    drag=null;
+    wiringFinished=true;
+  };
+}
+
+function miniMatching(r){
+  const pictures=["🐺","🐑","⚡","🔧","🧬","🔒","🔥","👁️"];
+  const cards=[...pictures,...pictures].sort(()=>Math.random()-.5);
+
+  r.innerHTML=`
+    <div style="text-align:center">
+      <p><b>딱 두 장의 카드를 선택하세요. 두 장이 같으면 성공, 다르면 즉시 실패합니다.</b></p>
+      <p id="matchHelp" class="muted">잠시 동안 그림을 보여드립니다. 잘 기억해 두세요!</p>
+      <div id="matchStatus" class="status info" style="margin:10px auto;max-width:620px">
+        그림을 기억하세요.
+      </div>
+      <div class="matchGrid" id="mg"></div>
+    </div>`;
+
+  const grid=r.querySelector("#mg");
+  const help=r.querySelector("#matchHelp");
+  const status=r.querySelector("#matchStatus");
+  const cardEls=[];
+  let first=null;
+  let locked=true;
+  let finished=false;
+  let revealTimer=null;
+
+  function finishFailure(){
+    if(finished)return;
+
+    // 성공과 완전히 동일하게 게임을 종료하고 모든 카드 입력을 차단합니다.
+    finished=true;
+    locked=true;
+
+    cardEls.forEach(c=>{
+      c.disabled=true;
+      c.style.pointerEvents="none";
+      c.setAttribute("aria-disabled","true");
+      c.style.cursor="default";
+      c.classList.add("failed");
+    });
+
+    // 현재 선택 상태도 더 이상 변경되지 않도록 제거합니다.
+    if(first){
+      first.classList.remove("revealed");
+      first=null;
+    }
+
+    status.innerHTML="✕ <b>미션 실패!</b><br>틀린 그림을 선택했습니다.<br>이 게임은 종료되었습니다.";
+    status.className="status failure";
+
+    // 독립 테스트의 실패 결과창 표시
+    testerFailure("미션 실패! 틀린 그림을 선택했습니다. 게임이 종료되었습니다.");
+  }
+
+  function finishSuccess(){
+    if(finished)return;
+    finished=true;
+    locked=true;
+    cardEls.forEach(c=>{
+      c.disabled=true;
+      c.style.pointerEvents="none";
+      c.setAttribute("aria-disabled","true");
+    });
+    status.innerHTML="🎉 <b>미션 성공!</b><br>같은 그림 한 쌍을 찾았습니다.";
+    status.className="status success";
+    testerSuccess("같은 그림 한 쌍을 찾았습니다!");
+  }
+
+  function revealDone(){
+    if(finished)return;
+    cards.forEach((value,i)=>{
+      cardEls[i].textContent="❓";
+      cardEls[i].classList.remove("revealed");
+      // 처음 1.5초 동안만 클릭을 막고, 공개 시간이 끝나면 클릭 가능하게 합니다.
+      cardEls[i].disabled=false;
+      cardEls[i].style.cursor="pointer";
+    });
+    locked=false;
+    help.textContent="카드 두 장만 선택할 수 있습니다. 두 번째 선택과 동시에 결과가 결정됩니다.";
+    status.innerHTML="찾아보세요! <b>한 쌍만 찾으면 성공</b>";
+    status.className="status info";
+  }
+
+  cards.forEach((value,i)=>{
+    const card=document.createElement("button");
+    card.type="button";
+    card.className="matchCard";
+    card.textContent=value; // 처음 1.5초 동안 공개
+    card.dataset.v=value;
+    card.disabled=true;
+    card.style.cursor="default";
+
+    card.addEventListener("click",()=>{
+      // 플레이어에게는 딱 두 번의 선택 기회만 있습니다.
+      if(finished || locked || card.disabled || card.style.pointerEvents==="none") return;
+      if(first===card) return; // 같은 카드를 두 번 누르는 것은 선택으로 인정하지 않습니다.
+
+      card.textContent=value;
+      card.classList.add("revealed");
+
+      if(!first){
+        // 첫 번째 선택
+        first=card;
+        status.innerHTML="첫 번째 선택 완료 · <b>두 번째 카드를 선택하세요.</b>";
+        status.className="status info";
+        return;
+      }
+
+      // 두 번째 선택이 이루어진 순간 단 한 번의 시도를 종료합니다.
+      const second=card;
+      locked=true;
+
+      const isMatch=first.dataset.v===second.dataset.v;
+
+      if(isMatch){
+        first.classList.add("done","matched");
+        second.classList.add("done","matched");
+        finishSuccess();
+      }else{
+        first.classList.add("wrong");
+        second.classList.add("wrong");
+        finishFailure();
+      }
+    });
+
+    grid.appendChild(card);
+    cardEls.push(card);
+  });
+
+  // 약 1.5초 동안 전체 그림을 공개합니다.
+  revealTimer=setTimeout(revealDone,1500);
+
+  // 다른 게임으로 이동/초기화할 때 예약된 reveal 타이머를 정리합니다.
+  const previousCleanup=window.__matchCleanup;
+  if(typeof previousCleanup==="function")previousCleanup();
+
+  window.__matchCleanup=()=>{
+    if(revealTimer)clearTimeout(revealTimer);
+    revealTimer=null;
+    finished=true;
+  };
+}
+
+function miniCircuit(r){
+  const dirs=[
+    {name:"위",symbol:"↑",deg:0},
+    {name:"오른쪽",symbol:"→",deg:90},
+    {name:"아래",symbol:"↓",deg:180},
+    {name:"왼쪽",symbol:"←",deg:270}
+  ];
+
+  // 상단의 기준 방향을 랜덤으로 하나 정합니다.
+  const target=dirs[Math.floor(Math.random()*dirs.length)];
+
+  // 9개 버튼은 기준 방향을 포함하지 않고 모두 랜덤 방향으로 시작합니다.
+  const tiles=Array.from({length:9},(_,i)=>({
+    index:i,
+    deg:dirs[Math.floor(Math.random()*4)].deg
+  }));
+
+  const TIME=10;
+  let remaining=TIME;
+  let timer=null;
+  let finished=false;
+  const runToken=Symbol("directionRun");
+  window.__directionRunToken=runToken;
+
+  r.innerHTML=`
+    <div style="text-align:center">
+      <div style="
+        margin:0 auto 16px;max-width:680px;padding:18px;
+        border-radius:16px;background:#172554;border:2px solid #60a5fa">
+        <div style="font-size:15px;color:#bfdbfe;margin-bottom:6px">기준 방향</div>
+        <div id="directionTarget" style="font-size:64px;font-weight:900;line-height:1">
+          ${target.symbol}
+        </div>
+        <div style="font-size:20px;font-weight:800;margin-top:6px">
+          ${target.name} 방향으로 맞추세요
+        </div>
+      </div>
+
+      <div id="directionTimer" class="status info" style="max-width:680px;margin:0 auto 14px">
+        남은 시간 <b>${remaining}초</b>
+      </div>
+
+      <p class="muted">
+        아래 9개의 버튼을 클릭해서 방향을 회전시키세요.<br>
+        <b>9개 모두 기준 방향과 같아지면 성공합니다.</b>
+      </p>
+
+      <div id="directionGrid" style="
+        display:grid;grid-template-columns:repeat(3,minmax(70px,1fr));
+        gap:12px;max-width:520px;margin:20px auto">
+      </div>
+    </div>`;
+
+  const grid=r.querySelector("#directionGrid");
+  const timerEl=r.querySelector("#directionTimer");
+
+  function updateTile(tileEl,tile){
+    const d=dirs.find(x=>x.deg===tile.deg);
+    tileEl.textContent=d.symbol;
+    tileEl.style.transform=`rotate(0deg)`;
+    tileEl.dataset.direction=d.name;
+    tileEl.setAttribute("aria-label",d.name+" 방향");
+  }
+
+  function checkComplete(){
+    return tiles.every(t=>t.deg===target.deg);
+  }
+
+  function endSuccess(){
+    if(finished)return;
+    finished=true;
+    clearInterval(timer);
+    timer=null;
+    if(window.__directionRunToken===runToken) window.__directionRunToken=null;
+    [...grid.children].forEach(b=>{
+      b.disabled=true;
+      b.style.pointerEvents="none";
+    });
+    timerEl.innerHTML="🎉 <b>미션 성공!</b>";
+    timerEl.className="status success";
+    testerSuccess("9개의 방향을 모두 기준 방향과 일치시켰습니다!");
+  }
+
+  function endFailure(){
+    if(finished)return;
+    finished=true;
+    clearInterval(timer);
+    timer=null;
+    if(window.__directionRunToken===runToken) window.__directionRunToken=null;
+    [...grid.children].forEach(b=>{
+      b.disabled=true;
+      b.style.pointerEvents="none";
+    });
+    timerEl.innerHTML="✕ <b>시간 초과</b><br>제한시간 내에 모든 방향을 맞추지 못했습니다.";
+    timerEl.className="status failure";
+    testerFailure("제한시간 내에 9개의 방향을 맞추지 못했습니다.");
+  }
+
+  tiles.forEach(tile=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="rotateTile";
+    b.style.cssText=`
+      min-height:100px;border:2px solid #4b5563;border-radius:16px;
+      background:#374151;color:#fff;font-size:52px;font-weight:900;
+      cursor:pointer;user-select:none;transition:transform .12s,background .12s,border-color .12s;
+    `;
+    updateTile(b,tile);
+
+    b.addEventListener("click",()=>{
+      if(finished)return;
+
+      // 클릭할 때마다 시계 방향으로 90도 회전
+      tile.deg=(tile.deg+90)%360;
+      updateTile(b,tile);
+
+      if(tile.deg===target.deg){
+        b.style.background="#064e3b";
+        b.style.borderColor="#22c55e";
+      }else{
+        b.style.background="#374151";
+        b.style.borderColor="#4b5563";
+      }
+
+      if(checkComplete()) endSuccess();
+    });
+
+    grid.appendChild(b);
+  });
+
+  timer=setInterval(()=>{
+    // 이전 실행의 타이머가 남아 있더라도 현재 실행에는 절대 영향을 주지 않습니다.
+    if(window.__directionRunToken!==runToken || finished){
+      clearInterval(timer);
+      return;
+    }
+
+    remaining--;
+    timerEl.innerHTML=`남은 시간 <b>${remaining}초</b>`;
+
+    if(remaining<=5 && remaining>0){
+      timerEl.className="status failure";
+    }
+
+    if(remaining<=0){
+      clearInterval(timer);
+      endFailure();
+    }
+  },1000);
+
+  window.__directionCleanup=()=>{
+    clearInterval(timer);
+    timer=null;
+    finished=true;
+    if(window.__directionRunToken===runToken){
+      window.__directionRunToken=null;
+    }
+  };
+}
+
+
+
+function miniMemory(r){
+  const patternPool=[
+    [0,1,2,5,6],[3,7,6,10,14],[0,4,8,9,13],[2,3,7,11,15],
+    [1,5,9,10,14],[4,5,1,2,6],[8,4,0,1,5],[3,2,6,10,9],
+    [12,13,9,5,6],[7,11,15,14,10],[0,1,5,9,13],[2,6,5,9,10],
+    [3,7,11,10,14],[12,8,4,5,1],[0,4,5,9,13],[15,11,10,6,2],
+    [1,2,6,10,14],[4,8,9,13,14],[3,2,1,5,9],[12,8,9,10,14],
+    [0,4,8,12,13],[2,3,7,6,10],[1,5,6,10,11],[14,10,9,5,1]
+  ];
+
+  const previous=window.__lastMemoryPattern;
+  const choices=patternPool
+    .map((pattern,index)=>({pattern,index}))
+    .filter(x=>x.index!==previous);
+  const selected=choices[Math.floor(Math.random()*choices.length)];
+  const q=selected.pattern;
+  window.__lastMemoryPattern=selected.index;
+
+  const g=document.createElement("div");
+  g.className="memoryGrid";
+  g.id="mem";
+
+  r.innerHTML=`
+    <div style="text-align:center">
+      <p><b>빛나는 순서를 기억하세요.</b></p>
+      <p id="memoryStatus" class="muted">순서를 보여주는 중...</p>
+      <div id="memoryBoard"></div>
+    </div>`;
+  r.querySelector("#memoryBoard").appendChild(g);
+
+  let step=0,ready=false,finished=false;
+  const cells=[];
+
+  function success(){
+    if(finished)return;
+    finished=true; ready=false;
+    cells.forEach(b=>{b.disabled=true;b.style.pointerEvents="none";});
+    const st=r.querySelector("#memoryStatus");
+    st.innerHTML="🎉 <b>미션 성공!</b><br>순서를 정확하게 기억했습니다.";
+    st.className="status success";
+    testerSuccess("순서를 정확하게 기억했습니다!");
+  }
+
+  function failure(){
+    if(finished)return;
+    finished=true; ready=false;
+    cells.forEach(b=>{b.disabled=true;b.style.pointerEvents="none";});
+    const st=r.querySelector("#memoryStatus");
+    st.innerHTML="✕ <b>미션 실패!</b><br>순서를 틀렸습니다. 게임이 종료되었습니다.";
+    st.className="status failure";
+    testerFailure("순서를 틀렸습니다. 미니게임이 종료되었습니다.");
+  }
+
+  for(let n=0;n<16;n++){
+    const b=document.createElement("button");
+    b.className="memoryCell";
+    b.dataset.i=n;
+    b.disabled=true;
+    b.addEventListener("click",()=>{
+      if(!ready||finished||b.disabled)return;
+      if(+b.dataset.i!==q[step]){
+        b.classList.add("wrong");
+        failure();
+        return;
+      }
+      b.classList.add("active");
+      setTimeout(()=>b.classList.remove("active"),180);
+      step++;
+      r.querySelector("#memoryStatus").textContent=`진행 ${step} / ${q.length}`;
+      if(step===q.length)success();
+    });
+    g.appendChild(b);
+    cells.push(b);
+  }
+
+  q.forEach((cellIndex,j)=>{
+    setTimeout(()=>{
+      if(finished)return;
+      cells[cellIndex].classList.add("active");
+      setTimeout(()=>{
+        if(!finished)cells[cellIndex].classList.remove("active");
+      },260);
+    },j*400);
+  });
+
+  const readyTimer=setTimeout(()=>{
+    if(finished)return;
+    ready=true;
+    cells.forEach(b=>{b.disabled=false;b.style.cursor="pointer";});
+    r.querySelector("#memoryStatus").textContent=`순서를 입력하세요. (${q.length}칸)`;
+  },q.length*400+350);
+
+  window.__memoryCleanup=()=>{
+    clearTimeout(readyTimer);
+    finished=true;
+    ready=false;
+  };
+}
+
+function miniSafe(r){
+  const code=String(Math.floor(1000+Math.random()*9000));
+  let finished=false;
+  let input="";
+  let revealTimer=null;
+  let countdownTimer=null;
+  let remaining=5;
+
+  r.innerHTML=`
+    <div class="safeGame">
+      <p class="muted" style="text-align:center">
+        금고에 표시되는 <b>4자리 비밀번호</b>를 기억하세요.
+      </p>
+
+      <div class="safeModel" aria-label="금고 모형">
+        <div class="safeTop">
+          <div class="safeBrand">WOLF SECURITY</div>
+          <div class="safeLight"></div>
+        </div>
+
+        <div class="safeDoor">
+          <div class="safeDial">
+            <div class="safeDialInner">
+              <div class="safeDialMark"></div>
+            </div>
+          </div>
+
+          <div class="safePanel">
+            <div class="safeDisplay" id="safeDisplay">${code}</div>
+            <div class="safeLabel">ACCESS CODE</div>
+          </div>
+
+          <div class="safeHandle">
+            <div class="safeHandleBar"></div>
+          </div>
+
+          <div class="safeBolt bolt1"></div>
+          <div class="safeBolt bolt2"></div>
+          <div class="safeBolt bolt3"></div>
+          <div class="safeBolt bolt4"></div>
+        </div>
+
+        <div class="safeBase"></div>
+      </div>
+
+      <div id="safeStatus" class="status info" style="max-width:620px;margin:14px auto">
+        비밀번호를 기억하세요.
+      </div>
+
+      <div class="safeInput">
+        <div class="safeInputTitle">4자리 비밀번호 입력</div>
+        <div class="safeEntry" id="safeEntry">••••</div>
+        <div class="safeKeys" id="safeKeys"></div>
+      </div>
+    </div>`;
+
+  const display=r.querySelector("#safeDisplay");
+  const entry=r.querySelector("#safeEntry");
+  const keys=r.querySelector("#safeKeys");
+  const status=r.querySelector("#safeStatus");
+
+  function lockAll(){
+    keys.querySelectorAll("button").forEach(b=>{
+      b.disabled=true;
+      b.style.pointerEvents="none";
+    });
+  }
+
+  function success(){
+    if(finished)return;
+    finished=true;
+    clearTimeout(revealTimer);
+    clearInterval(countdownTimer);
+    countdownTimer=null;
+    lockAll();
+    display.textContent="OPEN";
+    status.innerHTML="🎉 <b>미션 성공!</b><br>금고가 열렸습니다.";
+    status.className="status success";
+    r.querySelector(".safeDoor").classList.add("opened");
+    testerSuccess("금고 비밀번호를 정확하게 입력했습니다!");
+  }
+
+  function failure(){
+    if(finished)return;
+    finished=true;
+    clearTimeout(revealTimer);
+    clearInterval(countdownTimer);
+    countdownTimer=null;
+    lockAll();
+    entry.textContent="FAIL";
+    status.innerHTML="✕ <b>미션 실패!</b><br>비밀번호가 틀렸습니다. 금고가 잠겼습니다.";
+    status.className="status failure";
+    r.querySelector(".safeDoor").classList.add("locked");
+    testerFailure("금고 비밀번호를 틀렸습니다. 미니게임이 종료되었습니다.");
+  }
+
+  // 약 1.8초 동안 정답을 보여준 뒤 입력 화면으로 전환합니다.
+  revealTimer=setTimeout(()=>{
+    if(finished)return;
+    display.textContent="••••";
+    status.innerHTML="비밀번호를 입력하세요. <b>제한시간 5초</b> · 한 번 틀리면 즉시 실패합니다.";
+    status.className="status info";
+
+    countdownTimer=setInterval(()=>{
+      if(finished){
+        clearInterval(countdownTimer);
+        countdownTimer=null;
+        return;
+      }
+      remaining--;
+      status.innerHTML=`비밀번호를 입력하세요. <b>남은 시간 ${remaining}초</b> · 한 번 틀리면 즉시 실패합니다.`;
+      if(remaining<=0){
+        clearInterval(countdownTimer);
+        countdownTimer=null;
+        failure();
+      }
+    },1000);
+
+    "1234567890".split("").forEach(n=>{
+      const b=document.createElement("button");
+      b.type="button";
+      b.className="safeKey";
+      b.textContent=n;
+
+      b.addEventListener("click",()=>{
+        if(finished)return;
+
+        input+=n;
+        entry.textContent="•".repeat(input.length);
+
+        if(input.length===4){
+          // 한 번의 4자리 입력만 허용합니다.
+          if(input===code){
+            success();
+          }else{
+            failure();
+          }
+        }
+      });
+
+      keys.appendChild(b);
+    });
+  },1800);
+
+  window.__safeCleanup=()=>{
+    clearTimeout(revealTimer);
+    clearInterval(countdownTimer);
+    countdownTimer=null;
+    finished=true;
+  };
+}
+
+
+function miniShape(r){
+  const shapePool=[
+    {symbol:"▲",name:"삼각형"},
+    {symbol:"●",name:"원"},
+    {symbol:"■",name:"사각형"},
+    {symbol:"★",name:"별"},
+    {symbol:"◆",name:"마름모"},
+    {symbol:"⬢",name:"육각형"}
+  ];
+
+  // 기존 게임 형식 유지:
+  // "3개의 도형 순서를 기억/확인하고, 보기에서 같은 순서를 선택"
+  // 기준 순서만 매 게임 랜덤으로 생성합니다.
+  const shuffled=[...shapePool].sort(()=>Math.random()-.5);
+  const targetShapes=shuffled.slice(0,3);
+  const targetKey=targetShapes.map(x=>x.name).join("|");
+
+  // 기준 순서와 다른 3개 순서를 생성합니다.
+  const choices=[targetShapes];
+  const used=new Set([targetKey]);
+
+  while(choices.length<4){
+    const arr=[...shapePool].sort(()=>Math.random()-.5).slice(0,3);
+    const key=arr.map(x=>x.name).join("|");
+    if(!used.has(key)){
+      used.add(key);
+      choices.push(arr);
+    }
+  }
+  choices.sort(()=>Math.random()-.5);
+
+  let finished=false;
+  let timer=null;
+  const started=performance.now();
+
+  const renderShapes=arr=>arr.map(x=>
+    `<span class="shapeChoiceIcon" title="${x.name}">${x.symbol}</span>`
+  ).join("");
+
+  r.innerHTML=`
+    <div class="shapeSequenceGame">
+      <div class="shapeBadge">◆ 도형 선택</div>
+      <div class="shapeInstruction">
+        아래 보기 중 <b>기준 도형과 같은 순서</b>를 선택하세요.
+      </div>
+
+      <div class="shapeReference">
+        <span>기준 도형</span>
+        <div class="shapeReferenceIcons">${renderShapes(targetShapes)}</div>
+      </div>
+
+      <div id="shapeTimer" class="shapeTimer">
+        ⏱ <b>3.0초</b>
+      </div>
+
+      <div id="shapeChoices" class="shapeSequenceChoices"></div>
+    </div>`;
+
+  const grid=r.querySelector("#shapeChoices");
+  const timerEl=r.querySelector("#shapeTimer");
+
+  function lock(){
+    grid.querySelectorAll("button").forEach(btn=>{
+      btn.disabled=true;
+      btn.style.pointerEvents="none";
+    });
+  }
+
+  function success(btn){
+    if(finished)return;
+    finished=true;
+    clearInterval(timer);
+    timer=null;
+    btn.classList.add("correct");
+    lock();
+    timerEl.innerHTML="🎉 <b>미션 성공!</b>";
+    timerEl.className="shapeResult success";
+    r.querySelector(".shapeInstruction").innerHTML=
+      "🎉 <b>정확한 도형 순서를 선택했습니다!</b>";
+    testerSuccess("도형 순서를 정확하게 선택했습니다!");
+  }
+
+  function failure(message){
+    if(finished)return;
+    finished=true;
+    clearInterval(timer);
+    timer=null;
+    lock();
+    timerEl.innerHTML="✕ <b>미션 실패!</b>";
+    timerEl.className="shapeResult failure";
+    r.querySelector(".shapeInstruction").innerHTML=message;
+    testerFailure("도형 선택 미션에 실패했습니다.");
+  }
+
+  choices.forEach(arr=>{
+    const key=arr.map(x=>x.name).join("|");
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="shapeSequenceChoice";
+    btn.innerHTML=`
+      <span class="sequenceShapes">${renderShapes(arr)}</span>
+      <span class="sequenceText">${arr.map(x=>x.name).join(" → ")}</span>`;
+
+    btn.addEventListener("click",()=>{
+      if(finished)return;
+
+      // 한 번 틀리는 순간 바로 실패.
+      if(key===targetKey){
+        success(btn);
+      }else{
+        btn.classList.add("incorrect");
+        failure("✕ <b>틀린 순서를 선택했습니다.</b><br>한 번 틀리면 즉시 실패합니다.");
+      }
+    });
+
+    grid.appendChild(btn);
+  });
+
+  // 3초 제한시간
+  timer=setInterval(()=>{
+    if(finished)return;
+    const left=Math.max(0,3-(performance.now()-started)/1000);
+    timerEl.innerHTML=`⏱ <b>${left.toFixed(1)}초</b>`;
+
+    if(left<=0){
+      clearInterval(timer);
+      timer=null;
+      failure("⏰ <b>제한시간 3초가 지났습니다.</b>");
+    }
+  },50);
+
+  window.__shapeCleanup=()=>{
+    clearInterval(timer);
+    timer=null;
+    finished=true;
+  };
+}
+
+function miniTrace(r){
+  let finished=false;
+  let dragging=false;
+  let progress=0;
+  let remaining=5;
+  let traceTimer=null;
+
+  r.innerHTML=`
+    <div class="traceGame">
+      <div class="traceTitle">〰️ 선 따라가기</div>
+      <div id="traceStatus" class="status info">
+        <b>START ●</b>를 누른 상태로 파란 선을 따라 <b>GOAL</b>까지 이동하세요.
+      </div>
+      <div id="traceTimer" class="status info">
+        ⏱ 남은 시간 <b>5초</b>
+      </div>
+
+      <div class="traceBoard" id="traceBoard">
+        <svg id="traceSvg" viewBox="0 0 700 380" class="traceSvg">
+          <path id="tracePath"
+            d="M65 300
+               C105 225 145 85 240 105
+               C330 125 330 315 430 250
+               C515 195 520 80 635 95"/>
+        </svg>
+        <div class="traceStartLabel">START</div>
+        <div class="traceGoalLabel">GOAL</div>
+        <div id="traceDot" class="traceDot"></div>
+      </div>
+
+      <p class="muted">
+        <b>START의 ●를 누르고 있는 상태로 드래그</b>하세요.<br>
+        파란 선에서 크게 벗어나면 즉시 실패하고, GOAL까지 도착하면 성공합니다.
+      </p>
+    </div>`;
+
+  const board=r.querySelector("#traceBoard");
+  const svg=r.querySelector("#traceSvg");
+  const path=r.querySelector("#tracePath");
+  const dot=r.querySelector("#traceDot");
+  const status=r.querySelector("#traceStatus");
+  const timerEl=r.querySelector("#traceTimer");
+
+  // SVG path 자체를 기준으로 판정합니다.
+  // 화면에 보이는 선과 판정 경로가 서로 다른 문제가 생기지 않습니다.
+  const totalLength=path.getTotalLength();
+  const startPoint=path.getPointAtLength(0);
+
+  function boardToSvg(ev){
+    const pt=svg.createSVGPoint();
+    pt.x=ev.clientX;
+    pt.y=ev.clientY;
+    const matrix=svg.getScreenCTM();
+    if(!matrix)return null;
+    return pt.matrixTransform(matrix.inverse());
+  }
+
+  function nearestOnPath(point){
+    // path 위의 가장 가까운 지점을 찾습니다.
+    // 1차: 4px 간격으로 빠르게 탐색
+    let best={distance:Infinity,length:0};
+    for(let len=0;len<=totalLength;len+=4){
+      const p=path.getPointAtLength(len);
+      const d=Math.hypot(point.x-p.x,point.y-p.y);
+      if(d<best.distance) best={distance:d,length:len};
+    }
+
+    // 2차: 찾은 주변을 0.5px 간격으로 정밀 탐색
+    const from=Math.max(0,best.length-5);
+    const to=Math.min(totalLength,best.length+5);
+    for(let len=from;len<=to;len+=0.5){
+      const p=path.getPointAtLength(len);
+      const d=Math.hypot(point.x-p.x,point.y-p.y);
+      if(d<best.distance) best={distance:d,length:len};
+    }
+    return best;
+  }
+
+  function setDotAt(length){
+    const p=path.getPointAtLength(length);
+    dot.style.left=(p.x/700*100)+"%";
+    dot.style.top=(p.y/380*100)+"%";
+  }
+
+  setDotAt(0);
+
+  function fail(){
+    if(finished)return;
+    finished=true;
+    dragging=false;
+    clearInterval(traceTimer);
+    traceTimer=null;
+    try{board.releasePointerCapture?.(window.__tracePointerId)}catch(e){}
+    status.innerHTML="✕ <b>미션 실패!</b><br>선에서 벗어났습니다.";
+    status.className="status failure";
+    dot.classList.add("traceFail");
+    testerFailure("선을 따라가다 선 밖으로 벗어났습니다.");
+  }
+
+  function success(){
+    if(finished)return;
+    finished=true;
+    dragging=false;
+    clearInterval(traceTimer);
+    traceTimer=null;
+    setDotAt(totalLength);
+    status.innerHTML="🎉 <b>미션 성공!</b><br>START에서 GOAL까지 선을 따라갔습니다.";
+    status.className="status success";
+    dot.classList.add("traceSuccess");
+    testerSuccess("선을 따라 GOAL까지 도착했습니다!");
+  }
+
+  function move(ev){
+    if(!dragging||finished)return;
+    const point=boardToSvg(ev);
+    if(!point)return;
+
+    const nearest=nearestOnPath(point);
+
+    // 실제 화면상의 파란 선에서 22 SVG px 이상 벗어나면 실패.
+    if(nearest.distance>30){
+      fail();
+      return;
+    }
+
+    // 뒤로 이동하는 것은 허용하지만, 진행도는 되돌리지 않습니다.
+    if(nearest.length>=progress){
+      progress=nearest.length;
+      setDotAt(progress);
+    }
+
+    if(progress>=totalLength-3) success();
+    ev.preventDefault();
+  }
+
+  function down(ev){
+    if(finished)return;
+    const point=boardToSvg(ev);
+    if(!point)return;
+
+    const nearest=nearestOnPath(point);
+
+    // START 근처에서만 잡을 수 있습니다.
+    if(nearest.length<=35 && nearest.distance<=30){
+      dragging=true;
+      progress=0;
+      window.__tracePointerId=ev.pointerId;
+      try{board.setPointerCapture(ev.pointerId)}catch(e){}
+      status.textContent="잡았습니다! 파란 선을 따라 GOAL까지 이동하세요.";
+      status.className="status info";
+      ev.preventDefault();
+    }
+  }
+
+  function up(ev){
+    if(!dragging||finished)return;
+    // 도착 전에 손을 놓으면 실패.
+    dragging=false;
+    try{board.releasePointerCapture(ev.pointerId)}catch(e){}
+    fail();
+  }
+
+  board.addEventListener("pointerdown",down);
+  board.addEventListener("pointermove",move);
+  board.addEventListener("pointerup",up);
+  board.addEventListener("pointercancel",up);
+
+  traceTimer=setInterval(()=>{
+    if(finished){
+      clearInterval(traceTimer);
+      traceTimer=null;
+      return;
+    }
+    remaining--;
+    timerEl.innerHTML=`⏱ 남은 시간 <b>${remaining}초</b>`;
+    if(remaining<=2) timerEl.className="status failure";
+    if(remaining<=0){
+      clearInterval(traceTimer);
+      traceTimer=null;
+      fail();
+    }
+  },1000);
+
+  window.__traceCleanup=()=>{
+    clearInterval(traceTimer);
+    traceTimer=null;
+    finished=true;
+    dragging=false;
+    try{board.releasePointerCapture(window.__tracePointerId)}catch(e){}
+  };
+}
 </script>
 </body>
 </html>
