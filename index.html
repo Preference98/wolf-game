@@ -251,6 +251,7 @@ let lastSoundEvent="",lastSoundAt=0,fadeBusy=false,roleRevealTimer=null,countdow
 const SOUND_FILES={
  roleSelectionBgm:"sounds/role-selection-bgm.mp3",
  gameStartBgm:"sounds/game-start-bgm.mp3",
+ trialBgm:"sounds/trial-bgm.mp3",
  countdown5:"sounds/countdown-5.mp3",
  countdown4:"sounds/countdown-4.mp3",
  countdown3:"sounds/countdown-3.mp3",
@@ -267,6 +268,7 @@ const SOUND_FILES={
 const audio={};
 let soundUnlocked=false;
 let audioContext=null;
+let adminGameStartEffectTimer=null;
 function preloadSounds(){
  for(const [k,v] of Object.entries(SOUND_FILES)){
    const a=new Audio();
@@ -518,8 +520,9 @@ async function startRoleSelection(){
    const r=await db.from("players").update({role:i<wolfCount?"WOLF":"SHEEP",card_selected:false,card_position:i}).eq("id",shuffled[i].id);
    if(r.error){toast("역할 카드 준비 실패: "+r.error.message);return;}
  }
+ stopAllAdminBgm();
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
- await startAdminRoleSelectionBgm();
+ await startAdminLoopBgm("roleSelectionBgm");
  toast("양과 늑대 선정 화면을 시작합니다.");
 }
 async function markReady(){
@@ -661,7 +664,17 @@ async function deadSheepFound(location){
 
 async function renderAdmin(){
  try{
-  const g=await settings(),p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
+  const g=await settings();
+  if(g.phase==="TRIAL"){
+    stopRoleSelectionBgm();stopGameStartBgm();await startAdminLoopBgm("trialBgm");
+  }else if(g.phase==="ROLE_INTRO"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_REVEAL"){
+    stopGameStartBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("roleSelectionBgm");
+  }else if(g.phase==="COUNTDOWN"){
+    stopRoleSelectionBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
+  }else{
+    stopAllAdminBgm();
+  }
+  const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
   el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+c.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;
   el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
@@ -686,24 +699,46 @@ async function startGame(){
  if(!players.some(x=>x.role==="WOLF")||!players.some(x=>x.role==="SHEEP")){toast("양과 늑대가 모두 선정되어야 합니다.");return;}
  await set({started:true,phase:"COUNTDOWN",roles_selected:true,notice:"잠시후 게임이 시작됩니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
  await startGameStartBgm();
+ clearTimeout(adminGameStartEffectTimer);
+ adminGameStartEffectTimer=setTimeout(()=>playSound("gameStart","game-start-admin-"+g.current_round),15000);
  toast("게임 시작 준비");
 }
 async function startGameStartBgm(){
+ if(localStorage.getItem("wolf_game_admin_v7")!=="1")return;
  stopRoleSelectionBgm();
- try{
-  const a=audio.gameStartBgm;
-  if(!a)return;
-  a.loop=true;a.volume=.45;
-  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
-  a.currentTime=0;
-  await a.play();
- }catch(e){console.warn("게임 시작 BGM 재생 실패:",e);}
+ stopAdminBgm("trialBgm");
+ await startAdminLoopBgm("gameStartBgm");
 }
 function stopGameStartBgm(){
  try{
   const a=audio.gameStartBgm;
   if(a){a.pause();a.currentTime=0;}
  }catch(e){}
+}
+
+async function startAdminLoopBgm(name){
+ if(localStorage.getItem("wolf_game_admin_v7")!=="1")return;
+ try{
+  const a=audio[name];
+  if(!a)return;
+  a.loop=true;a.volume=.45;
+  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
+  if(a.paused){
+   a.currentTime=0;
+   await a.play();
+  }
+ }catch(e){console.warn("관리자 BGM 재생 실패:",name,e);}
+}
+function stopAdminBgm(name){
+ try{
+  const a=audio[name];
+  if(a){a.pause();a.currentTime=0;}
+ }catch(e){}
+}
+function stopAllAdminBgm(){
+ stopRoleSelectionBgm();
+ stopGameStartBgm();
+ stopAdminBgm("trialBgm");
 }
 
 async function renderGameCountdown(p,g){
@@ -722,11 +757,7 @@ async function renderGameCountdown(p,g){
  const sequence=async()=>{
    // 게임 시작 안내문과 전용 BGM을 동시에 시작합니다.
    content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
-   await startGameStartBgm();
    await new Promise(r=>setTimeout(r,5000));
-
-   // Stop the announcement BGM before the numeric countdown.
-   stopGameStartBgm();
 
    for(let n=5;n>=1;n--){
      content.innerHTML='<div class="gameStartCount">'+n+'</div>';
@@ -738,16 +769,16 @@ async function renderGameCountdown(p,g){
    await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
    await new Promise(r=>setTimeout(r,4000));
 
-   stopGameStartBgm();
    const latest=await settings();
    if(latest.phase==="COUNTDOWN")await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
    countdownTimer=null;
  };
  countdownTimer={running:true};
- sequence().catch(e=>{console.error("게임 시작 연출:",e);stopGameStartBgm();countdownTimer=null;});
+ sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
 }
 
 async function nextRound(){
+ clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
   await db.from("mission_completions").delete().eq("game_round",g.current_round);
@@ -761,10 +792,13 @@ async function nextRound(){
 }
 async function startTrial(){
  const g=await settings();
+ stopAllAdminBgm();
  await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오."});
+ await startAdminLoopBgm("trialBgm");
  toast("재판 시작 알림을 전송했습니다.");await renderAdmin();
 }
 async function resetGame(){
+ clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const done=busy(document.querySelector('#admin button[onclick*="resetGame"]'),"초기화 중...");
  try{
   await db.from("mission_completions").delete().gte("id",0);await db.from("wolf_attempts").delete().gte("id",0);
@@ -846,7 +880,11 @@ function realtime(){
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
    if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound","dead-sheep-"+g.dead_sheep_location+"-"+g.investigation_started_at);}
-   else if(g.phase==="TRIAL"){openOverlay("⚖️","재판 시작",g.notice,"alarm");playSound("trialStart","trial-"+g.current_round+"-"+g.notice);}
+   else if(g.phase==="TRIAL"){
+     openOverlay("⚖️","재판 시작",g.notice,"alarm");
+     // 플레이어는 재판 BGM을 절대 재생하지 않고 재판 시작 효과음만 재생합니다.
+     playSound("trialStart","trial-"+g.current_round+"-"+g.notice);
+   }
   }
   route();
  }).subscribe();
