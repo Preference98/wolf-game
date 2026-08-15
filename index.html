@@ -1836,6 +1836,11 @@ window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocatio
 boot();
 })();
 
+// 미니게임 영역은 메인 IIFE 바깥에 있으므로 전역 DOM helper를 사용합니다.
+function el(id){
+  return document.getElementById(id);
+}
+
 function finishMiniGame(success,message){
   if(window.__miniOutcomeLocked)return;
   window.__miniOutcomeLocked=true;
