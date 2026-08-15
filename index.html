@@ -27,11 +27,15 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .notice{padding:13px 14px;border-radius:9px;background:#171717;border-left:3px solid #aaa;margin-bottom:12px}.notice.alert{background:#380006;border-left-color:#f00000}.notice.success{background:#05351c;border-left-color:#18b961}
 .question{font-size:19px;line-height:1.6;margin:15px 0}.timer{text-align:center;font-size:34px;font-weight:900;font-family:Cinzel,serif;margin:8px 0 4px;text-shadow:0 0 14px #f00000}
 .roundTimer{font-size:42px;color:#fff}.roundTimer.warn{color:#ff2736}.roundTimer.end{color:#777}
-.trialLock{min-height:65vh;display:flex;align-items:center;justify-content:center;text-align:center}.trialLock h1{font-size:31px}.trialLock .symbol{font-size:64px;margin-bottom:15px}
+.lock{min-height:65vh;display:flex;align-items:center;justify-content:center;text-align:center}.lock h1{font-size:31px}.lock .symbol{font-size:64px;margin-bottom:15px}
+.completedList{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.completedList li{margin:6px 0;color:#ddd}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#151515;border:1px solid #292929;border-radius:9px;padding:11px}.stat b{display:block;font-size:20px;margin-top:4px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:200;background:#171717;border:1px solid #777;border-left:3px solid #e00012;border-radius:8px;padding:12px 16px;max-width:90%;box-shadow:0 10px 40px #000;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
 .overlay{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;padding:18px;z-index:100}.overlay.show{display:flex}
-.modal{width:min(500px,100%);background:#070707;border:1px solid #97000b;border-radius:14px;padding:26px;text-align:center;box-shadow:0 0 80px #f0000044}.modal .icon{font-size:52px}.modal h1{font-size:29px}.overlay.alarm .modal{border-color:#f00000;box-shadow:0 0 100px #f0000066}.overlay.win .modal{border-color:#d4ad43;box-shadow:0 0 90px #d9ad433d}
+.modal{width:min(500px,100%);background:#070707;border:1px solid #97000b;border-radius:14px;padding:26px;text-align:center;box-shadow:0 0 80px #f0000044}.modal .icon{font-size:52px}.modal h1{font-size:29px}
+.overlay.alarm .modal{border-color:#f00000;box-shadow:0 0 100px #f0000066}.overlay.win .modal{border-color:#d4ad43;box-shadow:0 0 90px #d9ad433d}
+.locationChoice{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}.locationChoice button{min-height:60px}
+.locationName{color:#42d66c;font-weight:900}.deadSheep{color:#ff3344;font-weight:900}
 .errorbox{background:#350006;border:1px solid #8e0010;color:#ffb9bf;padding:12px;border-radius:8px;font-size:13px;white-space:pre-wrap}
 </style>
 </head>
@@ -54,12 +58,22 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <div class="card"><div class="row"><h1 id="stateTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p></div>
 <div class="card"><h2>미션</h2><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
-<div class="card"><button id="bodyBtn" style="width:100%" onclick="confirmBody()">☠️ 시체 발견</button></div>
+<div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
 </section>
 
+<section id="investigation" class="screen">
+<div class="lock"><div>
+<div class="symbol">🔎</div><h1>현장 조사</h1>
+<div id="investigationNotice" class="notice"></div>
+<div class="muted">재판 시작까지 남은 시간</div>
+<div id="investigationTimer" class="timer roundTimer">05:00</div>
+<div id="myCompletedMissions"></div>
+</div></div>
+</section>
+
 <section id="trialLock" class="screen">
-<div class="trialLock"><div><div class="symbol">⚖️</div><h1>재판 시작</h1><p class="muted" style="font-size:17px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>
+<div class="lock"><div><div class="symbol">⚖️</div><h1>재판 시작</h1><p class="muted" style="font-size:17px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>
 </section>
 
 <section id="mission" class="screen">
@@ -70,19 +84,32 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 
 <section id="admin" class="screen">
 <div class="card"><h1>관리자 대시보드</h1><div id="stats" class="grid"></div></div>
+
 <div class="card"><h2>게임 제어</h2><div class="grid">
 <button onclick="confirmAction('게임 시작','게임을 시작하고 역할을 배정하시겠습니까?','startGame')">게임 시작</button>
 <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드로 이동하시겠습니까?','nextRound')">다음 라운드</button>
-<button onclick="confirmAction('재판 시작','모든 플레이어에게 재판 시작을 알리시겠습니까?','startTrial')">재판 시작</button>
+<button onclick="confirmAction('재판 시작','현재 현장 조사 중이라면 즉시 재판을 시작합니다. 재판 시작 알림을 보내시겠습니까?','startTrial')">재판 시작</button>
 <button class="danger" onclick="confirmAction('게임 초기화','게임 상태를 초기화하시겠습니까?','resetGame')">게임 초기화</button>
 <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
 <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
 </div></div>
-<div class="card"><h2>라운드 시간</h2><label class="small">한 라운드 진행 시간</label>
-<select id="roundMinutes"><option>10</option><option selected>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select>
+
+<div class="card"><h2>시간 설정</h2>
+<label class="small">한 라운드 진행 시간</label><select id="roundMinutes"><option>10</option><option selected>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select>
+<label class="small">죽은 양 발견 후 현장 조사 시간</label><select id="investigationMinutes"><option>1</option><option>2</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option></select>
 <button onclick="saveTiming()">시간 설정 저장</button></div>
+
+<div class="card"><h2>장소 관리</h2><p class="muted">죽은 양 발견 시 선택할 장소입니다.</p><div id="locationList"></div>
+<input id="newLocation" placeholder="새 장소 이름"><button onclick="addLocation()">장소 추가</button></div>
+
 <div class="card"><h2>NFC 테스트 모드</h2><p class="muted">테스트 모드에서는 NFC 태그 없이 미션을 열 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 테스트 모드: OFF</button></div>
-<div class="card"><h2>전체 알림</h2><textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea><button onclick="sendNotice()">알림 전송</button></div>
+
+<div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
+<textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea><button onclick="sendNotice()">전체 알림 전송</button></div>
+
+<div class="card"><h2>늑대 전용 알림</h2><p class="muted">늑대에게만 메시지를 보냅니다. <b>효과음은 재생되지 않습니다.</b></p>
+<textarea id="wolfMessage" placeholder="늑대에게 보낼 메시지"></textarea><button onclick="sendWolfNotice()">늑대에게 전송</button></div>
+
 <div class="card"><h2>플레이어</h2><div id="playerList"></div></div>
 </section>
 </main></div>
@@ -95,8 +122,8 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 "use strict";
 const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
-let db=null, playerId=localStorage.getItem("wolf_game_player_v6"), currentMission=null;
-let missionTimer=null,missionEndAt=0,roundTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
+let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
+let missionTimer=null,missionEndAt=0,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 
 const SOUND_FILES={
  login:"sounds/login.mp3",
@@ -104,7 +131,8 @@ const SOUND_FILES={
  trialStart:"sounds/trial-start.mp3",
  sheepWin:"sounds/sheep-win.mp3",
  wolfWin:"sounds/wolf-win.mp3",
- bodyFound:"sounds/body-found.mp3"
+ deadSheepFound:"sounds/body-found.mp3",
+ adminNotice:"sounds/admin-notice.mp3"
 };
 const audio={};
 function preloadSounds(){for(const [k,v] of Object.entries(SOUND_FILES)){const a=new Audio(v);a.preload="auto";audio[k]=a;}}
@@ -112,25 +140,21 @@ function playSound(name){if(!soundEnabled||!audio[name])return;audio[name].curre
 function unlockSound(){soundEnabled=true;playSound("login");}
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
+function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 function showScreen(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));el(id).classList.add("active");}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 function showError(id,m){el(id).innerHTML='<div class="errorbox">'+esc(m)+'</div>';}
 
-function openOverlay(icon,title,msg,kind="",buttons){
- el("modalIcon").textContent=icon;el("modalTitle").textContent=title;el("modalMessage").textContent=msg||"";
- el("modalButtons").innerHTML=buttons||'<button onclick="closeOverlay()">확인</button>';
- el("overlay").className="overlay show "+kind;
-}
+function openOverlay(icon,title,msg,kind="",buttons){el("modalIcon").textContent=icon;el("modalTitle").textContent=title;el("modalMessage").textContent=msg||"";el("modalButtons").innerHTML=buttons||'<button onclick="closeOverlay()">확인</button>';el("overlay").className="overlay show "+kind;}
 function closeOverlay(){el("overlay").className="overlay";}
 function confirmAction(title,msg,action){pendingAdminAction=action;openOverlay("⚠️",title,msg,"",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button style="flex:1" onclick="runConfirmedAdminAction()">확인</button></div>');}
 async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdminAction=null;closeOverlay();if(a&&window[a])await window[a]();}
-function confirmBody(){openOverlay("☠️","시체 발견 확인","정말 시체를 발견했다고 신고하시겠습니까?","alarm",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="bodyFound()">시체 발견 신고</button></div>');}
 
 async function settings(){const r=await db.from("game_settings").select("*").eq("id",1).single();if(r.error)throw new Error("게임 설정 오류\n"+r.error.message);return r.data;}
 async function me(){if(!playerId)return null;const r=await db.from("players").select("*").eq("id",playerId).maybeSingle();if(r.error)throw new Error("플레이어 정보 오류\n"+r.error.message);return r.data;}
 async function missions(){const r=await db.from("missions").select("*").eq("active",true).order("id");if(r.error)throw new Error("미션 불러오기 오류\n"+r.error.message);return r.data||[];}
 async function comps(round){const r=await db.from("mission_completions").select("*").eq("game_round",round);if(r.error)throw new Error("미션 완료 상태 오류\n"+r.error.message);return r.data||[];}
+async function locations(){const r=await db.from("game_locations").select("*").eq("active",true).order("sort_order").order("id");if(r.error)throw new Error("장소 불러오기 오류\n"+r.error.message);return r.data||[];}
 async function set(v){const r=await db.from("game_settings").update(v).eq("id",1);if(r.error)throw new Error(r.error.message);}
 
 async function join(){
@@ -138,58 +162,98 @@ async function join(){
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
  try{
   unlockSound();
-  if(name==="관리자"){localStorage.setItem("wolf_game_admin_v6","1");toast("관리자로 로그인되었습니다.");showScreen("admin");await renderAdmin();return;}
+  if(name==="관리자"){localStorage.setItem("wolf_game_admin_v7","1");toast("관리자로 로그인되었습니다.");showScreen("admin");await renderAdmin();return;}
   let r=await db.from("players").select("*").eq("name",name).maybeSingle();if(r.error)throw new Error(r.error.message);
   let p=r.data;
   if(!p){r=await db.from("players").insert({name,role:"UNASSIGNED",status:"ALIVE"}).select().single();if(r.error)throw new Error("플레이어 등록 실패\n"+r.error.message);p=r.data;}
-  playerId=p.id;localStorage.setItem("wolf_game_player_v6",playerId);toast("접속되었습니다.");await route();
+  playerId=p.id;localStorage.setItem("wolf_game_player_v7",playerId);toast("접속되었습니다.");await route();
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}finally{done();}
 }
+
 async function route(){
  try{
-  if(localStorage.getItem("wolf_game_admin_v6")==="1"){showScreen("admin");await renderAdmin();return;}
-  const p=await me();if(!p){showScreen("login");return;}const g=await settings();
-  if(g.phase==="TRIAL"){stopRoundTimer();showScreen("trialLock");return;}
+  if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
+  const p=await me();if(!p){showScreen("login");return;}
+  if(p.status!=="ALIVE"){stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';return;}
+  const g=await settings();
+  if(g.phase==="INVESTIGATION"){stopRoundTimer();await renderInvestigation(p,g);return;}
+  if(g.phase==="TRIAL"){stopAllTimers();showTrialLock();return;}
   if(g.started)await renderPlayer();else await renderLobby(p,g);
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));showScreen("login");}
 }
+
 async function renderLobby(p,g){
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
  el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
- el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopRoundTimer();
+ el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
 }
 
 async function renderPlayer(){
  const p=await me(),g=await settings();
- if(g.phase==="TRIAL"){stopRoundTimer();showScreen("trialLock");return;}
- const ms=await missions(),cs=await comps(g.current_round);if(!p){showScreen("login");return;}
- el("stateTitle").textContent=p.status==="ALIVE"?"양 생존 중...":"☠️ 탈락";
- el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;
+ if(!p||p.status!=="ALIVE"){await route();return;}
+ if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
+ if(g.phase==="TRIAL"){showTrialLock();return;}
+ const ms=await missions(),cs=await comps(g.current_round);
+ el("stateTitle").textContent="양 생존 중...";el("round").textContent="ROUND "+g.current_round;el("phase").textContent=g.notice||g.phase;
  el("noticeBox").innerHTML=g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"";
  const myDone=cs.some(x=>x.player_id===p.id),box=el("missions");box.innerHTML="";
- ms.forEach(m=>{const own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id),disabled=myDone||own||p.status!=="ALIVE"||!nfcTestMode;
+ ms.forEach(m=>{const own=cs.some(x=>x.player_id===p.id&&x.mission_id===m.id),disabled=myDone||own||!nfcTestMode;
  box.innerHTML+='<div class="item mission"><div><b>'+esc(m.location)+'</b><div class="muted">'+esc(m.title)+'</div></div><button '+(disabled?"disabled":"")+' onclick="openMission(\''+esc(m.id)+'\')">'+(own?"완료":"수행")+'</button></div>';});
- showScreen("player");startRoundTimer(g);
+ el("deadSheepBtn").disabled=false;showScreen("player");startRoundTimer(g);
 }
 
-function stopRoundTimer(){clearInterval(roundTimer);roundTimer=null;}
+async function renderInvestigation(p,g){
+ stopRoundTimer();showScreen("investigation");
+ const loc=g.dead_sheep_location||"현장";
+ el("investigationNotice").innerHTML='누군가 <span class="locationName">'+esc(loc)+'</span>에서 <span class="deadSheep">죽은 양</span>을 발견했습니다.';
+ const cs=await comps(g.current_round),ms=await missions(),mine=cs.filter(x=>x.player_id===p.id);
+ const list=el("myCompletedMissions");
+ if(mine.length){
+   const names=mine.map(c=>{const m=ms.find(x=>String(x.id)===String(c.mission_id));return m?'<li>'+esc(m.location)+' — '+esc(m.title)+'</li>':''}).join("");
+   list.innerHTML='<div class="completedList"><b>내가 완료한 미션</b><ul>'+names+'</ul></div>';
+ }else list.innerHTML='<div class="completedList muted">내가 완료한 미션이 없습니다.</div>';
+ startInvestigationTimer(g);
+}
+
+function showTrialLock(){
+ stopAllTimers();el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">⚖️</div><h1>재판 시작</h1><p class="muted" style="font-size:17px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>';showScreen("trialLock");
+}
+
 function startRoundTimer(g){
- stopRoundTimer();
- const duration=Math.max(0,Number(g.round_duration_minutes||15)*60*1000);
- const started=g.round_started_at?new Date(g.round_started_at).getTime():Date.now();
- function update(){
-  if(document.getElementById("player").classList.contains("active")===false){return;}
-  const left=Math.max(0,duration-(Date.now()-started)),s=Math.ceil(left/1000);
-  const mm=String(Math.floor(s/60)).padStart(2,"0"),ss=String(s%60).padStart(2,"0");
-  const t=el("roundTimer");t.textContent=mm+":"+ss;t.className="timer roundTimer"+(s<=60&&s>0?" warn":s===0?" end":"");
- }
+ clearInterval(roundTimer);roundTimer=null;
+ const duration=Math.max(0,Number(g.round_duration_minutes||15)*60000),started=g.round_started_at?new Date(g.round_started_at).getTime():Date.now();
+ function update(){if(!el("player").classList.contains("active"))return;const left=Math.max(0,duration-(Date.now()-started)),s=Math.ceil(left/1000);el("roundTimer").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");el("roundTimer").className="timer roundTimer"+(s<=60&&s>0?" warn":s===0?" end":"");}
  update();roundTimer=setInterval(update,250);
 }
+function startInvestigationTimer(g){
+ clearInterval(investigationTimer);investigationTimer=null;
+ const duration=Math.max(0,Number(g.investigation_duration_minutes||5)*60000),started=g.investigation_started_at?new Date(g.investigation_started_at).getTime():Date.now();
+ let transitionRequested=false;
+ async function update(){
+   if(!el("investigation").classList.contains("active"))return;
+   const left=Math.max(0,duration-(Date.now()-started)),s=Math.ceil(left/1000);
+   el("investigationTimer").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+   if(left<=0 && !transitionRequested){
+     transitionRequested=true;
+     try{
+       const latest=await settings();
+       if(latest.phase==="INVESTIGATION"){
+         await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오."});
+       }
+     }catch(e){console.error("현장 조사 종료 처리 실패:",e);}
+     clearInterval(investigationTimer);
+     investigationTimer=null;
+   }
+ }
+ update();investigationTimer=setInterval(update,250);
+}
+function stopRoundTimer(){clearInterval(roundTimer);roundTimer=null}
+function stopAllTimers(){clearInterval(roundTimer);clearInterval(investigationTimer);clearInterval(missionTimer);roundTimer=investigationTimer=missionTimer=null}
 
 async function openMission(id){
  try{
-  const p=await me(),g=await settings(),ms=await missions(),m=ms.find(x=>x.id===id);if(!m)throw new Error("미션을 찾을 수 없습니다.");
-  if(g.phase==="TRIAL"){toast("현재 재판 중에는 미션을 수행할 수 없습니다.");return;}
+  const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+  const ms=await missions(),m=ms.find(x=>String(x.id)===String(id));if(!m)throw new Error("미션을 찾을 수 없습니다.");
   const cs=await comps(g.current_round);if(p.role==="SHEEP"&&cs.some(x=>x.player_id===p.id)){toast("이미 미션을 완료했습니다.");return;}
   currentMission=m;el("mMeta").textContent=m.id+" · "+m.location;el("mTitle").textContent=m.title;el("mDesc").textContent=m.description||"";
   el("question").textContent=p.role==="WOLF"?m.wolf_question:m.question;el("answer").value="";el("missionResult").innerHTML="";
@@ -201,16 +265,16 @@ function tickMission(){const left=Math.max(0,missionEndAt-Date.now()),s=Math.cei
 async function submitAnswer(){
  const btn=el("answerBtn");if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");
  try{
-  const p=await me(),g=await settings(),a=el("answer").value.trim(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer;
+  const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+  const a=el("answer").value.trim(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer;
   if(a!==correct){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';toast("오답입니다.");return;}
   if(p.role==="SHEEP"){
-   const cs=await comps(g.current_round);if(cs.some(x=>x.mission_id===currentMission.id)){toast("이미 완료된 미션입니다.");return;}if(cs.some(x=>x.player_id===p.id)){toast("이미 미션을 완료했습니다.");return;}
+   const cs=await comps(g.current_round);if(cs.some(x=>x.mission_id===currentMission.id)){toast("이미 완료된 미션입니다.");return;}
    const r=await db.from("mission_completions").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id});if(r.error)throw new Error(r.error.message);
    const after=await comps(g.current_round),all=await missions();toast("미션 완료!");
    if(all.length&&after.length>=all.length)await set({phase:"FINISHED",winner:"SHEEP",notice:"🐑 양이 모든 미션을 완료했습니다!"});
   }else{
    const r=await db.from("wolf_attempts").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id});if(r.error)throw new Error(r.error.message);
-   // 늑대 미션 완료는 화면상 완료만 기록하고, 기존 명세에 따라 양의 완료 미션 1개를 제거.
    const cs=await comps(g.current_round);if(cs.length)await db.from("mission_completions").delete().eq("id",cs[cs.length-1].id);
    toast("늑대 미션 완료!");
   }
@@ -218,15 +282,34 @@ async function submitAnswer(){
  }catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}
 }
 
-async function bodyFound(){closeOverlay();const btn=el("bodyBtn"),done=busy(btn,"신고 중...");try{await set({phase:"TRIAL",body_found:true,notice:"☠️ 시체가 발견되었습니다!"});toast("시체 발견이 접수되었습니다.");}catch(e){toast("시체 발견 처리 실패: "+e.message);}finally{done();}}
 function enableSound(){unlockSound();toast("알림 소리가 활성화되었습니다.");}
+
+async function openLocationChoice(){
+ const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+ const ls=await locations();
+ if(!ls.length){toast("신고 장소가 등록되어 있지 않습니다.");return;}
+ const html='<div class="locationChoice">'+ls.map(x=>'<button onclick="confirmDeadSheepLocation(\''+esc(x.name)+'\')">'+esc(x.name)+'</button>').join("")+'</div><br><button class="secondary" onclick="closeOverlay()">취소</button>';
+ openOverlay("☠️","죽은 양 발견","발견한 장소를 선택하십시오.","alarm",html);
+}
+function confirmDeadSheepLocation(name){
+ openOverlay("☠️","죽은 양 발견 확인","<"+name+">에서 발견했다고 신고하시겠습니까?>".replace("<"+name+">","["+name+"]"),"",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openLocationChoice()">취소</button><button class="danger" style="flex:1" onclick="deadSheepFound(\''+esc(name)+'\')">신고</button></div>');
+}
+async function deadSheepFound(location){
+ closeOverlay();const btn=el("deadSheepBtn"),done=busy(btn,"신고 중...");
+ try{
+  const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
+  await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:new Date().toISOString(),notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
+  toast("죽은 양 발견이 접수되었습니다.");
+ }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
+}
 
 async function renderAdmin(){
  try{
-  const g=await settings(),p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions();
+  const g=await settings(),p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
   el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 완료<b>'+c.length+'/'+m.length+'</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
-  el("roundMinutes").value=g.round_duration_minutes||15;
+  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;
   el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+  el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 장소가 없습니다.</div>";
   el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");showScreen("admin");
  }catch(e){console.error(e);showError("playerList",e.message||String(e));}
 }
@@ -237,7 +320,7 @@ async function startGame(){
  try{
   p.sort(()=>Math.random()-.5);const wolves=Math.max(1,Math.floor(p.length/5));
   for(let i=0;i<p.length;i++){const r=await db.from("players").update({role:i<wolves?"WOLF":"SHEEP",status:"ALIVE"}).eq("id",p[i].id);if(r.error)throw new Error(r.error.message);}
-  await set({started:true,phase:"PLAY",notice:"게임이 시작되었습니다.",winner:null,body_found:false,round_started_at:new Date().toISOString()});
+  await set({started:true,phase:"PLAY",notice:"게임이 시작되었습니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
   toast("게임이 시작되었습니다.");await renderAdmin();
  }catch(e){toast("게임 시작 실패: "+e.message);}finally{done();}
 }
@@ -245,46 +328,97 @@ async function nextRound(){
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
   await db.from("mission_completions").delete().eq("game_round",g.current_round);await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
-  const next=g.current_round+1;await set({current_round:next,phase:"PLAY",notice:"ROUND "+next+" 시작",winner:null,body_found:false,round_started_at:new Date().toISOString()});
+  const next=g.current_round+1;await set({current_round:next,phase:"PLAY",notice:"ROUND "+next+" 시작",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:new Date().toISOString()});
   toast("다음 라운드가 시작되었습니다.");await renderAdmin();
  }catch(e){toast("다음 라운드 처리 실패: "+e.message);}finally{done();}
 }
-async function startTrial(){await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오.",body_found:false});toast("재판 시작 알림을 전송했습니다.");await renderAdmin();}
+async function startTrial(){
+ const g=await settings();
+ await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오."});
+ toast("재판 시작 알림을 전송했습니다.");await renderAdmin();
+}
 async function resetGame(){
  const done=busy(document.querySelector('#admin button[onclick*="resetGame"]'),"초기화 중...");
  try{
   await db.from("mission_completions").delete().gte("id",0);await db.from("wolf_attempts").delete().gte("id",0);
   await db.from("players").update({role:"UNASSIGNED",status:"ALIVE"}).gte("created_at","1970-01-01");
-  await set({current_round:1,phase:"LOBBY",started:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,body_found:false,round_started_at:null});
+  await set({current_round:1,phase:"LOBBY",started:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null});
   toast("게임이 초기화되었습니다.");await renderAdmin();
  }catch(e){toast("초기화 실패: "+e.message);}finally{done();}
 }
 async function forceSheepWin(){await set({phase:"FINISHED",winner:"SHEEP",notice:"🐑 양이 승리했습니다! (관리자 테스트)"});toast("양 승리 테스트를 실행했습니다.");}
 async function forceWolfWin(){await set({phase:"FINISHED",winner:"WOLF",notice:"🐺 늑대가 승리했습니다! (관리자 테스트)"});toast("늑대 승리 테스트를 실행했습니다.");}
-async function saveTiming(){const done=busy(document.querySelector('#admin button[onclick*="saveTiming"]'),"저장 중...");try{await set({round_duration_minutes:Number(el("roundMinutes").value)});toast("라운드 시간이 저장되었습니다.");await renderAdmin();}catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}}
+async function saveTiming(){
+ const done=busy(document.querySelector('#admin button[onclick*="saveTiming"]'),"저장 중...");
+ try{await set({round_duration_minutes:Number(el("roundMinutes").value),investigation_duration_minutes:Number(el("investigationMinutes").value)});toast("시간 설정이 저장되었습니다.");await renderAdmin();}catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}
+}
 function toggleNfc(){nfcTestMode=!nfcTestMode;el("nfcBtn").textContent="NFC 테스트 모드: "+(nfcTestMode?"ON":"OFF");toast(nfcTestMode?"NFC 없이 미션 테스트가 가능합니다.":"NFC 테스트 모드를 껐습니다.");}
-async function sendNotice(){const msg=el("adminMessage").value.trim();if(!msg){toast("알림 내용을 입력해 주세요.");return;}const r=await db.from("notifications").insert({message:msg});if(r.error){toast("알림 전송 실패: "+r.error.message);return;}await set({notice:"🔔 "+msg});el("adminMessage").value="";toast("알림을 전송했습니다.");}
+async function sendNotice(){
+ const msg=el("adminMessage").value.trim();if(!msg){toast("알림 내용을 입력해 주세요.");return;}
+ const r=await db.from("notifications").insert({message:msg,target_player:null,notification_type:"ADMIN"});if(r.error){toast("알림 전송 실패: "+r.error.message);return;}
+ await set({notice:"🔔 "+msg});el("adminMessage").value="";toast("전체 알림을 전송했습니다.");
+}
+async function sendWolfNotice(){
+ const msg=el("wolfMessage").value.trim();if(!msg){toast("늑대 알림 내용을 입력해 주세요.");return;}
+ const wolves=(await db.from("players").select("id").eq("role","WOLF").eq("status","ALIVE")).data||[];
+ if(!wolves.length){toast("현재 생존한 늑대가 없습니다.");return;}
+ const rows=wolves.map(w=>({message:msg,target_player:w.id,notification_type:"WOLF"}));
+ const r=await db.from("notifications").insert(rows);if(r.error){toast("늑대 알림 전송 실패: "+r.error.message);return;}
+ el("wolfMessage").value="";toast("늑대에게만 알림을 전송했습니다.");
+}
+
+async function addLocation(){
+ const input=el("newLocation"),name=input.value.trim();if(!name){toast("장소 이름을 입력해 주세요.");return;}
+ const existing=await db.from("game_locations").select("id").eq("name",name).maybeSingle();if(existing.data){toast("이미 존재하는 장소입니다.");return;}
+ const max=(await db.from("game_locations").select("sort_order").order("sort_order",{ascending:false}).limit(1)).data||[];
+ const sort=(max[0]?.sort_order||0)+1;
+ const r=await db.from("game_locations").insert({name,sort_order:sort,active:true});if(r.error){toast("장소 추가 실패: "+r.error.message);return;}
+ input.value="";toast("장소를 추가했습니다.");await renderAdmin();
+}
+function confirmRemoveLocation(id,name){pendingAdminAction=()=>removeLocation(id,name);openOverlay("🗑️","장소 제거","「"+name+"」 장소를 제거하시겠습니까?","",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="runPendingFunction()">제거</button></div>');}
+async function removeLocation(id,name){const r=await db.from("game_locations").update({active:false}).eq("id",id);if(r.error){toast("장소 제거 실패: "+r.error.message);return;}toast(name+" 장소를 제거했습니다.");await renderAdmin();}
+
 function confirmRemovePlayer(id,name){pendingAdminAction=()=>removePlayer(id,name);openOverlay("🚪","플레이어 퇴장","「"+name+"」 플레이어를 퇴장시키겠습니까?","",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="runPendingFunction()">퇴장</button></div>');}
 async function runPendingFunction(){const f=pendingAdminAction;pendingAdminAction=null;closeOverlay();if(typeof f==="function")await f();}
-async function removePlayer(id,name){try{const r=await db.from("players").update({status:"REMOVED"}).eq("id",id);if(r.error)throw new Error(r.error.message);toast(name+" 플레이어를 퇴장 처리했습니다.");await renderAdmin();}catch(e){toast("플레이어 퇴장 실패: "+e.message);}}
+async function removePlayer(id,name){try{const r=await db.from("players").update({status:"REMOVED"}).eq("id",id);if(r.error)throw new Error(r.message||r.error.message);toast(name+" 플레이어를 퇴장 처리했습니다.");await renderAdmin();}catch(e){toast("플레이어 퇴장 실패: "+e.message);}}
 
 function realtime(){
- db.channel("wg-v6-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},payload=>{
+ db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},payload=>{
   const g=payload.new||{};
-  if(localStorage.getItem("wolf_game_admin_v6")==="1"){renderAdmin();return;}
+  if(localStorage.getItem("wolf_game_admin_v7")==="1"){renderAdmin();return;}
   if(g.winner==="SHEEP"){openOverlay("🐑","양의 승리!",g.notice,"win");playSound("sheepWin");}
   else if(g.winner==="WOLF"){openOverlay("🐺","늑대의 승리!",g.notice,"win");playSound("wolfWin");}
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
-   if(g.body_found){openOverlay("☠️","시체가 발견되었습니다!",g.notice,"alarm");playSound("bodyFound");}
+   if(g.phase==="INVESTIGATION"){openOverlay("☠️","죽은 양 발견",g.notice,"alarm");playSound("deadSheepFound");}
    else if(g.phase==="TRIAL"){openOverlay("⚖️","재판 시작",g.notice,"alarm");playSound("trialStart");}
    else if(g.started&&g.phase==="PLAY"){playSound("gameStart");}
-   else if(soundEnabled){openOverlay("🔔","관리자 알림",g.notice);playSound("login");}
   }
   route();
  }).subscribe();
- db.channel("wg-v6-comps").on("postgres_changes",{event:"*","schema":"public","table":"mission_completions"},()=>{if(localStorage.getItem("wolf_game_admin_v6")==="1")renderAdmin();else if(document.getElementById("player").classList.contains("active"))renderPlayer();}).subscribe();
- db.channel("wg-v6-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{const n=payload.new||{};if(localStorage.getItem("wolf_game_admin_v6")!=="1"&&(!n.target_player||n.target_player===playerId)){openOverlay("🔔","관리자 알림",n.message);}}).subscribe();
+
+ db.channel("wg-v7-comps").on("postgres_changes",{event:"*","schema":"public",table:"mission_completions"},()=>{if(localStorage.getItem("wolf_game_admin_v7")==="1")renderAdmin();else route();}).subscribe();
+
+ db.channel("wg-v7-players").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:"id=eq."+playerId},payload=>{
+   if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+   const p=payload.new||{};
+   if(p.status!=="ALIVE"){
+     stopAllTimers();
+     showScreen("trialLock");
+     el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';
+     toast("탈락 처리되었습니다.");
+   }
+ }).subscribe();
+
+ db.channel("wg-v7-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{
+   const n=payload.new||{};
+   if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+   if(n.target_player && n.target_player!==playerId)return;
+   if(n.notification_type==="WOLF" && !n.target_player)return;
+   openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
+   if(n.notification_type==="ADMIN")playSound("adminNotice");
+   // WOLF notifications intentionally have no sound.
+ }).subscribe();
 }
 
 async function boot(){
@@ -292,14 +426,17 @@ async function boot(){
   if(typeof window.supabase==="undefined")throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
   db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);preloadSounds();realtime();
   el("name").addEventListener("keydown",e=>{if(e.key==="Enter")join();});
-  if(localStorage.getItem("wolf_game_admin_v6")==="1"){showScreen("admin");await renderAdmin();return;}
+  if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   if(playerId)await route();else showScreen("login");
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}
 }
 
-window.join=join;window.confirmBody=confirmBody;window.bodyFound=bodyFound;window.closeOverlay=closeOverlay;
-window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
-window.startGame=startGame;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;window.saveTiming=saveTiming;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
+window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
+window.renderPlayer=renderPlayer;window.openMission=openMission;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
+window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
+window.startGame=startGame;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
+window.saveTiming=saveTiming;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
+window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
 boot();
 })();
