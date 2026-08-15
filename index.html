@@ -338,6 +338,8 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 <input id="newMissionDescription" placeholder="설명">
 <input id="newMissionQuestion" placeholder="문제">
 <input id="newMissionAnswer" placeholder="정답">
+<input id="newMissionWolfQuestion" placeholder="늑대용 문제/정보">
+<input id="newMissionWolfAnswer" placeholder="늑대용 정답">
 </div>
 <button onclick="addMission()">미션 추가</button>
 <div id="missionAdminList"></div>
@@ -1180,27 +1182,49 @@ async function addMission(){
  const title=el("newMissionTitle").value.trim();
  const concept_type=el("newMissionConcept").value;
  const mini_game_type=el("newMissionMiniType").value.trim()||null;
- const description=el("newMissionDescription").value.trim()||null;
- const question=el("newMissionQuestion").value.trim()||null;
- const answer=el("newMissionAnswer").value.trim()||null;
- if(!locationId||!title){toast("미션 장소와 미션 이름을 입력해 주세요.");return}
+ const description=el("newMissionDescription").value.trim();
+ const question=el("newMissionQuestion").value.trim();
+ const answer=el("newMissionAnswer").value.trim();
+ const wolfQuestion=el("newMissionWolfQuestion")?.value.trim()||"이 미션에 대한 늑대용 정보가 없습니다.";
+ const wolfAnswer=el("newMissionWolfAnswer")?.value.trim()||"정보 없음";
+ if(!locationId||!title){
+   toast("미션 장소와 미션 이름을 입력해 주세요.");
+   return;
+ }
+ if(!question||!answer||!wolfQuestion||!wolfAnswer){
+   toast("문제/정답 및 늑대용 문제/정답을 입력해 주세요.");
+   return;
+ }
  const loc=await getMissionLocation(locationId);
  if(!loc){toast("미션 장소를 찾을 수 없습니다.");return}
- const missionId=(crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
+ const missionId=(crypto&&typeof crypto.randomUUID==="function")
+   ?crypto.randomUUID()
+   :("m-"+Date.now()+"-"+Math.random().toString(36).slice(2,10));
+
  const r=await db.from("missions").insert({
    id:missionId,
-   title,
    location:loc.name,
+   location_id:loc.id,
    mission_location_id:loc.id,
-   concept_type,
-   mini_game_type:concept_type==="MINIGAME"?mini_game_type:null,
+   title,
    description,
-   question:concept_type==="PUZZLE"?question:null,
-   answer:concept_type==="PUZZLE"?answer:null,
-   active:true
+   question,
+   answer,
+   wolf_question:wolfQuestion,
+   wolf_answer:wolfAnswer,
+   active:true,
+   concept_type,
+   mini_game_type:concept_type==="MINIGAME"?mini_game_type:null
  }).select().single();
- if(r.error){toast("미션 추가 실패: "+r.error.message);return}
- ["newMissionTitle","newMissionMiniType","newMissionDescription","newMissionQuestion","newMissionAnswer"].forEach(id=>{if(el(id))el(id).value=""});
+
+ if(r.error){
+   toast("미션 추가 실패: "+r.error.message);
+   return;
+ }
+ ["newMissionTitle","newMissionMiniType","newMissionDescription","newMissionQuestion",
+  "newMissionAnswer","newMissionWolfQuestion","newMissionWolfAnswer"].forEach(id=>{
+   if(el(id))el(id).value="";
+ });
  toast("미션을 추가했습니다.");
  await renderAdmin();
 }
