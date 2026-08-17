@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v142</title>
+<title>늑대게임 v143</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -505,11 +505,17 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
  .actionDock .dockMainLabel{top:calc(100% + 7px)!important;font-size:11px!important}
  .actionDock .dockMain .dockIcon,.actionDock .dockItem .dockIcon{width:44px!important;height:44px!important}
 }
+
+/* v143: fixed wolf sabotage icon realtime cooldown */
+#dockSabotage{--cd-progress:0%;overflow:hidden!important}
+#dockSabotage::before{content:"";position:absolute;left:0;right:0;bottom:0;height:var(--cd-progress);background:rgba(0,0,0,.42);pointer-events:none;z-index:1}
+#dockSabotage .dockIcon,#dockSabotage .dockLabel,#dockSabotage .cooldownShade{z-index:2}
+#dockSabotage .cooldownShade{font-size:18px!important}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v142</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v143</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1547,6 +1553,7 @@ async function renderPlayerCore(){
   renderActionDock(g,p);
 
   showScreen("player");
+  startSabotageUiWatcher();
   startRoundTimer(g);
   startSabotageUiWatcher();
 }
@@ -1577,7 +1584,7 @@ async function renderActionDock(g,p){
    const remain=active>0?active:cd;
    d.innerHTML=
     '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>'+
-    '<button class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
+    '<button id="dockSabotage" class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
       missionActionIcon("sabotage")+'<span class="dockLabel">사보타지</span>'+
       '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
     '<button class="dockItem deathItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
@@ -1731,6 +1738,7 @@ async function openSabotageScreen(){
    .filter(x=>sheepIds.has(String(x.player_id)))
    .map(x=>String(x.mission_location_id)));
  selectedSabotageLocationIds=new Set();
+ window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(rules.sabotageLocationCount)||1));
  const board=el("sabotageBoard");
  el("sabotageInstruction").textContent="활성 미션 장소 중 방해할 장소를 최대 "+rules.sabotageLocationCount+"곳 선택하십시오.";
  board.innerHTML=all.map(loc=>{
@@ -2847,7 +2855,9 @@ function startSabotageUiWatcher(){
    const dockSab=document.getElementById("dockSabotage");
    if(dockSab){
      const remain=active?Math.max(0,end-now):Math.max(0,cd-now);
+     const cooldownTotal=Math.max(1000,Number(getRoundRules(g).sabotageCooldownSeconds||60)*1000);
      const shade=dockSab.querySelector(".cooldownShade");
+     dockSab.style.setProperty("--cd-progress",remain>0?Math.min(100,remain/cooldownTotal*100)+"%":"0%");
      dockSab.disabled=remain>0;
      dockSab.classList.toggle("cooling",remain>0);
      if(remain>0)dockSab.removeAttribute("onclick");
