@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v168</title>
+<title>늑대게임 v170</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -520,11 +520,24 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .actionDock{z-index:150!important}
 .toast{z-index:300!important}
 .overlay{z-index:1000!important}
+
+/* 관리자 대시보드 레이아웃 */
+.adminDashboard{width:100%;max-width:1180px;margin:0 auto;padding:0 0 32px;box-sizing:border-box}
+.adminHeaderCard{position:relative}
+.adminSectionTitle{display:flex;align-items:center;gap:8px;margin:24px 2px 10px;font-size:1.05rem;font-weight:800}
+.adminSectionTitle:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.12);margin-left:8px}
+.adminTwoColumn{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.adminSettingGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.adminField{min-width:0}
+.adminField label{display:block;margin-bottom:5px}
+.adminField input{width:100%;box-sizing:border-box}
+.adminDashboard .card{margin-bottom:0}
+@media(max-width:800px){.adminTwoColumn,.adminSettingGrid{grid-template-columns:1fr}.adminSectionTitle{margin-top:18px}}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v168</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v170</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -672,52 +685,118 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </section>
 
 <section id="admin" class="screen">
-<div class="card"><div class="row" style="align-items:center;gap:10px"><h1 style="margin:0;flex:1">관리자 대시보드</h1><button class="secondary" onclick="adminLogout()">로그아웃</button></div><div id="stats" class="grid"></div></div>
+<div class="adminDashboard">
 
-<div class="card"><h2>게임 준비 및 진행</h2><div class="grid">
-<button id="readyBtn" onclick="confirmAction('준비 완료','현재 접속한 플레이어 수로 이번 라운드 인원을 확정하시겠습니까?','markReady')">준비완료</button>
-<button id="roleStartBtn" onclick="confirmAction('양과 늑대 선정','모든 참가자에게 카드 선택 화면을 시작하시겠습니까?','startRoleSelection')">양과 늑대 선정</button>
-<button id="gameStartBtn" onclick="confirmAction('게임 시작','역할 선정이 완료되었습니다. 게임을 시작하시겠습니까?','startGame')">게임시작</button>
-<button id="skipToGameBtn" class="success" onclick="confirmAction('게임 즉시 시작 테스트','준비된 인원으로 역할 선정과 게임 시작 카운트다운을 모두 건너뛰고 바로 게임 화면으로 진입하시겠습니까?','skipToGame')">⚡ 즉시 게임 테스트</button>
-<button id="nightTestBtn" class="danger" onclick="confirmAction('밤 테스트','현재 라운드를 유지한 채 즉시 밤 상태로 전환하시겠습니까?','testNight')">🌙 밤 테스트</button>
-<button class="danger" onclick="openAdminDeathTest()">🧪 사망처리 테스트</button>
-<button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
-<button id="trialStartBtn" onclick="startTrial()">재판 시작</button>
-<button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
-<button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
-<button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
-</div><div id="prepStatus" class="notice" style="margin-top:10px"></div></div>
+  <div class="card adminHeaderCard">
+    <div class="row" style="align-items:center;gap:10px">
+      <div style="flex:1">
+        <h1 style="margin:0">관리자 대시보드</h1>
+        <p class="muted" style="margin:6px 0 0">게임 진행 · 규칙 · 미션 · 플레이어를 기능별로 관리합니다.</p>
+      </div>
+      <button class="secondary" onclick="adminLogout()">로그아웃</button>
+    </div>
+    <div id="stats" class="grid" style="margin-top:14px"></div>
+  </div>
 
-<div class="card"><h2>게임 규칙 설정</h2>
-<p class="muted">로비에서만 변경할 수 있습니다. 전체 미션 장소 10개는 고정값이며 관리자 화면에서는 수정·삭제할 수 없습니다.</p>
-<label class="small">늑대 수</label><input id="wolfCount" type="number" min="1" max="20" step="1" value="1">
-<label class="small">양 1인당 미션 수 <b>(= 라운드 활성 미션 장소 수)</b></label><input id="missionsPerSheep" type="number" min="1" max="10" step="1" value="5">
-<label class="small">사보타지 방해 장소 수</label><input id="sabotageLocationCount" type="number" min="1" max="10" step="1" value="1">
-<label class="small">사보타지 방해 지속 시간 (초)</label><input id="sabotageDurationSeconds" type="number" min="5" max="600" step="1" value="30">
-<label class="small">사보타지 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60"><div id="sabotageCooldownDbStatus" class="small muted" style="margin-top:4px"></div>
-<label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30">
-<label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1">
-<label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1">
-<div class="row" style="align-items:center;gap:10px"><button onclick="saveGameRules()">게임 규칙 저장</button><span id="rulesSaveStatus" class="small muted"></span></div>
-<div class="notice" style="margin-top:10px">활성 장소 수는 별도 설정하지 않고 양 1인당 미션 수와 동일하게 결정됩니다. 사보타지는 늑대 전체가 공유합니다.</div></div>
-<div class="card"><h2>시간 설정</h2>
-<label class="small">한 라운드 진행 시간 (분)</label><input id="roundMinutes" type="number" min="1" max="180" step="1" value="15" inputmode="numeric" placeholder="예: 15">
-<label class="small">죽은 양 발견 후 현장 조사 시간 (분)</label><input id="investigationMinutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric" placeholder="예: 5">
-<div class="row" style="align-items:center;gap:10px"><button onclick="saveTiming()">시간 설정 저장</button><span id="timingSaveStatus" class="small muted"></span></div></div>
+  <div class="adminSectionTitle">🎮 게임 진행</div>
+  <div class="card">
+    <h2>게임 준비 및 진행</h2>
+    <div class="grid">
+      <button id="readyBtn" onclick="confirmAction('준비 완료','현재 접속한 플레이어 수로 이번 라운드 인원을 확정하시겠습니까?','markReady')">준비완료</button>
+      <button id="roleStartBtn" onclick="confirmAction('양과 늑대 선정','모든 참가자에게 카드 선택 화면을 시작하시겠습니까?','startRoleSelection')">양과 늑대 선정</button>
+      <button id="gameStartBtn" onclick="confirmAction('게임 시작','역할 선정이 완료되었습니다. 게임을 시작하시겠습니까?','startGame')">게임시작</button>
+      <button id="skipToGameBtn" class="success" onclick="confirmAction('게임 즉시 시작 테스트','준비된 인원으로 역할 선정과 게임 시작 카운트다운을 모두 건너뛰고 바로 게임 화면으로 진입하시겠습니까?','skipToGame')">⚡ 즉시 게임 테스트</button>
+      <button id="nightTestBtn" class="danger" onclick="confirmAction('밤 테스트','현재 라운드를 유지한 채 즉시 밤 상태로 전환하시겠습니까?','testNight')">🌙 밤 테스트</button>
+      <button class="danger" onclick="openAdminDeathTest()">🧪 사망처리 테스트</button>
+      <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
+      <button id="trialStartBtn" onclick="startTrial()">재판 시작</button>
+      <button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
+      <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
+      <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
+    </div>
+    <div id="prepStatus" class="notice" style="margin-top:10px"></div>
+  </div>
 
-<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">시체발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 장소 정보는 SQL에서 직접 수정하며, 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="locationList"></div></div>
-<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">미션 장소</h2><button class="secondary" id="refreshMissionLocationsBtn" onclick="refreshMissionLocations()">새로고침</button></div><p class="muted">미션 장소는 10개 고정입니다. 장소 이름·컨셉·NFC 값은 SQL에서 직접 수정합니다. 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="missionLocationList"></div></div>
-<div class="card"><h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button></div>
+  <div class="adminSectionTitle">⚙️ 게임 설정</div>
+  <div class="adminTwoColumn">
 
-<div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
-<textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea><button onclick="sendNotice()">전체 알림 전송</button></div>
+    <div class="card">
+      <h2>게임 규칙</h2>
+      <p class="muted">로비에서만 변경할 수 있습니다. 전체 미션 장소 10개는 고정값이며 관리자 화면에서는 수정·삭제할 수 없습니다.</p>
+      <div class="adminSettingGrid">
+        <div class="adminField"><label class="small">늑대 수</label><input id="wolfCount" type="number" min="1" max="20" step="1" value="1"></div>
+        <div class="adminField"><label class="small">양 1인당 미션 수 <b>(= 라운드 활성 미션 장소 수)</b></label><input id="missionsPerSheep" type="number" min="1" max="10" step="1" value="5"></div>
+        <div class="adminField"><label class="small">사보타지 방해 장소 수</label><input id="sabotageLocationCount" type="number" min="1" max="10" step="1" value="1"></div>
+        <div class="adminField"><label class="small">사보타지 방해 지속 시간 (초)</label><input id="sabotageDurationSeconds" type="number" min="5" max="600" step="1" value="30"></div>
+        <div class="adminField"><label class="small">사보타지 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60"><div id="sabotageCooldownDbStatus" class="small muted" style="margin-top:4px"></div></div>
+        <div class="adminField"><label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30"></div>
+        <div class="adminField"><label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1"></div>
+        <div class="adminField"><label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1"></div>
+      </div>
+      <div class="row" style="align-items:center;gap:10px;margin-top:14px">
+        <button onclick="saveGameRules()">게임 규칙 저장</button><span id="rulesSaveStatus" class="small muted"></span>
+      </div>
+      <div class="notice" style="margin-top:10px">활성 장소 수는 별도 설정하지 않고 양 1인당 미션 수와 동일하게 결정됩니다. 사보타지는 늑대 전체가 공유합니다.</div>
+    </div>
 
-<div class="card"><h2>늑대 전용 알림</h2><p class="muted">늑대에게만 메시지를 보냅니다. <b>효과음은 재생되지 않습니다.</b></p>
-<textarea id="wolfMessage" placeholder="늑대에게 보낼 메시지"></textarea><button onclick="sendWolfNotice()">늑대에게 전송</button></div>
+    <div class="card">
+      <h2>시간 설정</h2>
+      <div class="adminSettingGrid">
+        <div class="adminField"><label class="small">한 라운드 진행 시간 (분)</label><input id="roundMinutes" type="number" min="1" max="180" step="1" value="15" inputmode="numeric" placeholder="예: 15"></div>
+        <div class="adminField"><label class="small">죽은 양 발견 후 현장 조사 시간 (분)</label><input id="investigationMinutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric" placeholder="예: 5"></div>
+      </div>
+      <div class="row" style="align-items:center;gap:10px;margin-top:14px">
+        <button onclick="saveTiming()">시간 설정 저장</button><span id="timingSaveStatus" class="small muted"></span>
+      </div>
+    </div>
 
-<div class="card"><h2>라운드 미션 현황</h2><p class="muted">현재 라운드에서 각 플레이어가 어떤 미션 장소를 클리어했는지 확인합니다. 늑대의 클리어도 표시되지만 관리자 미션 성공 수에는 포함되지 않습니다.</p><div id="missionStatusPanel" class="adminMissionStatus"></div></div>
+  </div>
 
-<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">플레이어</h2><button class="secondary" id="refreshPlayersBtn" onclick="refreshPlayers()">새로고침</button></div><p class="muted">현재 DB에 등록된 플레이어 정보를 표시합니다. 플레이어의 접속과 등록은 게임 시스템에서 자동으로 처리됩니다.</p><div id="playerList"></div></div>
+  <div class="adminSectionTitle">🗺️ 장소 관리</div>
+  <div class="adminTwoColumn">
+    <div class="card">
+      <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">시체발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div>
+      <p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 장소 정보는 SQL에서 직접 수정하며, 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p>
+      <div id="locationList"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">미션 장소</h2><button class="secondary" id="refreshMissionLocationsBtn" onclick="refreshMissionLocations()">새로고침</button></div>
+      <p class="muted">미션 장소는 10개 고정입니다. 장소 이름·컨셉·NFC 값은 SQL에서 직접 수정합니다. 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p>
+      <div id="missionLocationList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p>
+    <button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button>
+  </div>
+
+  <div class="adminSectionTitle">📋 미션 관리</div>
+  <div class="card">
+    <h2>라운드 미션 현황</h2>
+    <p class="muted">현재 라운드에서 각 플레이어가 어떤 미션 장소를 클리어했는지 확인합니다. 늑대의 클리어도 표시되지만 관리자 미션 성공 수에는 포함되지 않습니다.</p>
+    <div id="missionStatusPanel" class="adminMissionStatus"></div>
+  </div>
+
+  <div class="adminSectionTitle">👥 플레이어 관리</div>
+  <div class="card">
+    <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">플레이어</h2><button class="secondary" id="refreshPlayersBtn" onclick="refreshPlayers()">새로고침</button></div>
+    <p class="muted">현재 DB에 등록된 플레이어 정보를 표시합니다. 플레이어의 접속과 등록은 게임 시스템에서 자동으로 처리됩니다.</p>
+    <div id="playerList"></div>
+  </div>
+
+  <div class="adminSectionTitle">📢 알림</div>
+  <div class="adminTwoColumn">
+    <div class="card">
+      <h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
+      <textarea id="adminMessage" placeholder="플레이어에게 보낼 메시지"></textarea><button onclick="sendNotice()">전체 알림 전송</button>
+    </div>
+    <div class="card">
+      <h2>늑대 전용 알림</h2><p class="muted">늑대에게만 메시지를 보냅니다. <b>효과음은 재생되지 않습니다.</b></p>
+      <textarea id="wolfMessage" placeholder="늑대에게 보낼 메시지"></textarea><button onclick="sendWolfNotice()">늑대에게 전송</button>
+    </div>
+  </div>
+</div>
 </section>
 </main></div>
 
@@ -3331,10 +3410,11 @@ function stopDeathNotificationWatcher(){
 }
 async function startDeathNotificationWatcher(){
  if(deathNotificationTimer)return;
+ if(!playerId)return;
  // 기존에 DB에 남아 있던 사망확인 알림은 이번 접속에서 새 알림으로 취급하지 않습니다.
  try{
    const baseline=await db.from("notifications").select("id")
-     .eq("target_player",playerId)
+     .eq("target_player",String(playerId))
      .eq("notification_type","DEATH_CONFIRM")
      .order("id",{ascending:false}).limit(1);
    deathNotificationMinId=Number(baseline.data?.[0]?.id||0);
@@ -3350,7 +3430,7 @@ async function startDeathNotificationWatcher(){
    if(!p||p.status!=="ALIVE"){stopDeathNotificationWatcher();return;}
 
    const r=await db.from("notifications").select("*")
-     .eq("target_player",playerId)
+     .eq("target_player",String(playerId))
      .eq("notification_type","DEATH_CONFIRM")
      .gt("id",deathNotificationMinId)
      .order("id",{ascending:true}).limit(20);
