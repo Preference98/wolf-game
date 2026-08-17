@@ -483,7 +483,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <div class="card"><h2>시체발견 장소 관리</h2><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 미션 장소와 별도로 관리됩니다.</p><div id="locationList"></div>
 <div class="grid"><input id="newLocation" placeholder="시체발견 장소 이름"></div>
 <button onclick="addLocation()">시체발견 장소 추가</button></div>
-<div class="card"><h2>미션 장소 / NFC 관리</h2><p class="muted">미션 장소는 10개 고정입니다. 장소의 추가·삭제는 할 수 없지만, 장소 이름·컨셉·NFC 값은 수정·저장할 수 있습니다. 각 플레이어의 활성 미션 장소는 서로 다르게 배정될 수 있습니다.</p><div id="missionLocationList"></div></div>
+<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">미션 장소</h2><button class="secondary" id="refreshMissionLocationsBtn" onclick="refreshMissionLocations()">새로고침</button></div><p class="muted">미션 장소는 10개 고정입니다. 장소 이름·컨셉·NFC 값은 SQL에서 직접 수정합니다. 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="missionLocationList"></div></div>
 <div class="card"><h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button></div>
 
 <div class="card"><h2>전체 알림</h2><p class="muted">모든 플레이어에게 알림을 보냅니다. 관리자 전체 알림 효과음이 재생됩니다.</p>
@@ -1523,6 +1523,18 @@ async function renderAdminMissionStatus(players,round,roundMissionLocations,comp
  }).join("");
 }
 
+async function refreshMissionLocations(){
+ const btn=el("refreshMissionLocationsBtn");
+ const done=busy(btn,"새로고침 중...");
+ try{
+   const mls=await activeMissionLocations();
+   el("missionLocationList").innerHTML=mls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><div><b>'+esc(x.name||"미지정 장소")+'</b></div><div class="muted" style="margin-top:4px">컨셉: '+(String(x.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div></div></div></div>').join("");
+   toast("미션 장소 정보를 새로고침했습니다.");
+ }catch(e){
+   toast("미션 장소 새로고침 실패: "+(e.message||String(e)));
+ }finally{done();}
+}
+
 async function renderAdmin(){
  try{
   const g=await settings();
@@ -1546,7 +1558,7 @@ async function renderAdmin(){
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
   el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
-  el("missionLocationList").innerHTML=mls.length?mls.map((x,i)=>'<div class="item"><b>'+(i+1)+'.</b><div class="grid"><label class="small">장소 이름</label><input id="mname_'+x.id+'" value="'+esc(x.name||"")+'"><label class="small">컨셉</label><select id="mconcept_'+x.id+'"><option value="MINIGAME" '+(String(x.concept_type||"").toUpperCase()==="MINIGAME"?"selected":"")+'>미니게임</option><option value="PUZZLE" '+(String(x.concept_type||"").toUpperCase()!=="MINIGAME"?"selected":"")+'>두뇌퍼즐</option></select><label class="small">NFC 값</label><input id="mnfc_'+x.id+'" value="'+esc(x.nfc_tag||"")+'" placeholder="NFC 태그값"></div><button onclick="saveMissionLocation(\''+esc(x.id)+'\')">장소 정보 저장</button></div>').join(""):"<div class='muted'>고정 미션 장소 10개가 DB에 없습니다.</div>";
+  el("missionLocationList").innerHTML=mls.length?'<div class="missionLocationInfoList">'+mls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><div><b>'+esc(x.name||"미지정 장소")+'</b></div><div class="muted" style="margin-top:4px">컨셉: '+(String(x.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>고정 미션 장소 10개가 DB에 없습니다.</div>";
   el("nfcBtn").textContent="NFC 기능: "+(g.nfc_enabled===false?"OFF":"ON");
   const readyBtn=el("readyBtn"),roleBtn=el("roleStartBtn"),gameBtn=el("gameStartBtn");
   readyBtn.disabled=!!g.ready || g.phase!=="LOBBY";
@@ -1704,23 +1716,80 @@ async function startTrial(){
  toast("재판 시작 알림을 전송했습니다.");await renderAdmin();
 }
 async function resetGame(){
- clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
+ clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;
+ stopAllAdminBgm();
  const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
-  for(const [table,column] of [
-    ["mission_completions","id"],
-    ["wolf_attempts","id"],
-    ["round_player_mission_locations","id"],
-    ["sabotage_events","id"]
-  ]){
-    const rr=await db.from(table).delete().gte(column,0);
-    if(rr.error)throw new Error(table+" 초기화 실패: "+rr.error.message);
-  }
-  const pr=await db.from("players").update({role:"UNASSIGNED",status:"ALIVE",card_selected:false,card_position:null}).gte("created_at","1970-01-01");
-  if(pr.error)throw new Error("플레이어 초기화 실패: "+pr.error.message);
-  await set({current_round:1,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
-  toast("게임이 초기화되었습니다.");await renderAdmin();
- }catch(e){toast("초기화 실패: "+e.message);}finally{done();}
+   // 1) 게임 진행 데이터 초기화
+   // 새로 추가된 테이블이 아직 DB에 없는 경우에도 기존 게임 초기화까지 실패하지 않도록
+   // 테이블별로 처리합니다.
+   const resetTable=async(table,filter)=>{
+     let q=db.from(table).delete();
+     if(filter)q=q.eq(filter[0],filter[1]);
+     else q=q.gte("id",0);
+     const r=await q;
+     if(r.error){
+       const msg=String(r.error.message||"");
+       if(/relation .* does not exist|could not find the table|schema cache/i.test(msg)){
+         console.warn("초기화 대상 테이블이 없어 건너뜀:",table,msg);
+         return;
+       }
+       throw new Error(table+" 초기화 실패: "+msg);
+     }
+   };
+
+   await resetTable("mission_completions");
+   await resetTable("wolf_attempts");
+   await resetTable("round_player_mission_locations");
+   await resetTable("sabotage_events");
+
+   // 2) 플레이어 상태를 로비 상태로 복구
+   const pr=await db.from("players")
+     .update({
+       role:"UNASSIGNED",
+       status:"ALIVE",
+       card_selected:false,
+       card_position:null
+     })
+     .not("id","is",null);
+   if(pr.error)throw new Error("플레이어 초기화 실패: "+pr.error.message);
+
+   // 3) 게임 설정을 초기 로비 상태로 복구
+   await set({
+     current_round:1,
+     phase:"LOBBY",
+     started:false,
+     ready:false,
+     roles_selected:false,
+     notice:"게임 시작을 기다리고 있습니다.",
+     winner:null,
+     dead_sheep_found:false,
+     dead_sheep_location:null,
+     investigation_started_at:null,
+     round_started_at:null,
+     round_time_penalty_total:0,
+     mission_gauge_penalty_total:0
+   });
+
+   // 4) 브라우저에 남아 있는 플레이어별 미니게임/완료 표시도 제거
+   for(let i=localStorage.length-1;i>=0;i--){
+     const key=localStorage.key(i);
+     if(key&&(
+       key.startsWith("wolf_visual_completed:")||
+       key.startsWith("wolf_game_mission_")||
+       key.startsWith("wolf_game_completed_")
+     ))localStorage.removeItem(key);
+   }
+
+   // 5) 관리자 화면/플레이어 화면 갱신
+   toast("게임이 초기화되었습니다.");
+   await renderAdmin();
+ }catch(e){
+   console.error("resetGame 오류:",e);
+   toast("게임 초기화 실패: "+(e.message||String(e)));
+ }finally{
+   done();
+ }
 }
 async function finishRound(winner){
  const msg=winner==="SHEEP"?"양이 승리했습니다. 모두 그레이스홀로 모여주세요.":"늑대가 승리했습니다. 모두 그레이스홀로 모여주세요.";
@@ -2019,7 +2088,7 @@ window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.s
 window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
-window.adminLogout=adminLogout;window.missions=missions;
+window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;
 boot();
   // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
   window.__wolfGameBridge={
