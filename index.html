@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v163</title>
+<title>늑대게임 v164</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v163</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v164</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -3242,52 +3242,43 @@ function startSabotageUiWatcher(){
 
    // ★ 종료 처리는 "전체 사보타지 상태"가 아니라 장소별로 감시합니다.
    // A가 종료되는 순간 B가 아직 진행 중이어도 A만 즉시 원래 상태로 돌아가야 합니다.
+   // ★ 사보타지 종료/시작을 "활성 장소 집합"의 변화로 감지합니다.
+   // A가 먼저 시작되고 B가 나중에 시작되어도 각각 독립적으로 추적합니다.
+   // 특히 A가 종료될 때 B가 아직 진행 중이어도 A의 장소만 즉시 복구됩니다.
+   const activeLocationSignature=[...locationEnds.keys()]
+     .map(String).sort().join("|");
    const locationSignature=[...locationEnds.entries()]
      .sort((a,b)=>String(a[0]).localeCompare(String(b[0])))
      .map(([id,end])=>id+"="+end).join("|");
-   const sig=locationSignature+"||CD="+cooldownRemain;
+   const sig=locationSignature+"||LOC="+activeLocationSignature+"||CD="+cooldownRemain;
    const prev=sabotageUiLastSignature||"";
-   const prevLocations=new Map();
-   if(prev){
-     const part=prev.split("||CD=")[0];
-     if(part){
-       for(const item of part.split("|")){
-         const k=item.indexOf("=");
-         if(k>0)prevLocations.set(item.slice(0,k),Number(item.slice(k+1)));
-       }
-     }
-   }
+   const prevLocPart=prev.split("||LOC=")[0];
+   const prevActivePart=(prev.split("||LOC=")[1]||"").split("||CD=")[0];
 
-   let locationEnded=false;
-   for(const [id,oldEnd] of prevLocations){
-     const newEnd=Number(locationEnds.get(id)||0);
-     if(oldEnd>now && newEnd<=now){
-       locationEnded=true;
-       break;
-     }
-   }
+   const activeLocationsChanged=prev && prevActivePart!==activeLocationSignature;
 
-   // 사보타지 메뉴/플레이어 화면에서는 종료된 장소만 정상 상태로
-   // 다시 렌더링합니다. 다른 장소의 사보타지 타이머에는 영향을 주지 않습니다.
-   if(locationEnded){
+   // 첫 실행이 아니라면, 활성 장소 집합이 바뀐 즉시 미션 보드를 다시 그립니다.
+   // 이것이 "사보타지 종료 → 즉시 미션 입장 가능"을 보장합니다.
+   if(activeLocationsChanged){
      const screen=document.querySelector(".screen.active")?.id||"";
 
-     // ★ 핵심:
-     // 타이머 숫자만 0으로 만드는 것으로 끝내지 않고,
-     // 실제 미션 장소 블럭 자체를 즉시 다시 렌더링해야 합니다.
-     // 그래야 "사보타지 중" 상태/입장 차단이 제거되고
-     // 원래의 활성 미션 입장 버튼이 즉시 복구됩니다.
      if(screen==="player"){
-       try{await renderPlayer();}catch(e){
-         console.warn("개별 사보타지 종료 후 플레이어 화면 복구 실패:",e);
+       try{
+         await renderPlayer();
+       }catch(e){
+         console.warn("사보타지 장소 상태 실시간 복구 실패:",e);
        }
      }else if(screen==="sabotage"){
-       try{await refreshSabotageBoard();}catch(e){
-         console.warn("개별 사보타지 종료 후 사보타지 메뉴 갱신 실패:",e);
+       try{
+         await refreshSabotageBoard();
+       }catch(e){
+         console.warn("사보타지 메뉴 장소 상태 갱신 실패:",e);
        }
      }else if(screen==="home"){
-       try{await route();}catch(e){
-         console.warn("개별 사보타지 종료 화면 갱신 실패:",e);
+       try{
+         await route();
+       }catch(e){
+         console.warn("사보타지 상태 화면 갱신 실패:",e);
        }
      }
    }
