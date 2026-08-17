@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v139</title>
+<title>늑대게임 v140</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -482,11 +482,34 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialAnnounceStage .subtext{margin-top:14px;font-size:clamp(17px,3vw,27px);color:#aaa}
 
 .investigationAnnounceStage .trialImage{filter:none;text-shadow:0 0 30px #f00000}
+
+.actionDock .dockMainLabel{
+ position:absolute!important;
+ left:50%!important;
+ top:calc(100% + 7px)!important;
+ transform:translateX(-50%)!important;
+ font-size:12px!important;
+ font-weight:900!important;
+ line-height:1!important;
+ color:#fff!important;
+ white-space:nowrap!important;
+ pointer-events:none!important;
+}
+.actionDock .dockMain .dockIcon{
+ width:50px!important;height:50px!important;
+}
+.actionDock .dockItem .dockIcon{
+ width:50px!important;height:50px!important;
+}
+@media(max-width:600px){
+ .actionDock .dockMainLabel{top:calc(100% + 7px)!important;font-size:11px!important}
+ .actionDock .dockMain .dockIcon,.actionDock .dockItem .dockIcon{width:44px!important;height:44px!important}
+}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v139</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v140</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1538,9 +1561,9 @@ function closeActionDock(){
  if(d)d.classList.remove("expanded");
 }
 function missionActionIcon(type){
- if(type==="discovery") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M12 51c3-8 7-12 13-15 1-10 7-18 16-20 9-2 16 3 17 11 1 8-4 15-11 18-7 3-13 3-19 2-5 4-9 6-16 4z"/><circle cx="24" cy="25" r="3" fill="#000"/><path d="M20 33c5 4 11 5 17 3" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/></svg>';
- if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M25 7h14l2 6 6 3 6-2 7 12-5 4v7l5 4-7 12-6-2-6 3-2 6H25l-2-6-6-3-6 2-7-12 5-4v-7l-5-4 7-12 6 2 6-3 2-6zm7 16a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/></svg><span class="dockBan">╱</span>';
- if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M19 25c0-11 6-17 13-17s13 6 13 17v17c0 7-6 13-13 13s-13-6-13-13V25zm-7 8h8v6h-8v-6zm32 0h8v6h-8v-6z"/><circle cx="27" cy="30" r="3" fill="#000"/><circle cx="37" cy="30" r="3" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 11l9 9" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M50 20l-13 14" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
+ if(type==="discovery") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M32 7c-8 0-14 6-14 14v7c-7 3-11 9-11 17v12h50V45c0-8-4-14-11-17v-7C46 13 40 7 32 7zm-7 14c0-4 3-7 7-7s7 3 7 7v8H25v-8zm-8 16h30c3 2 5 5 5 9v6H12v-6c0-4 2-7 5-9zm4 17h22v5H21v-5z"/><path d="M20 35h24" stroke="#000" stroke-width="3" opacity=".8"/></svg>';
+ if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M20 9l8 5 7-2 5-8 7 4-1 9 5 5 9-1 4 8-8 5-1 7 6 6-5 7-8-4-7 4-2 9-9 0-2-9-7-4-8 4-5-7 6-6-1-7-8-5 4-8 9 1 5-5-1-9 8-4zm12 15a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M13 50L50 13" stroke="#ef3340" stroke-width="7" stroke-linecap="round"/><path fill="currentColor" d="M42 9l13 7-4 5-13-7zM37 16l7 4-11 20-6-3zM30 39l7 4-7 12-8-4z"/><path d="M27 55l-5 4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>';
+ if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 27C18 16 24 9 32 9s14 7 14 18v16c0 8-6 13-14 13s-14-5-14-13V27zm-8 6h8v7h-8v-7zm36 0h8v7h-8v-7z"/><circle cx="27" cy="30" r="3.5" fill="#000"/><circle cx="37" cy="30" r="3.5" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 12l8 8" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M49 20L35 34" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
  return "";
 }
 async function renderActionDock(g,p){
@@ -1553,14 +1576,14 @@ async function renderActionDock(g,p){
    const now=Date.now(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
    const remain=active>0?active:cd;
    d.innerHTML=
-    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockLabel">시체발견</span></button>'+
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>'+
     '<button class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
       missionActionIcon("sabotage")+'<span class="dockLabel">사보타지</span>'+
       '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
     '<button class="dockItem deathItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
     '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">시체발견</span></button>';
  }else{
-   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'</button><span class="dockLabel" style="position:absolute;left:50%;top:174px;transform:translateX(-50%);color:#fff">시체발견</span>';
+   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>';
  }
 }
 
