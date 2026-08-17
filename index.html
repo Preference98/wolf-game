@@ -806,7 +806,23 @@ async function getCompletedLocationIds(round){
   return ids;
 }
 
-async function getPlayerCompletedLocationIds(round,playerIdValue){const cs=await comps(round);const mine=cs.filter(x=>String(x.player_id)===String(playerIdValue));if(!mine.length)return new Set();const ids=[...new Set(mine.map(x=>String(x.mission_id)).filter(Boolean))];const r=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(r.error)throw new Error("플레이어 완료 장소 조회 실패: "+r.error.message);const out=new Set();for(const m of (r.data||[])){const id=m.mission_location_id??m.location_id;if(id!=null)out.add(String(id));}return out;}
+async function getPlayerCompletedLocationIds(round,playerIdValue){
+ const q=await db.from("mission_completions").select("mission_id,player_id,game_round")
+   .eq("game_round",round).eq("player_id",playerIdValue);
+ if(q.error)throw new Error("플레이어 완료 장소 조회 실패: "+q.error.message);
+ const mine=q.data||[];
+ if(!mine.length)return new Set();
+ const ids=[...new Set(mine.map(x=>String(x.mission_id)).filter(Boolean))];
+ const r=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);
+ if(r.error)throw new Error("플레이어 완료 장소 조회 실패: "+r.error.message);
+ const out=new Set();
+ for(const m of (r.data||[])){
+   const id=m.mission_location_id??m.location_id;
+   if(id!=null)out.add(String(id));
+ }
+ return out;
+}
+
 async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
 async function checkMissionGaugeAndWin(round){const gauge=await getMissionGauge(round);if(gauge.sheepCount===1)return false;if(gauge.target>0&&gauge.completed>=gauge.target){const r=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice:"미션 게이지가 100%가 되어 양이 승리했습니다."}).eq("id",1).eq("phase","PLAY");return !r.error;}return false;}
 async function chooseRegisteredPuzzle(location){
@@ -1267,8 +1283,8 @@ async function renderPlayer(){
     locs=await getRoundMissionLocations(g.current_round,true,p.id);
     completedLocations=await getPlayerCompletedLocationIds(g.current_round,p.id);
     sabotaged=await getSabotagedLocationIds(g.current_round);
-    const wolfVisual=window.__wolfGameBridge?.getWolfMissionLocationCompletions?.(g.current_round)||new Set();
-    wolfVisual.forEach(id=>completedLocations.add(String(id)));
+    // 완료 표시는 항상 현재 플레이어의 DB 기록만 사용합니다.
+    // 다른 플레이어/늑대의 완료 상태를 이 플레이어의 장소에 섞지 않습니다.
   }catch(e){
     console.error("플레이어 미션 준비 실패:",e);
     showScreen("player");
@@ -1421,8 +1437,12 @@ async function completeCurrentMission(){
    el("missionResult").innerHTML='<div class="notice alert">사보타지로 인해 미션 실패 처리되었습니다.</div>';
    return;
  }
- const cs=await comps(g.current_round); if(cs.some(x=>String(x.mission_id)===String(currentMission.id)&&String(x.player_id)===String(p.id))){toast("이미 완료된 미션입니다.");return;}
- const r=await db.from("mission_completions").insert({game_round:g.current_round,mission_id:currentMission.id,player_id:p.id}); if(r.error)throw new Error(r.error.message);
+ const r=await db.rpc("complete_player_mission",{
+   p_game_round:g.current_round,
+   p_player_id:p.id,
+   p_mission_id:currentMission.id
+ });
+ if(r.error)throw new Error(r.error.message);
  if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
 }
 
@@ -1919,10 +1939,8 @@ async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
-  for(const table of ["mission_completions","wolf_attempts","round_player_mission_locations","sabotage_events"]){
-    const rr=await db.from(table).delete().eq("game_round",g.current_round);
-    if(rr.error)throw new Error(table+" 라운드 초기화 실패: "+rr.error.message);
-  }
+  const rr=await db.rpc("reset_round_mission_progress",{p_game_round:g.current_round});
+  if(rr.error)throw new Error("미션 진행상태 라운드 초기화 실패: "+rr.error.message);
   const next=g.current_round+1;
   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
@@ -1963,10 +1981,8 @@ async function resetGame(){
      }
    };
 
-   await resetTable("mission_completions",["game_round",">=0"]);
-   await resetTable("wolf_attempts",["game_round",">=0"]);
-   await resetTable("round_player_mission_locations",["game_round",">=0"]);
-   await resetTable("sabotage_events",["game_round",">=0"]);
+   const resetRpc=await db.rpc("reset_all_mission_progress");
+   if(resetRpc.error)throw new Error("미션 진행상태 전체 초기화 실패: "+resetRpc.error.message);
 
    // 2) 플레이어 상태를 로비 상태로 복구
    const pr=await db.from("players")
@@ -2442,9 +2458,11 @@ function finishMiniGame(success,message){
         const locationId=current.mission_location_id||current.location_id;
         const completed=await bridge.getPlayerCompletedLocationIds(g.current_round,p.id);
         if(locationId!=null&&completed.has(String(locationId)))throw new Error("이 장소의 미션은 이미 완료했습니다.");
-        const cs=await bridge.comps(g.current_round);
-        if(cs.some(x=>String(x.mission_id)===String(current.id)&&String(x.player_id)===String(p.id)))throw new Error("이미 완료된 미션입니다.");
-        const r=await bridge.getDb().from("mission_completions").insert({game_round:g.current_round,mission_id:current.id,player_id:p.id});
+        const r=await bridge.getDb().rpc("complete_player_mission",{
+          p_game_round:g.current_round,
+          p_player_id:p.id,
+          p_mission_id:current.id
+        });
         if(r.error)throw new Error(r.error.message);
         if(p.role==="SHEEP"){
           const won=await bridge.checkMissionGaugeAndWin(g.current_round);
