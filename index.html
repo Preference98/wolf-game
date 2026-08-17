@@ -361,7 +361,13 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .wolfMiniOutcomeText{font-size:17px;color:#ddd;line-height:1.6;white-space:pre-line}
 .wolfMiniCancel{margin-top:22px;min-width:140px}
 
-.missionGaugeWrap{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.missionGauge{height:12px;background:#222;border:1px solid #3a3a3a;border-radius:999px;overflow:hidden;margin-top:7px}.missionGauge>div{height:100%;width:0%;transition:width .25s ease;background:#35d878}#night{background:#050505}#night .lock{min-height:82vh}#nightWolfAction{margin-top:18px}</style>
+.missionGaugeWrap{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.missionGauge{height:12px;background:#222;border:1px solid #3a3a3a;border-radius:999px;overflow:hidden;margin-top:7px}.missionGauge>div{height:100%;width:0%;transition:width .25s ease;background:#35d878}#night{background:#050505}#night .lock{min-height:82vh}#nightWolfAction{margin-top:18px}
+.sabotageSkillWrap{display:flex;justify-content:center;margin:10px 0 0}
+.sabotageSkillButton{position:relative;width:76px;height:76px;border-radius:50%;padding:0;border:2px solid rgba(255,255,255,.35);overflow:hidden;font-size:34px;line-height:1}
+.sabotageSkillButton .skillCooldown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);font-size:19px;font-weight:900;color:#fff}
+.sabotageSkillButton.cooling .skillCooldown{display:flex}
+.sabotageSkillButton.cooling{filter:grayscale(.8);cursor:not-allowed}
+</style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -1354,7 +1360,18 @@ async function renderPlayerCore(){
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
     el("deadSheepBtn").disabled=false;
-  el("wolfDeathAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">※ 사망처리는 늑대가 양을 공격한 경우에만 사용합니다.</p>';
+  const wolfAction=el("wolfDeathAction");
+  if(roleIsWolf(p.role)){
+    wolfAction.innerHTML=
+      '<div class="sabotageSkillWrap">'+
+      '<button id="sabotageSkillButton" class="danger sabotageSkillButton" title="사보타지" onclick="useSabotage()">'+
+      '🛑<span class="skillCooldown"></span></button>'+
+      '</div>'+
+      '<button class="danger" style="width:100%;margin-top:10px" onclick="openWolfDeathList()">☠️ 사망처리</button>'+
+      '<p class="small muted">※ 사망처리는 라운드 제한 없이 사용할 수 있습니다.</p>';
+  }else{
+    wolfAction.innerHTML="";
+  }
 
   showScreen("player");
   startRoundTimer(g);
@@ -2370,33 +2387,54 @@ async function autoLobbyAfterVictory(){ return; }
 function stopSabotageUiWatcher(){if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}sabotageUiLastSignature="";}
 function startSabotageUiWatcher(){
  if(sabotageUiTimer)return;
- sabotageUiTimer=setInterval(async()=>{
+ const tick=async()=>{
   try{
    const p=await me(),g=await settings();
    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){stopSabotageUiWatcher();return;}
    const st=await getSabotageState(g.current_round),now=Date.now();
-   const end=st.latest?.ends_at?Date.parse(st.latest.ends_at):0,cd=st.cooldownUntil||0;
+   const end=st.latest?.ends_at?Date.parse(st.latest.ends_at):0;
+   const cd=Number(st.cooldownUntil)||0;
    const active=end>now;
-   const sig=end+"|"+cd;
+
+   // 장소별 사보타지 지속시간은 기존과 동일하게 실시간 갱신.
    document.querySelectorAll(".sabotageCountdown").forEach(x=>{
      const r=Math.max(0,end-now);
-     if(r>0)x.textContent=Math.ceil(r/1000)+"초";
+     x.textContent=r>0?Math.ceil(r/1000)+"초":"";
    });
-   // 사보타지가 종료되는 순간 '사보타지 종료'를 남기지 않고
-   // 원래의 활성/비활성 상태를 다시 그립니다.
+
+   // 늑대 사보타지 스킬 아이콘: 전체 아이콘에 쿨타임을 덮어씌움.
+   const skill=document.getElementById("sabotageSkillButton");
+   if(skill){
+     const remain=Math.max(0,cd-now);
+     const label=skill.querySelector(".skillCooldown");
+     if(remain>0){
+       skill.classList.add("cooling");
+       skill.disabled=true;
+       if(label)label.textContent=Math.ceil(remain/1000)+"초";
+     }else{
+       skill.classList.remove("cooling");
+       skill.disabled=false;
+       if(label)label.textContent="";
+     }
+   }
+
+   const sig=end+"|"+cd+"|"+(active?"ACTIVE":"INACTIVE");
    const prev=sabotageUiLastSignature;
    const prevActive=prev?prev.endsWith("|ACTIVE"):null;
-   const nextSig=sig+"|"+(active?"ACTIVE":"INACTIVE");
+
+   // 사보타지 종료 순간에만 장소 블럭을 다시 렌더링.
+   // 미션/사보타지 화면을 열어둔 상태에서는 강제로 닫지 않습니다.
    if(prev && prevActive!==active){
-     // 메인 게임 화면에 있을 때만 다시 그립니다.
-     // 미션/사보타지 메뉴를 열어둔 상태에서 쿨타임 숫자가 매초 바뀐다고
-     // renderPlayer()를 호출하면 해당 메뉴가 강제로 닫힙니다.
      const activeScreen=document.querySelector(".screen.active")?.id||"";
-     if(activeScreen==="player") await renderPlayer();
+     if(activeScreen==="player"){
+       await renderPlayer();
+     }
    }
-   sabotageUiLastSignature=nextSig;
+   sabotageUiLastSignature=sig;
   }catch(e){console.warn("사보타지 UI 갱신 오류:",e);}
- },1000);
+ };
+ tick();
+ sabotageUiTimer=setInterval(tick,250);
 }
 function stopDeathNotificationWatcher(){
  if(deathNotificationTimer){clearInterval(deathNotificationTimer);deathNotificationTimer=null;}
@@ -2558,28 +2596,51 @@ function realtime(){
      return;
    }
 
-   // 미션/사보타지 메뉴 등 진행 중인 모든 일반 화면을 강제로 중단합니다.
-   if(activeScreen==="mission"){
+   // 모든 일반 행동 화면은 즉시 중단합니다.
+   // 단, 늑대의 사망처리/사망확인 과정은 위에서 보호됩니다.
+   let missionWasInterrupted=false;
+   const wasMission=activeScreen==="mission";
+   if(wasMission){
+     missionWasInterrupted=true;
      stopMissionTimer();
-     if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
+     if(missionSabotageWatchTimer){
+       clearInterval(missionSabotageWatchTimer);
+       missionSabotageWatchTimer=null;
+     }
+
+     // 미션은 실제 성공 기록을 남기지 않고 '실패/중단'으로 종료합니다.
      window.__miniOutcomeLocked=true;
-     const currentLocId=String(currentMission?.mission_location_id??currentMission?.location_id??"");
-     if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert" style="font-size:22px;font-weight:900">⚠ 사보타지로 미션이 중단되었습니다.<br>미션 실패 처리</div>';
+     const cleanupKeys=["wire","match","direction","memory","safe","shape","trace"];
+     cleanupKeys.forEach(k=>{
+       const fn=window["__"+k+"Cleanup"];
+       if(typeof fn==="function"){try{fn();}catch(_){}}
+       try{window["__"+k+"Cleanup"]=null;}catch(_){}
+     });
      if(el("answer"))el("answer").disabled=true;
      if(el("answerBtn"))el("answerBtn").disabled=true;
-     el("missionResult").innerHTML='<div class="notice alert">사보타지로 인해 미션이 실패 처리되었습니다.</div>';
-     try{await playSound("adminNotice","sabotage-fail-"+e.id+"-"+currentLocId);}catch(_){}
+     if(el("miniGame"))el("miniGame").innerHTML=
+       '<div class="notice alert" style="font-size:22px;font-weight:900">⚠ 사보타지로 미션 실패</div>';
+     el("missionResult").innerHTML=
+       '<div class="notice alert">사보타지로 인해 미션이 실패 처리되었습니다.</div>';
+     currentMission=null;
+     window.__wolfGameBridge?.setCurrentMission?.(null);
    }
 
+   // 현재 열려 있는 일반 화면을 반드시 메인 게임화면으로 이동시킵니다.
    closeOverlay();
+   await showScreen("player");
    await renderPlayer();
 
-   // 메인 게임화면으로 이동한 뒤 사보타지 알림을 띄웁니다.
-   openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
-     '<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+
-     '<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
-   toast("🛑 사보타지 실행 — 모든 플레이어의 일반 행동이 중단되었습니다.");
-
+   // 메인 게임화면에 도착한 다음 소리 + 알림을 표시합니다.
+   try{await playSound("adminNotice","sabotage-applied-"+e.id);}catch(_){}
+   openOverlay("🛑","사보타지 실행",
+     "늑대가 사보타지를 실행했습니다.","alarm",
+     '<div class="muted" style="margin-bottom:14px">'+
+     esc(names.join(", ")||"미션 장소")+
+     '<br><b>지속시간: '+sec+"초</b>"+
+     (missionWasInterrupted?'<br><b style="color:#ff4d5a">진행 중이던 미션은 실패 처리되었습니다.</b>':"")+
+     '</div><button onclick="closeOverlay()">확인</button>');
+   toast("🛑 사보타지가 적용되었습니다.");
   }catch(err){console.warn("사보타지 알림/강제중단 오류:",err);}
  }).subscribe();
 
