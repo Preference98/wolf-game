@@ -473,7 +473,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30">
 <label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1">
 <label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1">
-<button onclick="saveGameRules()">게임 규칙 저장</button>
+<div class="row" style="align-items:center;gap:10px"><button onclick="saveGameRules()">게임 규칙 저장</button><span id="rulesSaveStatus" class="small muted"></span></div>
 <div class="notice" style="margin-top:10px">활성 장소 수는 별도 설정하지 않고 양 1인당 미션 수와 동일하게 결정됩니다. 사보타지는 늑대 전체가 공유합니다.</div></div>
 <div class="card"><h2>시간 설정</h2>
 <label class="small">한 라운드 진행 시간 (분)</label><input id="roundMinutes" type="number" min="1" max="180" step="1" value="15" inputmode="numeric" placeholder="예: 15">
@@ -1060,8 +1060,9 @@ async function startRoleSelection(){
   if(g.phase!=="LOBBY"){toast("현재 상태에서는 양과 늑대를 선정할 수 없습니다. 현재 상태: "+g.phase);return;}
   const players=(await db.from("players").select("*").eq("status","ALIVE")).data||[];
   if(!players.length){toast("참가자가 없습니다.");return;}
+  const latestRules=await settings();
   const shuffled=[...players].sort(()=>Math.random()-.5);
- const wolfCount=Math.floor(rule(g,"wolf_count"));
+  const wolfCount=Math.floor(rule(latestRules,"wolf_count"));
  if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=shuffled.length){toast("늑대 수 설정이 현재 참가 인원에 맞지 않습니다.");return;}
  for(let i=0;i<shuffled.length;i++){
    const r=await db.from("players").update({role:i<wolfCount?"WOLF":"SHEEP",card_selected:false,card_position:i}).eq("id",shuffled[i].id);
@@ -1145,6 +1146,10 @@ async function renderPlayer(){
 
   if(!p||p.status!=="ALIVE"){await route();return;}
   if(g.phase==="LOBBY"||g.phase==="ROLE_SELECT"||g.phase==="COUNTDOWN"){
+    await renderLobby(p,g);
+    return;
+  }
+  if(g.phase==="LOBBY"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_INTRO"||g.phase==="COUNTDOWN"){
     await renderLobby(p,g);
     return;
   }
@@ -1800,22 +1805,87 @@ async function finishRound(winner){
 async function forceSheepWin(){await finishRound("SHEEP");}
 async function forceWolfWin(){await finishRound("WOLF");}
 async function saveGameRules(){
- const g=await settings();if(g.phase!=="LOBBY"){toast("게임 규칙은 로비에서만 변경할 수 있습니다.");return;}
- const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
- const wolfCount=Math.floor(Number(el("wolfCount").value)),perSheep=Math.floor(Number(el("missionsPerSheep").value));
- const sabotageCount=Math.floor(Number(el("sabotageLocationCount").value)),sabotageDuration=Math.floor(Number(el("sabotageDurationSeconds").value)),sabotageCooldown=Math.floor(Number(el("sabotageCooldownSeconds").value));
- const nightSeconds=Math.floor(Number(el("nightSeconds").value)),gaugePenalty=Math.floor(Number(el("nightGaugePenalty").value)),roundPenalty=Math.floor(Number(el("nightRoundPenaltyMinutes").value));
- if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=Math.max(2,players.length)){toast("늑대 수가 현재 인원에 맞지 않습니다.");return;}
- if(!Number.isInteger(perSheep)||perSheep<1||perSheep>10){toast("양 1인당 미션 수는 1~10개여야 합니다.");return;}
- if(!Number.isInteger(sabotageCount)||sabotageCount<1||sabotageCount>perSheep){toast("사보타지 장소 수는 1~양 1인당 미션 수 이하여야 합니다.");return;}
- if(!Number.isInteger(sabotageDuration)||sabotageDuration<5||sabotageDuration>600){toast("사보타지 방해 지속 시간은 5~600초여야 합니다.");return;}
- if(!Number.isInteger(sabotageCooldown)||sabotageCooldown<10||sabotageCooldown>1800){toast("사보타지 쿨타임은 10~1800초여야 합니다.");return;}
- if(!Number.isInteger(nightSeconds)||nightSeconds<5||nightSeconds>300){toast("밤 지속 시간은 5~300초여야 합니다.");return;}
- if(!Number.isInteger(gaugePenalty)||gaugePenalty<0||gaugePenalty>20){toast("밤 게이지 감소량은 0~20이어야 합니다.");return;}
- if(!Number.isInteger(roundPenalty)||roundPenalty<0||roundPenalty>30){toast("밤 시간 감소량은 0~30분이어야 합니다.");return;}
- await set({wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty});
- toast("게임 규칙을 저장했습니다.");await renderAdmin();
+ const g=await settings();
+ if(g.phase!=="LOBBY"){toast("게임 규칙은 로비에서만 변경할 수 있습니다.");return;}
+ const btn=document.querySelector('#admin button[onclick="saveGameRules()"]');
+ const done=busy(btn,"저장 중...");
+ try{
+   const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
+   const wolfCount=Math.floor(Number(el("wolfCount").value));
+   const perSheep=Math.floor(Number(el("missionsPerSheep").value));
+   const sabotageCount=Math.floor(Number(el("sabotageLocationCount").value));
+   const sabotageDuration=Math.floor(Number(el("sabotageDurationSeconds").value));
+   const sabotageCooldown=Math.floor(Number(el("sabotageCooldownSeconds").value));
+   const nightSeconds=Math.floor(Number(el("nightSeconds").value));
+   const gaugePenalty=Math.floor(Number(el("nightGaugePenalty").value));
+   const roundPenalty=Math.floor(Number(el("nightRoundPenaltyMinutes").value));
+
+   if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=Math.max(2,players.length)){
+     toast("늑대 수가 현재 인원에 맞지 않습니다.");return;
+   }
+   if(!Number.isInteger(perSheep)||perSheep<1||perSheep>10){
+     toast("양 1인당 미션 수는 1~10개여야 합니다.");return;
+   }
+   if(!Number.isInteger(sabotageCount)||sabotageCount<1||sabotageCount>perSheep){
+     toast("사보타지 장소 수는 1~양 1인당 미션 수 이하여야 합니다.");return;
+   }
+   if(!Number.isInteger(sabotageDuration)||sabotageDuration<5||sabotageDuration>600){
+     toast("사보타지 방해 지속 시간은 5~600초여야 합니다.");return;
+   }
+   if(!Number.isInteger(sabotageCooldown)||sabotageCooldown<10||sabotageCooldown>1800){
+     toast("사보타지 쿨타임은 10~1800초여야 합니다.");return;
+   }
+   if(!Number.isInteger(nightSeconds)||nightSeconds<5||nightSeconds>300){
+     toast("밤 지속 시간은 5~300초여야 합니다.");return;
+   }
+   if(!Number.isInteger(gaugePenalty)||gaugePenalty<0||gaugePenalty>20){
+     toast("밤 게이지 감소량은 0~20이어야 합니다.");return;
+   }
+   if(!Number.isInteger(roundPenalty)||roundPenalty<0||roundPenalty>30){
+     toast("밤 시간 감소량은 0~30분이어야 합니다.");return;
+   }
+
+   const payload={
+     wolf_count:wolfCount,
+     missions_per_sheep:perSheep,
+     sabotage_location_count:sabotageCount,
+     sabotage_duration_seconds:sabotageDuration,
+     sabotage_cooldown_seconds:sabotageCooldown,
+     night_duration_seconds:nightSeconds,
+     night_gauge_penalty:gaugePenalty,
+     night_round_penalty_minutes:roundPenalty
+   };
+   const r=await db.from("game_settings").update(payload).eq("id",1);
+   if(r.error)throw new Error("게임 규칙 저장 실패: "+r.error.message);
+
+   const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
+   if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
+   if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
+   if(Number(verify.data.wolf_count)!==wolfCount){
+     throw new Error("저장 확인 실패: DB의 늑대 수가 "+verify.data.wolf_count+"로 확인되었습니다. 입력값 "+wolfCount+"가 저장되지 않았습니다.");
+   }
+
+   el("rulesSaveStatus").textContent="✓ 저장 완료 ("+new Date().toLocaleTimeString("ko-KR")+")";
+   el("rulesSaveStatus").className="small";
+   toast("게임 규칙이 저장되었습니다. 늑대 수: "+wolfCount+"명");
+   await renderAdmin();
+   // renderAdmin 후에도 DB에 저장된 값으로 다시 표시되도록 보장
+   const latest=await settings();
+   el("wolfCount").value=rule(latest,"wolf_count");
+   el("missionsPerSheep").value=rule(latest,"missions_per_sheep");
+   el("sabotageLocationCount").value=rule(latest,"sabotage_location_count");
+   el("sabotageDurationSeconds").value=rule(latest,"sabotage_duration_seconds");
+   el("sabotageCooldownSeconds").value=rule(latest,"sabotage_cooldown_seconds");
+   el("nightSeconds").value=rule(latest,"night_duration_seconds");
+   el("nightGaugePenalty").value=rule(latest,"night_gauge_penalty");
+   el("nightRoundPenaltyMinutes").value=rule(latest,"night_round_penalty_minutes");
+ }catch(e){
+   console.error("saveGameRules 오류:",e);
+   el("rulesSaveStatus").textContent="✕ 저장 실패";
+   toast(e.message||String(e));
+ }finally{done();}
 }
+
 
 async function saveTiming(){
  const g=await settings(); if(g.phase!=="LOBBY"){toast("시간 설정은 로비에서만 변경할 수 있습니다.");return;}
