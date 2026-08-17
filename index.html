@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임</title>
+<title>늑대게임 v139</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -481,11 +481,12 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialAnnounceStage h1{font-size:clamp(34px,7vw,68px);line-height:1.2;margin:0;text-shadow:0 0 30px #f00000}
 .trialAnnounceStage .subtext{margin-top:14px;font-size:clamp(17px,3vw,27px);color:#aaa}
 
+.investigationAnnounceStage .trialImage{filter:none;text-shadow:0 0 30px #f00000}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임</div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v139</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -535,6 +536,14 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </div></div>
 </section>
 
+<section id="investigationAnnouncement" class="screen">
+ <div class="trialAnnounceStage investigationAnnounceStage">
+  <div><div class="trialImage">☠️</div>
+   <h1>죽은 양이 발견되었습니다.</h1>
+   <div class="subtext">현장 조사 시간이 시작됩니다.</div>
+  </div>
+ </div>
+</section>
 <section id="investigation" class="screen">
 <div class="lock"><div>
 <div class="symbol">🔎</div><h1>현장 조사</h1>
@@ -1528,7 +1537,7 @@ function closeActionDock(){
  const d=el("actionDock");
  if(d)d.classList.remove("expanded");
 }
-async function missionActionIcon(type){
+function missionActionIcon(type){
  if(type==="discovery") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M12 51c3-8 7-12 13-15 1-10 7-18 16-20 9-2 16 3 17 11 1 8-4 15-11 18-7 3-13 3-19 2-5 4-9 6-16 4z"/><circle cx="24" cy="25" r="3" fill="#000"/><path d="M20 33c5 4 11 5 17 3" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/></svg>';
  if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M25 7h14l2 6 6 3 6-2 7 12-5 4v7l5 4-7 12-6-2-6 3-2 6H25l-2-6-6-3-6 2-7-12 5-4v-7l-5-4 7-12 6 2 6-3 2-6zm7 16a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/></svg><span class="dockBan">╱</span>';
  if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M19 25c0-11 6-17 13-17s13 6 13 17v17c0 7-6 13-13 13s-13-6-13-13V25zm-7 8h8v6h-8v-6zm32 0h8v6h-8v-6z"/><circle cx="27" cy="30" r="3" fill="#000"/><circle cx="37" cy="30" r="3" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 11l9 9" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M50 20l-13 14" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
@@ -1544,7 +1553,7 @@ async function renderActionDock(g,p){
    const now=Date.now(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
    const remain=active>0?active:cd;
    d.innerHTML=
-    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'</button>'+
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockLabel">시체발견</span></button>'+
     '<button class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
       missionActionIcon("sabotage")+'<span class="dockLabel">사보타지</span>'+
       '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
@@ -1819,6 +1828,8 @@ async function sendDeathConfirmation(victimId,victimName){
  wolfDeathProcessActive=false;
 }
 async function showDeathConfirmation(notification){
+ const current=await me().catch(()=>null);
+ if(!current || current.status!=="ALIVE")return;
  const message=notification?.message||"늑대가 당신을 사망 처리했습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.";
  await showScreen("deathConfirm");
  el("deathConfirmMessage").innerHTML=esc(message);
@@ -1888,9 +1899,19 @@ function closeDeathWarning(){
    '<p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.</p>'+
    '<p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
 }
+async function canDiscoverDeadSheep(g){
+ const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
+   .eq("game_round",Number(g.current_round)).eq("status","SUCCESS")
+   .order("id",{ascending:false}).limit(1);
+ if(r.error||!r.data?.length)return false;
+ const victim=r.data[0].victim_player_id;
+ const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
+ return vr.data?.status==="DEAD";
+}
 async function openLocationChoice(){
  closeActionDock();
  const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+ if(!(await canDiscoverDeadSheep(g))){toast("아직 사망처리가 완료된 죽은 양이 없습니다.");return;}
  const ls=await locations();
  if(!ls.length){toast("신고 장소가 등록되어 있지 않습니다.");return;}
  const html='<div class="locationChoice">'+ls.map(x=>'<button onclick="confirmDeadSheepLocation(\''+esc(x.name)+'\')">'+esc(x.name)+'</button>').join("")+'</div><br><button class="secondary" onclick="closeOverlay()">취소</button>';
@@ -1905,6 +1926,7 @@ async function deadSheepFound(location){
  const done=dockMain?busy(dockMain,"신고 중..."):(()=>()=>{})();
  try{
   const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
+  if(!(await canDiscoverDeadSheep(g))){toast("사망처리가 완료되지 않아 시체발견을 할 수 없습니다.");return;}
   const investigationStartedAt=new Date().toISOString();
   await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
   toast("죽은 양 발견이 접수되었습니다.");
@@ -1924,6 +1946,13 @@ async function transitionInvestigationToTrial(){
 async function renderInvestigation(p,g){
  stopMissionTimer();
  stopRoundTimer();
+ closeOverlay();
+ const investigationKey="investigation-announcement-"+String(g.current_round)+"-"+String(g.investigation_started_at||"");
+ if(window.__investigationAnnouncementKey!==investigationKey){
+   window.__investigationAnnouncementKey=investigationKey;
+   await showScreen("investigationAnnouncement");
+   await new Promise(r=>setTimeout(r,3000));
+ }
  const started=Date.parse(g.investigation_started_at||"");
  const duration=Math.max(1,Number(rule(g,"investigation_minutes"))||5)*60*1000;
  const end=started?started+duration:Date.now()+duration;
@@ -2897,7 +2926,6 @@ function realtime(){
   else if(g.notice&&g.notice!==lastNotice){
    lastNotice=g.notice;
    if(g.phase==="INVESTIGATION"){
-     openOverlay("☠️","죽은 양 발견",g.notice,"alarm");
      const investigationKey=String(g.current_round)+"-"+String(g.investigation_started_at);
      if(investigationKey!==lastInvestigationSoundKey){
        lastInvestigationSoundKey=investigationKey;
@@ -2972,9 +3000,11 @@ function realtime(){
   }catch(err){console.warn("사보타지 Realtime 처리 오류:",err);}
  }).subscribe();
 
- db.channel("wg-v7-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{
+ db.channel("wg-v7-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},async payload=>{
    const n=payload.new||{};
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+   const currentPlayer=playerId?await me().catch(()=>null):null;
+   if(!currentPlayer || currentPlayer.status!=="ALIVE")return;
    if(n.target_player && n.target_player!==playerId)return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="DEATH_CONFIRM"){
