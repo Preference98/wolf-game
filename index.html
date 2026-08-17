@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v159</title>
+<title>늑대게임 v160</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v159</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v160</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1749,60 +1749,69 @@ async function enableSound(){
 async function getSabotageState(round){
  const [eventResult,g]=await Promise.all([
    db.from("sabotage_events").select("*")
-     .eq("game_round",round).order("id",{ascending:false}).limit(1),
+     .eq("game_round",round).order("id",{ascending:false}),
    settings()
  ]);
  if(eventResult.error)throw new Error("사보타지 상태 조회 실패: "+eventResult.error.message);
 
- const latest=eventResult.data?.[0]||null;
-
- // ★ v152의 UI/타이머 구조는 그대로 유지합니다.
- // ★ 단, 쿨타임의 원본 값만 game_settings.sabotage_cooldown_seconds로 고정합니다.
+ const events=eventResult.data||[];
+ const latest=events[0]||null;
  const configuredCooldown=Math.max(10,Math.min(1800,
    Math.floor(Number(g?.sabotage_cooldown_seconds)||60)));
  const configuredDuration=Math.max(5,Math.min(600,
    Math.floor(Number(g?.sabotage_duration_seconds)||30)));
  const now=Date.now();
 
- if(!latest)return {
-   latest:null,active:false,
-   activeUntil:0,cooldownUntil:localSabotageCooldownUntil||0,
-   durationSeconds:configuredDuration,cooldownSeconds:configuredCooldown
- };
+ const parsed=events.map(ev=>{
+   const startedAt=Date.parse(ev.started_at||ev.starts_at||ev.created_at||"");
+   const endsAt=Date.parse(ev.ends_at||"");
+   const rawDuration=Number(ev.duration_seconds);
+   const durationSeconds=Number.isFinite(rawDuration)&&rawDuration>0
+     ?rawDuration:configuredDuration;
+   const activeUntil=endsAt>0?endsAt:(startedAt>0?startedAt+durationSeconds*1000:0);
+   let locationIds=[];
+   try{
+     locationIds=(Array.isArray(ev.location_ids)
+       ?ev.location_ids:JSON.parse(ev.location_ids||"[]")).map(String);
+   }catch(_){}
+   return {event:ev,startedAt,activeUntil,durationSeconds,locationIds};
+ }).filter(x=>x.startedAt>0);
 
- const startedAt=Date.parse(latest.started_at||latest.starts_at||latest.created_at||"");
- const storedEndsAt=Date.parse(latest.ends_at||"");
+ const activeEvents=parsed.filter(x=>x.activeUntil>now);
+ const activeLocationIds=new Set();
+ for(const x of activeEvents)for(const id of x.locationIds)activeLocationIds.add(String(id));
 
- // 지속시간은 sabotage_duration_seconds / duration_seconds만 사용합니다.
- const eventDuration=Number(latest.duration_seconds);
- const durationSeconds=Number.isFinite(eventDuration)&&eventDuration>0
-   ? eventDuration : configuredDuration;
+ // 쿨타임은 가장 최근에 실행된 사보타지의 시작 시각 + 현재 설정값.
+ // 이전 사보타지의 지속시간이나 ends_at은 쿨타임에 관여하지 않습니다.
+ const latestParsed=parsed[0]||null;
+ const cooldownUntil=latestParsed
+   ?latestParsed.startedAt+configuredCooldown*1000
+   :(localSabotageCooldownUntil||0);
 
- const activeUntil=storedEndsAt>0
-   ? storedEndsAt
-   : (startedAt>0 ? startedAt+durationSeconds*1000 : 0);
+ const activeUntil=activeEvents.length
+   ?Math.max(...activeEvents.map(x=>x.activeUntil))
+   :0;
 
- // ★ 핵심 수정:
- // 이벤트에 저장된 cooldown_seconds나 기존 cooldown_until을 쿨타임의 원본으로
- // 사용하지 않습니다. 관리자 game_settings의 sabotage_cooldown_seconds를
- // 그대로 사용하여 "사보타지 사용 → 다음 사용까지" 시간을 계산합니다.
- const cooldownSeconds=configuredCooldown;
- const cooldownUntil=startedAt>0
-   ? startedAt+cooldownSeconds*1000
-   : (localSabotageCooldownUntil||0);
-
- const active=activeUntil>now;
  return {
-   latest,active,activeUntil,cooldownUntil,
-   durationSeconds,cooldownSeconds,
+   latest,
+   events,
+   activeEvents,
+   active:activeEvents.length>0,
+   activeUntil,
+   activeLocationIds,
+   cooldownUntil,
+   durationSeconds:configuredDuration,
+   cooldownSeconds:configuredCooldown,
    activeRemain:Math.max(0,activeUntil-now),
    cooldownRemain:Math.max(0,cooldownUntil-now)
  };
 }
+
 async function getSabotagedLocationIds(round){
- const st=await getSabotageState(round);if(!st.active)return new Set();
- try{return new Set((Array.isArray(st.latest.location_ids)?st.latest.location_ids:JSON.parse(st.latest.location_ids||"[]")).map(String));}catch(e){return new Set();}
+ const st=await getSabotageState(round);
+ return st.activeLocationIds||new Set();
 }
+
 let selectedSabotageLocationIds=new Set();
 let sabotageInterruptUntil=0;
 async function getGloballyCompletedLocationIds(round){
@@ -1828,34 +1837,53 @@ async function refreshSabotageBoard(){
      .eq("game_round",g.current_round);
    if(assignmentRows.error)throw new Error(assignmentRows.error.message);
 
-   const sheep=(await db.from("players").select("id").eq("status","ALIVE").eq("role","SHEEP")).data||[];
+   const sheep=(await db.from("players").select("id")
+     .eq("status","ALIVE").eq("role","SHEEP")).data||[];
    const sheepIds=new Set(sheep.map(x=>String(x.id)));
    const assignedIds=new Set((assignmentRows.data||[])
      .filter(x=>sheepIds.has(String(x.player_id)))
      .map(x=>String(x.mission_location_id)));
 
    const completedIds=await getGloballyCompletedLocationIds(g.current_round);
+   const sabotageState=await getSabotageState(g.current_round);
+   const activeSabotageIds=sabotageState.activeLocationIds||new Set();
 
-   // 이미 선택한 장소가 다른 양의 미션 완료로 무효화되면 즉시 선택 취소합니다.
+   // 현재 진행 중인 사보타지 장소는 선택 상태에서도 즉시 제거합니다.
    for(const id of [...selectedSabotageLocationIds]){
-     if(completedIds.has(String(id)) || !assignedIds.has(String(id))){
+     if(completedIds.has(String(id)) ||
+        !assignedIds.has(String(id)) ||
+        activeSabotageIds.has(String(id))){
        selectedSabotageLocationIds.delete(String(id));
      }
    }
 
    const selected=[...selectedSabotageLocationIds];
+
    board.innerHTML=all.map(loc=>{
      const id=String(loc.id);
      const done=completedIds.has(id);
-     const available=assignedIds.has(id)&&!done;
+     const sabotaged=activeSabotageIds.has(id);
+     const available=assignedIds.has(id)&&!done&&!sabotaged;
      const selectedNow=selected.includes(id);
-     let status=done?"이미 완료됨":available?(selectedNow?"선택됨":"사보타지 가능"):"현재 어떤 양에게도 배정되지 않음";
-     return '<button class="sabotageBlock '+(available?"available":"disabled")+(selectedNow?" selected":"")+'" '+
+
+     let status=
+       done?"이미 완료됨":
+       sabotaged?"현재 사보타지 진행 중":
+       available?(selectedNow?"선택됨":"사보타지 가능"):
+       "현재 어떤 양에게도 배정되지 않음";
+
+     return '<button class="sabotageBlock '+
+       (available?"available":"disabled")+
+       (selectedNow?" selected":"")+'" '+
        (available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')"':'disabled')+
-       ' data-location-id="'+esc(id)+'"><b>'+esc(loc.name)+'</b><div class="small" style="margin-top:6px">'+status+'</div></button>';
+       ' data-location-id="'+esc(id)+'">'+
+       '<b>'+esc(loc.name)+'</b>'+
+       '<div class="small" style="margin-top:6px">'+status+'</div>'+
+       '</button>';
    }).join("");
 
-   window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(getRoundRules(g).sabotageLocationCount)||1));
+   window.__sabotageMaxCount=Math.max(1,Math.min(10,
+     Number(getRoundRules(g).sabotageLocationCount)||1));
  }catch(e){
    console.warn("사보타지 장소 실시간 갱신 실패:",e);
  }
