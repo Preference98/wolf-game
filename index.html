@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v140</title>
+<title>늑대게임 v141</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -509,7 +509,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v140</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v141</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -2501,7 +2501,12 @@ async function saveGameRules(){
      night_round_penalty_minutes:roundPenalty
    };
    const r=await db.from("game_settings").update(payload).eq("id",1);
-   if(r.error)throw new Error("게임 규칙 저장 실패: "+r.error.message);
+   if(r.error){
+     if(String(r.error.message||"").includes("missions_per_sheep")){
+       throw new Error("게임 규칙 저장 실패: game_settings에 missions_per_sheep 컬럼이 없습니다. 제공된 v141_game_settings_migration.sql을 Supabase SQL Editor에서 먼저 실행해 주세요.");
+     }
+     throw new Error("게임 규칙 저장 실패: "+r.error.message);
+   }
 
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
