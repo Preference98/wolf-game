@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v156</title>
+<title>늑대게임 v158</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v156</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v158</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1994,8 +1994,12 @@ async function executeSelectedSabotage(){
  if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
 
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
- if(st.active){toast("다른 늑대가 먼저 사보타지를 진행 중입니다.");return;}
- if(st.cooldownUntil>now){toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
+ // 사보타지 "지속시간"과 "쿨타임"은 독립입니다.
+ // 지속시간이 아직 남아 있어도 쿨타임이 끝났다면 다시 사용할 수 있습니다.
+ if(st.cooldownUntil>now){
+   toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");
+   return;
+ }
  if(!chosen.length){toast("사보타지할 장소를 선택해 주세요.");return;}
  if(chosen.length>rules.sabotageLocationCount){toast("설정된 수보다 많은 장소를 선택했습니다.");return;}
 
