@@ -1374,7 +1374,8 @@ async function renderPlayerCore(){
     </div>`;
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
-    el("deadSheepBtn").disabled=false;
+  // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
+  // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
 
   showScreen("player");
