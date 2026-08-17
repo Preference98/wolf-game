@@ -493,6 +493,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <button id="gameStartBtn" onclick="confirmAction('게임 시작','역할 선정이 완료되었습니다. 게임을 시작하시겠습니까?','startGame')">게임시작</button>
 <button id="skipToGameBtn" class="success" onclick="confirmAction('게임 즉시 시작 테스트','준비된 인원으로 역할 선정과 게임 시작 카운트다운을 모두 건너뛰고 바로 게임 화면으로 진입하시겠습니까?','skipToGame')">⚡ 즉시 게임 테스트</button>
 <button id="nightTestBtn" class="danger" onclick="confirmAction('밤 테스트','현재 라운드를 유지한 채 즉시 밤 상태로 전환하시겠습니까?','testNight')">🌙 밤 테스트</button>
+<button class="danger" onclick="openAdminDeathTest()">🧪 사망처리 테스트</button>
 <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
 <button id="trialStartBtn" onclick="confirmAction('재판 시작','현재 현장 조사 중이라면 즉시 재판을 시작합니다. 재판 시작 알림을 보내시겠습니까?','startTrial')">재판 시작</button>
 <button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
@@ -1365,11 +1366,10 @@ async function renderPlayerCore(){
     el("deadSheepBtn").disabled=false;
   const wolfAction=el("wolfDeathAction");
   if(roleIsWolf(p.role)){
+    // 기존 사보타지 버튼(renderSabotageStatus)을 그대로 사용합니다.
+    // 별도의 sabotageSkillButton을 추가하지 않아 중복 버튼이 생기지 않도록 합니다.
     wolfAction.innerHTML=
-      '<div class="sabotageSkillWrap">'+
-      '<button id="sabotageSkillButton" class="danger sabotageSkillButton" title="사보타지" onclick="useSabotage()">'+
-      '🛑<span class="skillCooldown"></span></button>'+
-      '</div>'+
+      await renderSabotageStatus(g,p)+
       '<button class="danger" style="width:100%;margin-top:10px" onclick="openWolfDeathList()">☠️ 사망처리</button>'+
       '<p class="small muted">※ 사망처리는 라운드 제한 없이 사용할 수 있습니다.</p>';
   }else{
@@ -1439,6 +1439,10 @@ async function openMissionObject(m,loc,p,g){
   el("mDesc").textContent=m.description||"";
   el("question").textContent="";
   el("answer").value="";
+  el("answer").disabled=false;
+  el("answer").readOnly=false;
+  el("answerBtn").disabled=false;
+  el("answerBtn").style.pointerEvents="auto";
   el("missionResult").innerHTML="";
   if(el("miniGame"))el("miniGame").innerHTML="";
 
@@ -1566,7 +1570,6 @@ async function executeSelectedSabotage(){
    return;
  }
  selectedSabotageLocationIds=new Set();
- lastHandledSabotageEventId=null;
  toast("사보타지가 실행되었습니다.");
  await renderPlayer();
  startSabotageUiWatcher();
@@ -1598,16 +1601,14 @@ async function renderSabotageStatus(g,p){
 }
 async function openWolfDeathList(){
  wolfDeathProcessActive=true;
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||!roleIsWolf(p.role)){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
- const players=(await db.from("players").select("id,name,role").eq("status","ALIVE").eq("role","SHEEP").order("name")).data||[];
- if(!players.length){toast("현재 선택할 수 있는 생존 플레이어가 없습니다.");return;}
+ const players=(await db.from("players").select("id,name,role,status").order("name")).data||[];
+ if(!players.length){toast("플레이어가 없습니다.");return;}
  const html='<div class="deathConfirmList">'+
-   players.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+esc(x.name)+'</button>').join("")+
+   players.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+
+     esc(x.name)+' <span class="small muted">('+esc(x.role||"역할없음")+' / '+esc(x.status||"상태없음")+')</span></button>').join("")+
    '</div><button class="secondary" style="width:100%" onclick="closeOverlay()">취소</button>';
- openOverlay("☠️","사망처리","사망 처리할 플레이어를 선택하십시오.","",html);
+ openOverlay("☠️","사망처리","조건 없이 사망 처리 요청을 보낼 플레이어를 선택하십시오.","",html);
 }
-
 function confirmWolfDeath(id,name){
  wolfDeathProcessActive=true;
  const safeName=String(name).replace(/'/g,"&#39;");
@@ -1619,33 +1620,28 @@ function confirmWolfDeath(id,name){
 
 async function sendDeathConfirmation(victimId,victimName){
  closeOverlay();
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||!roleIsWolf(p.role)){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
- const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
- if(!victim||!roleIsSheep(victim.role)||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
- const attempt=await db.rpc("create_wolf_attempt",{
-   p_game_round:g.current_round,
-   p_wolf_player_id:String(p.id),
-   p_victim_player_id:String(victim.id)
- });
- if(attempt.error){
-   console.error("create_wolf_attempt 오류:",attempt.error);
-   toast("사망 처리 기록 실패: "+(attempt.error.message||"알 수 없는 오류"));
-   return;
- }
  const r=await db.rpc("create_death_confirmation_notification",{
-   p_target_player_id:String(victim.id),
+   p_target_player_id:String(victimId),
    p_message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요."
  });
  if(r.error){
    console.error("create_death_confirmation_notification 오류:",r.error);
-   toast("사망 확인 요청 실패: "+r.error.message);
+   toast("사망 확인 요청 실패: "+(r.error.message||"알 수 없는 오류"));
    return;
  }
- toast(victim.name+" 양에게 사망 확인 요청을 보냈습니다.");
+ // wolf_attempts는 제한 없는 기록용으로 남깁니다. 실패해도 알림 자체는 유지합니다.
+ const g=await settings().catch(()=>null),p=await me().catch(()=>null);
+ if(g&&p){
+   const attempt=await db.rpc("create_wolf_attempt",{
+     p_game_round:Number(g.current_round)||0,
+     p_wolf_player_id:String(p.id||victimId),
+     p_victim_player_id:String(victimId)
+   });
+   if(attempt.error)console.warn("제한 없는 사망처리 기록 저장 실패:",attempt.error);
+ }
+ toast(String(victimName||"플레이어")+"에게 사망 확인 요청을 보냈습니다.");
  wolfDeathProcessActive=false;
 }
-
 async function showDeathConfirmation(notification){
  const message=notification?.message||"늑대가 당신을 사망 처리했습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.";
  await showScreen("deathConfirm");
@@ -2545,8 +2541,14 @@ function startSabotageUiWatcher(){
    const e=r.data[0];
    const id=String(e.id);
    if(lastHandledSabotageEventId===id)return;
-   // 아직 미래에 시작하는 이벤트가 아니라면 즉시 처리.
-   if(Date.parse(e.starts_at||e.created_at||0)>Date.now()+1000)return;
+   const eventStart=Date.parse(e.starts_at||e.created_at||0);
+   if(eventStart>Date.now()+1000)return;
+   // 페이지를 새로 열거나 메뉴를 이동했을 때 이미 끝난/오래된 사보타지를
+   // 새 사보타지로 오인하여 현재 미션을 실패시키지 않습니다.
+   if(!lastHandledSabotageEventId && eventStart && Date.now()-eventStart>10000){
+     lastHandledSabotageEventId=id;
+     return;
+   }
    lastHandledSabotageEventId=id;
    await handleSabotageEvent(e);
   }catch(e){console.warn("사보타지 이벤트 폴백 감시 오류:",e);}
@@ -2760,7 +2762,27 @@ window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.s
 window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
-window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;window.refreshDeathLocations=refreshDeathLocations;window.refreshPlayers=refreshPlayers;window.playerLogout=playerLogout;
+
+async function openAdminDeathTest(){
+ const players=(await db.from("players").select("id,name,role,status").order("name")).data||[];
+ if(!players.length){toast("플레이어가 없습니다.");return;}
+ const html='<div class="deathConfirmList">'+players.map(x=>
+   '<button onclick="adminSendDeathTest(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+
+   esc(x.name)+' <span class="small muted">('+esc(x.role||"역할없음")+' / '+esc(x.status||"상태없음")+')</span></button>'
+ ).join("")+'</div><button class="secondary" style="width:100%" onclick="closeOverlay()">취소</button>';
+ openOverlay("🧪","사망처리 테스트","조건 없이 선택한 플레이어에게 사망 확인 알림을 보냅니다.","",html);
+}
+async function adminSendDeathTest(playerId,playerName){
+ const r=await db.rpc("create_death_confirmation_notification",{
+   p_target_player_id:String(playerId),
+   p_message:"[관리자 테스트] 당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요."
+ });
+ if(r.error){toast("사망처리 테스트 실패: "+r.error.message);return;}
+ closeOverlay();
+ toast(playerName+"에게 사망처리 테스트 알림을 보냈습니다.");
+}
+
+window.adminLogout=adminLogout;window.openAdminDeathTest=openAdminDeathTest;window.adminSendDeathTest=adminSendDeathTest;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;window.refreshDeathLocations=refreshDeathLocations;window.refreshPlayers=refreshPlayers;window.playerLogout=playerLogout;
 boot();
   // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
   window.__wolfGameBridge={
