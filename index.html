@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v162</title>
+<title>늑대게임 v163</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v162</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v163</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -3190,7 +3190,7 @@ function startSabotageUiWatcher(){
      const locationId=String(x.getAttribute("data-sabotage-countdown")||"");
      const end=Number(locationEnds.get(locationId)||0);
      const remain=Math.max(0,end-now);
-     x.textContent=remain>0?Math.ceil(remain/1000)+"초":"사보타지 종료";
+     x.textContent=remain>0?Math.ceil(remain/1000)+"초":"";
    });
 
    // 늑대 사보타지 버튼: cooldown만 사용
@@ -3271,8 +3271,24 @@ function startSabotageUiWatcher(){
    // 다시 렌더링합니다. 다른 장소의 사보타지 타이머에는 영향을 주지 않습니다.
    if(locationEnded){
      const screen=document.querySelector(".screen.active")?.id||"";
-     if(screen==="sabotage" || screen==="player" || screen==="home"){
-       try{await route();}catch(e){console.warn("개별 사보타지 종료 화면 갱신 실패:",e);}
+
+     // ★ 핵심:
+     // 타이머 숫자만 0으로 만드는 것으로 끝내지 않고,
+     // 실제 미션 장소 블럭 자체를 즉시 다시 렌더링해야 합니다.
+     // 그래야 "사보타지 중" 상태/입장 차단이 제거되고
+     // 원래의 활성 미션 입장 버튼이 즉시 복구됩니다.
+     if(screen==="player"){
+       try{await renderPlayer();}catch(e){
+         console.warn("개별 사보타지 종료 후 플레이어 화면 복구 실패:",e);
+       }
+     }else if(screen==="sabotage"){
+       try{await refreshSabotageBoard();}catch(e){
+         console.warn("개별 사보타지 종료 후 사보타지 메뉴 갱신 실패:",e);
+       }
+     }else if(screen==="home"){
+       try{await route();}catch(e){
+         console.warn("개별 사보타지 종료 화면 갱신 실패:",e);
+       }
      }
    }
 
