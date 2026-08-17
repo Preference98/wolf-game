@@ -539,6 +539,8 @@ let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=
 let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let sabotageUiTimer=null,sabotageUiLastSignature="";
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
+let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
+let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
@@ -702,6 +704,8 @@ function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disab
 async function showScreen(id){
  const target=el(id);
  if(!target)return;
+ const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
+ if(alreadyActive)return;
  document.querySelectorAll(".screen").forEach(x=>{
    x.classList.remove("active");
    x.style.display="none";
@@ -992,7 +996,7 @@ async function join(){
 }
 
 
-async function route(){
+async function routeCore(){
  try{
   if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
@@ -1039,6 +1043,20 @@ async function route(){
  }
 }
 
+
+async function route(){
+ if(routeBusy){routeQueued=true;return;}
+ routeBusy=true;
+ try{await routeCore();}
+ catch(e){throw e;}
+ finally{
+   routeBusy=false;
+   if(routeQueued){
+     routeQueued=false;
+     setTimeout(()=>route().catch(e=>console.error("queued route 오류:",e)),0);
+   }
+ }
+}
 
 async function renderLobby(p,g){
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
@@ -1266,7 +1284,7 @@ async function renderNight(p,g){
    await new Promise(r=>setTimeout(r,3000));
  }
 el("nightSheepView").style.display=isWolf?"none":"flex";el("nightWolfView").style.display=isWolf?"block":"none";const timerEl=isWolf?el("nightWolfTimer"):el("nightSheepTimer");if(isWolf)el("nightWolfAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">이번 라운드의 사망 처리는 최대 1명입니다.</p>';showScreen("night");if(window.__nightLocalTimer)clearInterval(window.__nightLocalTimer);const tick=()=>{const left=Math.max(0,endMs-Date.now());if(timerEl)timerEl.textContent=formatRoundTime(left);if(left<=0){clearInterval(window.__nightLocalTimer);window.__nightLocalTimer=null;finishNight().catch(e=>console.error("낮 전환 실패:",e));}};tick();window.__nightLocalTimer=setInterval(tick,250);}
-async function renderPlayer(){
+async function renderPlayerCore(){
   stopGameStartBgm();
   stopMissionTimer();
   const p=await me(),g=await settings();
@@ -1572,7 +1590,6 @@ async function sendDeathConfirmation(victimId,victimName){
  if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||p.role!=="WOLF"){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
  const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
  if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
- const existing=(await db.from("wolf_attempts").select("id").eq("game_round",g.current_round).limit(1)).data||[]; if(existing.length){toast("이번 라운드의 사망 처리는 이미 사용되었습니다.");return;}
  const attempt=await db.rpc("create_wolf_attempt",{
    p_game_round:g.current_round,
    p_wolf_player_id:String(p.id),
@@ -1679,6 +1696,19 @@ async function deadSheepFound(location){
   await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
   toast("죽은 양 발견이 접수되었습니다.");
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
+}
+
+async function renderPlayer(){
+ if(playerRenderBusy){playerRenderQueued=true;return;}
+ playerRenderBusy=true;
+ try{await renderPlayerCore();}
+ finally{
+   playerRenderBusy=false;
+   if(playerRenderQueued){
+     playerRenderQueued=false;
+     setTimeout(()=>renderPlayer().catch(e=>console.error("queued renderPlayer 오류:",e)),0);
+   }
+ }
 }
 
 async function renderAdminMissionStatus(players,round,roundMissionLocations,completions){
@@ -2338,6 +2368,34 @@ function startSabotageUiWatcher(){
   }catch(e){console.warn("사보타지 UI 갱신 오류:",e);}
  },1000);
 }
+function stopDeathNotificationWatcher(){
+ if(deathNotificationTimer){clearInterval(deathNotificationTimer);deathNotificationTimer=null;}
+}
+function startDeathNotificationWatcher(){
+ if(deathNotificationTimer)return;
+ deathNotificationTimer=setInterval(async()=>{
+  try{
+   if(!playerId||localStorage.getItem("wolf_game_admin_v7")==="1")return;
+   const p=await me();
+   if(!p||p.status!=="ALIVE"){stopDeathNotificationWatcher();return;}
+   const r=await db.from("notifications").select("*")
+     .eq("target_player",playerId)
+     .eq("notification_type","DEATH_CONFIRM")
+     .order("id",{ascending:false}).limit(10);
+   if(r.error)return;
+   for(const n of (r.data||[]).reverse()){
+     const id=String(n.id);
+     if(seenDeathNotificationIds.has(id))continue;
+     seenDeathNotificationIds.add(id);
+     // 이미 사망확인 화면을 보고 있다면 중복으로 덮지 않습니다.
+     if(document.querySelector("#deathConfirm.screen.active"))continue;
+     await playSound("death","death-confirm-notice-"+id).catch(()=>{});
+     await showDeathConfirmation(n);
+     break;
+   }
+  }catch(e){console.warn("사망 확인 알림 폴백 오류:",e);}
+ },1000);
+}
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
@@ -2510,6 +2568,7 @@ async function boot(){
   db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   preloadSounds();
   realtime();
+  startDeathNotificationWatcher();
   el("name").addEventListener("keydown",e=>{if(e.key==="Enter")join();});
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   if(playerId)await route();
