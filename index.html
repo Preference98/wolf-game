@@ -480,6 +480,9 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialAnnounceStage .trialImage{font-size:100px;margin-bottom:18px;filter:grayscale(1) sepia(1) saturate(7) hue-rotate(320deg);text-shadow:0 0 35px #f00000}
 .trialAnnounceStage h1{font-size:clamp(34px,7vw,68px);line-height:1.2;margin:0;text-shadow:0 0 30px #f00000}
 .trialAnnounceStage .subtext{margin-top:14px;font-size:clamp(17px,3vw,27px);color:#aaa}
+
+/* v137: legacy confirmation-style trial lock is no longer used. */
+#trialLock{display:none!important}
 </style>
 </head>
 <body>
@@ -634,7 +637,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <button id="nightTestBtn" class="danger" onclick="confirmAction('밤 테스트','현재 라운드를 유지한 채 즉시 밤 상태로 전환하시겠습니까?','testNight')">🌙 밤 테스트</button>
 <button class="danger" onclick="openAdminDeathTest()">🧪 사망처리 테스트</button>
 <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
-<button id="trialStartBtn" onclick="confirmAction('재판 시작','즉시 늑대 재판을 시작하시겠습니까?','startTrial')">재판 시작</button>
+<button id="trialStartBtn" onclick="startTrial()">재판 시작</button>
 <button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
 <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
 <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
@@ -1947,10 +1950,21 @@ async function getLatestDeadSheep(round){
 
 async function renderTrial(p,g){
  stopAllTimers();
- if(window.__trialAnnouncementRound!==Number(g.current_round)){
-   window.__trialAnnouncementRound=Number(g.current_round);
-   await showScreen("trialAnnouncement");
-   await new Promise(r=>setTimeout(r,3000));
+ const trialRound=Number(g.current_round);
+ if(window.__trialAnnouncementRound!==trialRound){
+   if(!window.__trialAnnouncementPromise || window.__trialAnnouncementPromiseRound!==trialRound){
+     window.__trialAnnouncementRound=trialRound;
+     window.__trialAnnouncementPromiseRound=trialRound;
+     window.__trialAnnouncementPromise=(async()=>{
+       await showScreen("trialAnnouncement");
+       await new Promise(r=>setTimeout(r,3000));
+     })().finally(()=>{
+       window.__trialAnnouncementPromise=null;
+     });
+   }
+   await window.__trialAnnouncementPromise;
+ }else if(window.__trialAnnouncementPromise && window.__trialAnnouncementPromiseRound===trialRound){
+   await window.__trialAnnouncementPromise;
  }
  const gauge=await getMissionGauge(g.current_round);
  el("trialGaugeText").textContent=gauge.percent+"% ("+gauge.completed+"/"+gauge.target+")";
