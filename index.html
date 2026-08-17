@@ -480,9 +480,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <label class="small">죽은 양 발견 후 현장 조사 시간 (분)</label><input id="investigationMinutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric" placeholder="예: 5">
 <button onclick="saveTiming()">시간 설정 저장</button></div>
 
-<div class="card"><h2>시체발견 장소 관리</h2><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 미션 장소와 별도로 관리됩니다.</p><div id="locationList"></div>
-<div class="grid"><input id="newLocation" placeholder="시체발견 장소 이름"></div>
-<button onclick="addLocation()">시체발견 장소 추가</button></div>
+<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">시체발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 장소 정보는 SQL에서 직접 수정하며, 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="locationList"></div></div>
 <div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">미션 장소</h2><button class="secondary" id="refreshMissionLocationsBtn" onclick="refreshMissionLocations()">새로고침</button></div><p class="muted">미션 장소는 10개 고정입니다. 장소 이름·컨셉·NFC 값은 SQL에서 직접 수정합니다. 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="missionLocationList"></div></div>
 <div class="card"><h2>NFC 기능</h2><p class="muted">OFF로 변경하면 모든 플레이어가 NFC 태그 없이 미션 장소에 입장할 수 있습니다.</p><button id="nfcBtn" onclick="toggleNfc()">NFC 기능: ON</button></div>
 
@@ -494,7 +492,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 
 <div class="card"><h2>라운드 미션 현황</h2><p class="muted">현재 라운드에서 각 플레이어가 어떤 미션 장소를 클리어했는지 확인합니다. 늑대의 클리어도 표시되지만 관리자 미션 성공 수에는 포함되지 않습니다.</p><div id="missionStatusPanel" class="adminMissionStatus"></div></div>
 
-<div class="card"><h2>플레이어</h2><div id="playerList"></div></div>
+<div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">플레이어</h2><button class="secondary" id="refreshPlayersBtn" onclick="refreshPlayers()">새로고침</button></div><p class="muted">현재 DB에 등록된 플레이어 정보를 표시합니다. 플레이어의 접속과 등록은 게임 시스템에서 자동으로 처리됩니다.</p><div id="playerList"></div></div>
 </section>
 </main></div>
 
@@ -1523,6 +1521,32 @@ async function renderAdminMissionStatus(players,round,roundMissionLocations,comp
  }).join("");
 }
 
+async function refreshPlayers(){
+ const btn=el("refreshPlayersBtn");
+ const done=busy(btn,"새로고침 중...");
+ try{
+   const r=await db.from("players").select("*").order("id");
+   if(r.error)throw new Error("플레이어 정보 조회 실패: "+r.error.message);
+   const players=r.data||[];
+   el("playerList").innerHTML=players.length?players.map((x,i)=>'<div class="item row"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+   toast("플레이어 정보를 새로고침했습니다.");
+ }catch(e){
+   toast("플레이어 새로고침 실패: "+(e.message||String(e)));
+ }finally{done();}
+}
+
+async function refreshDeathLocations(){
+ const btn=el("refreshDeathLocationsBtn");
+ const done=busy(btn,"새로고침 중...");
+ try{
+   const ls=await locations();
+   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
+   toast("시체발견 장소 정보를 새로고침했습니다.");
+ }catch(e){
+   toast("시체발견 장소 새로고침 실패: "+(e.message||String(e)));
+ }finally{done();}
+}
+
 async function refreshMissionLocations(){
  const btn=el("refreshMissionLocationsBtn");
  const done=busy(btn,"새로고침 중...");
@@ -1554,9 +1578,9 @@ async function renderAdmin(){
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
-  el("playerList").innerHTML=p.length?p.map(x=>'<div class="item row"><div><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div><button class="danger" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+  el("playerList").innerHTML=p.length?p.map((x,i)=>'<div class="item row"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
-  el("locationList").innerHTML=ls.length?ls.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><button class="danger" onclick="confirmRemoveLocation(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">제거</button></div>').join(""):"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
+  el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?'<div class="missionLocationInfoList">'+mls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><div><b>'+esc(x.name||"미지정 장소")+'</b></div><div class="muted" style="margin-top:4px">컨셉: '+(String(x.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>고정 미션 장소 10개가 DB에 없습니다.</div>";
   el("nfcBtn").textContent="NFC 기능: "+(g.nfc_enabled===false?"OFF":"ON");
@@ -1592,7 +1616,6 @@ async function startGame(){
      dead_sheep_found:false,dead_sheep_location:null,
      investigation_started_at:null,
      round_started_at:new Date().toISOString(),
-     mission_gauge_penalty_total:0,
      night_started_at:null,
      round_time_penalty_total:0
    });
@@ -1767,8 +1790,6 @@ async function resetGame(){
      dead_sheep_location:null,
      investigation_started_at:null,
      round_started_at:null,
-     round_time_penalty_total:0,
-     mission_gauge_penalty_total:0
    });
 
    // 4) 브라우저에 남아 있는 플레이어별 미니게임/완료 표시도 제거
@@ -2088,7 +2109,7 @@ window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.s
 window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
-window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;
+window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;window.refreshDeathLocations=refreshDeathLocations;window.refreshPlayers=refreshPlayers;
 boot();
   // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
   window.__wolfGameBridge={
