@@ -538,6 +538,7 @@ const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let sabotageUiTimer=null,sabotageUiLastSignature="";
+let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
 // 공통 타이머 정리 함수
@@ -1409,24 +1410,7 @@ async function openMissionObject(m,loc,p,g){
   window.__wolfMissionTimerId=missionTimer;
   tickMission();
   showScreen("mission");
-  if(missionSabotageWatchTimer)clearInterval(missionSabotageWatchTimer);
-  const missionLocationId=String(loc.id);
-  missionSabotageWatchTimer=setInterval(async()=>{
-    try{
-      const gg=await settings();
-      if(gg.phase!=="PLAY"){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;return;}
-      const ss=await getSabotagedLocationIds(gg.current_round);
-      if(ss.has(missionLocationId)){
-        clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;
-        stopMissionTimer();
-        window.__miniOutcomeLocked=true;
-        if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert" style="font-size:22px;font-weight:900">⚠ 사보타지로 미션이 즉시 중단되었습니다.<br>미션 실패</div>';
-        if(el("answer"))el("answer").disabled=true;
-        if(el("answerBtn"))el("answerBtn").disabled=true;
-        el("missionResult").innerHTML='<div class="notice alert">사보타지로 인해 미션 실패 처리되었습니다.</div>';
-      }
-    }catch(e){console.warn("사보타지 감시 오류:",e);}
-  },300);
+  if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
   if(isPuzzle)el("question").textContent=m.question||"문제가 없습니다.";
   else launchMiniGame(m);
 }
@@ -1560,6 +1544,7 @@ async function renderSabotageStatus(g,p){
  return `<div class="sabotageSkillWrap"><button class="sabotageSkill available" onclick="openSabotageScreen()" title="사보타지 실행"><span class="skillIcon">🛑</span></button><div class="sabotageStatusText"><b>사보타지</b><div class="small muted">최대 ${rules.sabotageLocationCount}곳 · ${rules.sabotageDurationSeconds}초</div></div></div>`;
 }
 async function openWolfDeathList(){
+ wolfDeathProcessActive=true;
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||p.role!=="WOLF"){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
  const attempt=(await db.from("wolf_attempts").select("id").eq("game_round",g.current_round).limit(1)).data||[]; if(attempt.length){toast("이번 라운드의 사망 처리는 이미 사용되었습니다.");return;}
@@ -1572,6 +1557,7 @@ async function openWolfDeathList(){
 }
 
 function confirmWolfDeath(id,name){
+ wolfDeathProcessActive=true;
  const safeName=String(name).replace(/'/g,"&#39;");
  openOverlay("☠️","사망 처리 확인",
    '정말 '+esc(name)+'의 사망을 확인하시겠습니까?',"",
@@ -1603,6 +1589,7 @@ async function sendDeathConfirmation(victimId,victimName){
  });
  if(r.error){toast("사망 확인 요청 실패: "+r.error.message);return;}
  toast(victim.name+" 양에게 사망 확인 요청을 보냈습니다.");
+ wolfDeathProcessActive=false;
 }
 
 async function showDeathConfirmation(notification){
@@ -2330,10 +2317,23 @@ function startSabotageUiWatcher(){
    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){stopSabotageUiWatcher();return;}
    const st=await getSabotageState(g.current_round),now=Date.now();
    const end=st.latest?.ends_at?Date.parse(st.latest.ends_at):0,cd=st.cooldownUntil||0;
-   document.querySelectorAll(".sabotageCountdown").forEach(x=>{const r=Math.max(0,end-now);x.textContent=r>0?Math.ceil(r/1000)+"초":"사보타지 종료";});
+   const active=end>now;
    const sig=end+"|"+cd;
-   if(sabotageUiLastSignature && sig!==sabotageUiLastSignature)await renderPlayer();
-   sabotageUiLastSignature=sig;
+   document.querySelectorAll(".sabotageCountdown").forEach(x=>{
+     const r=Math.max(0,end-now);
+     if(r>0)x.textContent=Math.ceil(r/1000)+"초";
+   });
+   // 사보타지가 종료되는 순간 '사보타지 종료'를 남기지 않고
+   // 원래의 활성/비활성 상태를 다시 그립니다.
+   const prev=sabotageUiLastSignature;
+   const prevActive=prev?prev.endsWith("|ACTIVE"):null;
+   const nextSig=sig+"|"+(active?"ACTIVE":"INACTIVE");
+   if(prev && prevActive!==active){
+     await renderPlayer();
+   }else if(prev && sig!==prev.split("|ACTIVE")[0] && !active){
+     await renderPlayer();
+   }
+   sabotageUiLastSignature=nextSig;
   }catch(e){console.warn("사보타지 UI 갱신 오류:",e);}
  },1000);
 }
@@ -2404,14 +2404,66 @@ function realtime(){
 
  db.channel("wg-v7-sabotage").on("postgres_changes",{event:"INSERT",schema:"public",table:"sabotage_events"},async payload=>{
   try{
-   const e=payload.new||{},g=await settings();if(Number(g.current_round)!==Number(e.game_round))return;
-   const ids=Array.isArray(e.location_ids)?e.location_ids:[];const names=[];
+   const e=payload.new||{},g=await settings();
+   if(Number(g.current_round)!==Number(e.game_round))return;
+
+   const p=await me().catch(()=>null);
+   const isAdmin=localStorage.getItem("wolf_game_admin_v7")==="1";
+   const ids=Array.isArray(e.location_ids)?e.location_ids:[];
+   const names=[];
    for(const id of ids){const l=await getMissionLocation(id).catch(()=>null);if(l)names.push(l.name);}
    const sec=Math.max(0,Math.ceil((Date.parse(e.ends_at)-Date.now())/1000));
-   openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",'<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+'<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
-   toast("🛑 사보타지가 실행되었습니다.");
-   if(localStorage.getItem("wolf_game_admin_v7")==="1")await renderAdmin();else await renderPlayer();
-  }catch(err){console.warn("사보타지 알림 오류:",err);}
+
+   // 사망 처리/사망 확인 과정은 사보타지의 강제 이동 대상에서 제외합니다.
+   const activeScreen=document.querySelector(".screen.active")?.id||"";
+   const deathProtected=
+     wolfDeathProcessActive ||
+     ["deathConfirm","deathWarning","deathCountdown"].includes(activeScreen) ||
+     localStorage.getItem("wolf_game_death_lock_v1")==="1";
+
+   // 모든 플레이어/관리자에게 같은 사보타지 알림 + 효과음을 보냅니다.
+   if(isAdmin){
+     await playSound("adminNotice","sabotage-"+e.id);
+     openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
+       '<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+
+       '<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
+     await renderAdmin();
+     return;
+   }
+
+   await playSound("adminNotice","sabotage-"+e.id);
+
+   if(deathProtected){
+     // 사망 과정은 유지하되 알림/소리만 발생시킵니다.
+     openOverlay("🛑","사보타지 실행","사보타지가 실행되었습니다.","alarm",
+       '<div class="muted" style="margin-bottom:14px">사망 처리/사망 확인 과정은 계속 진행됩니다.<br>'+
+       '<b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
+     return;
+   }
+
+   // 미션/사보타지 메뉴 등 진행 중인 모든 일반 화면을 강제로 중단합니다.
+   if(activeScreen==="mission"){
+     stopMissionTimer();
+     if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
+     window.__miniOutcomeLocked=true;
+     const currentLocId=String(currentMission?.mission_location_id??currentMission?.location_id??"");
+     if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert" style="font-size:22px;font-weight:900">⚠ 사보타지로 미션이 중단되었습니다.<br>미션 실패 처리</div>';
+     if(el("answer"))el("answer").disabled=true;
+     if(el("answerBtn"))el("answerBtn").disabled=true;
+     el("missionResult").innerHTML='<div class="notice alert">사보타지로 인해 미션이 실패 처리되었습니다.</div>';
+     try{await playSound("adminNotice","sabotage-fail-"+e.id+"-"+currentLocId);}catch(_){}
+   }
+
+   closeOverlay();
+   await renderPlayer();
+
+   // 메인 게임화면으로 이동한 뒤 사보타지 알림을 띄웁니다.
+   openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
+     '<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+
+     '<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
+   toast("🛑 사보타지 실행 — 모든 플레이어의 일반 행동이 중단되었습니다.");
+
+  }catch(err){console.warn("사보타지 알림/강제중단 오류:",err);}
  }).subscribe();
 
  db.channel("wg-v7-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{
