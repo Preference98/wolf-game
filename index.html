@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v150</title>
+<title>늑대게임 v151</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v150</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v151</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1756,39 +1756,42 @@ async function getSabotageState(round){
 
  const latest=eventResult.data?.[0]||null;
  const now=Date.now();
- if(!latest)return {latest:null,active:false,cooldownUntil:localSabotageCooldownUntil||0};
+ if(!latest)return {latest:null,active:false,cooldownUntil:localSabotageCooldownUntil||0,configuredSeconds:Math.max(10,Math.min(1800,Number(g?.sabotage_cooldown_seconds)||60))};
 
  const startedAt=Date.parse(latest.started_at||latest.starts_at||latest.created_at||"");
  const endsAt=Date.parse(latest.ends_at||"");
- const serverCooldownUntil=Date.parse(latest.cooldown_until||"");
  const active=Number.isFinite(endsAt)&&endsAt>now;
 
- // 쿨타임의 기준값은 반드시 현재 game_settings의 저장값입니다.
- // 이전 버전 RPC가 60초를 저장했더라도 그 값을 그대로 화면에 사용하지 않습니다.
- const configuredSeconds=Math.max(
-   10,
-   Math.min(1800,Math.floor(Number(g?.sabotage_cooldown_seconds)))
- );
- const configuredCooldownUntil=
+ // v151부터는 이벤트에 저장된 cooldown_seconds가 실행 당시 관리자 설정의
+ // '실제 적용값'입니다. 현재 설정이 나중에 바뀌어도 진행 중인 사보타지의
+ // 쿨타임은 바뀌지 않아야 하므로 이벤트 값을 최우선으로 사용합니다.
+ const eventCooldown=Number(latest.cooldown_seconds);
+ const configuredSeconds=Math.max(10,Math.min(1800,
+   Number.isFinite(eventCooldown)&&eventCooldown>0
+     ? eventCooldown
+     : (Number(g?.sabotage_cooldown_seconds)||60)
+ ));
+
+ const eventCooldownUntil=Date.parse(latest.cooldown_until||"");
+ const calculatedCooldownUntil=
    Number.isFinite(startedAt)&&startedAt>0
      ? startedAt+configuredSeconds*1000
      : 0;
 
- // 서버에 저장된 cooldown_until은 보조 정보로만 사용합니다.
- // 정상적으로 새 RPC가 적용되어 있으면 configured 값과 일치합니다.
- // 불일치하면 현재 관리자 설정값을 우선합니다.
- let cooldownUntil=configuredCooldownUntil||serverCooldownUntil||localSabotageCooldownUntil||0;
+ // 새 이벤트는 서버가 저장한 cooldown_until과 계산값이 같아야 합니다.
+ // 화면에서는 계산값을 기준으로 하여 구버전 이벤트의 잘못된 60초 값도
+ // 새 설정값으로 일관되게 표시합니다.
+ const cooldownUntil=calculatedCooldownUntil||eventCooldownUntil||localSabotageCooldownUntil||0;
 
  if(localSabotageEventId===String(latest.id)&&localSabotageCooldownUntil>cooldownUntil){
-   cooldownUntil=localSabotageCooldownUntil;
+   return {latest,active,cooldownUntil:localSabotageCooldownUntil,configuredSeconds};
  }
-
- if(localSabotageEventId!==String(latest.id) && localSabotageCooldownUntil){
+ if(localSabotageEventId!==String(latest.id)&&localSabotageCooldownUntil){
    localSabotageCooldownUntil=0;
    localSabotageEventId=null;
  }
 
- return {latest,active,cooldownUntil,configuredSeconds,serverCooldownUntil};
+ return {latest,active,cooldownUntil,configuredSeconds};
 }
 async function getSabotagedLocationIds(round){
  const st=await getSabotageState(round);if(!st.active)return new Set();
@@ -2001,7 +2004,7 @@ async function executeSelectedSabotage(){
    return;
  }
 
- const r=await db.rpc("execute_sabotage",{
+ const r=await db.rpc("execute_sabotage_v151",{
    p_game_round:g.current_round,
    p_wolf_player_id:String(p.id),
    p_location_ids:chosen
@@ -2016,25 +2019,20 @@ async function executeSelectedSabotage(){
  if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
 
  // RPC가 반환한 실제 설정값을 사용하고, 새로고침 시 DB started_at + 설정값으로 복구합니다.
- const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds))));
+ const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds)||60)));
  const rpcData=r.data&&typeof r.data==="object"&&!Array.isArray(r.data)?r.data:(Array.isArray(r.data)?r.data[0]:null);
  const responseCooldown=Number(rpcData?.cooldown_seconds);
  const responseEventId=String(rpcData?.event_id||"");
 
- // 서버 RPC가 이전 버전 함수라 기본값을 반환하는 경우를 즉시 감지합니다.
- // 화면은 관리자 설정값을 기준으로 계속 동작하고, SQL 패치가 적용되었는지는
- // 관리자 콘솔에서 쉽게 확인할 수 있도록 경고를 남깁니다.
- if(Number.isFinite(responseCooldown) && responseCooldown!==configuredCooldown){
-   console.error("사보타지 쿨타임 서버 설정 불일치:",{
-     configuredCooldown,
-     responseCooldown,
-     eventId:responseEventId
+ if(!Number.isFinite(responseCooldown)||responseCooldown!==configuredCooldown){
+   console.error("v151 사보타지 쿨타임 적용값 오류:",{
+     configuredCooldown,responseCooldown,eventId:responseEventId,rpcData
    });
-   toast("사보타지는 실행되었지만 서버 RPC가 이전 쿨타임("+responseCooldown+"초)을 반환했습니다. v150_sabotage_cooldown_fix.sql을 적용해 주세요.");
+   throw new Error("사보타지 쿨타임 적용값 검증 실패: 관리자 설정 "+configuredCooldown+"초 / 서버 적용 "+(Number.isFinite(responseCooldown)?responseCooldown+"초":"확인 불가"));
  }
 
  localSabotageEventId=responseEventId||null;
- localSabotageCooldownUntil=Date.now()+configuredCooldown*1000;
+ localSabotageCooldownUntil=Date.now()+responseCooldown*1000;
 
  closeSabotageScreen();
  startSabotageUiWatcher();
