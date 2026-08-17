@@ -402,6 +402,84 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialAnnounceStage .trialImage{font-size:92px;filter:grayscale(1) sepia(1) saturate(8) hue-rotate(320deg);margin-bottom:18px}
 .trialAnnounceStage h1{font-size:clamp(28px,6vw,48px);margin:0 0 10px}
 .trialAnnounceStage .subtext{font-size:clamp(16px,3vw,23px);color:#aaa}
+
+/* v135 action dock: both sheep and wolf use the exact same centered main icon */
+.actionDock{
+ position:fixed!important;
+ left:50%!important;
+ right:auto!important;
+ bottom:28px!important;
+ transform:translateX(-50%)!important;
+ width:260px!important;
+ height:190px!important;
+ z-index:9000!important;
+ display:block!important;
+ pointer-events:none!important;
+}
+.actionDock .dockMain,
+.actionDock .dockItem{
+ position:absolute!important;
+ width:82px!important;
+ height:82px!important;
+ left:89px!important;
+ top:90px!important;
+ margin:0!important;
+ padding:0!important;
+ border-radius:50%!important;
+ display:flex!important;
+ flex-direction:column!important;
+ align-items:center!important;
+ justify-content:center!important;
+ gap:2px!important;
+ box-sizing:border-box!important;
+ pointer-events:auto!important;
+}
+.actionDock .dockMain{z-index:5!important;font-size:0!important}
+.actionDock .dockMain.menuClosed{opacity:.52!important}
+.actionDock .dockMain.menuClosed::after{
+ content:"×"!important;
+ position:absolute!important;
+ inset:0!important;
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ font-size:72px!important;
+ font-weight:300!important;
+ line-height:1!important;
+ color:#fff!important;
+}
+.actionDock .dockItem{
+ opacity:0!important;
+ visibility:hidden!important;
+ transform:scale(.7)!important;
+ transition:opacity .18s,transform .18s!important;
+}
+.actionDock.expanded .dockItem{opacity:1!important;visibility:visible!important;transform:scale(1)!important}
+.actionDock.expanded .dockItem.sabotageItem{left:0!important;top:90px!important}
+.actionDock.expanded .dockItem.deathItem{left:178px!important;top:90px!important}
+.actionDock.expanded .dockItem.discoveryItem{left:89px!important;top:0!important}
+.actionDock .dockIcon{width:46px;height:46px;display:block}
+.actionDock .dockLabel{font-size:12px;font-weight:900;line-height:1;color:#fff;white-space:nowrap}
+.actionDock .dockBan{position:absolute;font-size:62px;font-weight:300;color:#ef3340;line-height:1;transform:rotate(-45deg);pointer-events:none}
+.actionDock .dockItem .cooldownShade{
+ position:absolute!important;inset:0!important;border-radius:50%!important;
+ display:flex;align-items:center;justify-content:center;
+ background:rgba(0,0,0,.72);font-size:19px;font-weight:900;color:#fff;
+}
+.actionDock .dockItem.cooling{filter:grayscale(.75)!important}
+@media(max-width:600px){
+ .actionDock{width:230px!important;height:175px!important;bottom:20px!important}
+ .actionDock .dockMain,.actionDock .dockItem{width:72px!important;height:72px!important;left:79px!important;top:82px!important}
+ .actionDock.expanded .dockItem.sabotageItem{left:0!important;top:82px!important}
+ .actionDock.expanded .dockItem.deathItem{left:158px!important;top:82px!important}
+ .actionDock.expanded .dockItem.discoveryItem{left:79px!important;top:0!important}
+ .actionDock .dockIcon{width:41px;height:41px}
+ .actionDock .dockLabel{font-size:11px}
+}
+.trialAnnounceStage{position:fixed!important;inset:0!important;z-index:500!important;display:flex!important;align-items:center!important;justify-content:center!important;background:radial-gradient(circle,#260006,#000 70%)!important;text-align:center!important}
+.trialAnnounceStage .trialImage{font-size:100px;margin-bottom:18px;filter:grayscale(1) sepia(1) saturate(7) hue-rotate(320deg);text-shadow:0 0 35px #f00000}
+.trialAnnounceStage h1{font-size:clamp(34px,7vw,68px);line-height:1.2;margin:0;text-shadow:0 0 30px #f00000}
+.trialAnnounceStage .subtext{margin-top:14px;font-size:clamp(17px,3vw,27px);color:#aaa}
 </style>
 </head>
 <body>
@@ -1442,23 +1520,30 @@ function closeActionDock(){
  const d=el("actionDock");
  if(d)d.classList.remove("expanded");
 }
+async function missionActionIcon(type){
+ if(type==="discovery") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M12 51c3-8 7-12 13-15 1-10 7-18 16-20 9-2 16 3 17 11 1 8-4 15-11 18-7 3-13 3-19 2-5 4-9 6-16 4z"/><circle cx="24" cy="25" r="3" fill="#000"/><path d="M20 33c5 4 11 5 17 3" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/></svg>';
+ if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M25 7h14l2 6 6 3 6-2 7 12-5 4v7l5 4-7 12-6-2-6 3-2 6H25l-2-6-6-3-6 2-7-12 5-4v-7l-5-4 7-12 6 2 6-3 2-6zm7 16a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/></svg><span class="dockBan">╱</span>';
+ if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M19 25c0-11 6-17 13-17s13 6 13 17v17c0 7-6 13-13 13s-13-6-13-13V25zm-7 8h8v6h-8v-6zm32 0h8v6h-8v-6z"/><circle cx="27" cy="30" r="3" fill="#000"/><circle cx="37" cy="30" r="3" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 11l9 9" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M50 20l-13 14" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
+ return "";
+}
 async function renderActionDock(g,p){
  const d=el("actionDock");
  if(!d)return;
  if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";return;}
-
+ const discovery=missionActionIcon("discovery");
  if(roleIsWolf(p.role)){
    const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
    const now=Date.now(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
    const remain=active>0?active:cd;
    d.innerHTML=
-    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">☠️<span class="chev">◆</span></button>'+
-    '<button class="dockItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">☠️</button>'+
-    '<button class="dockItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">💀</button>'+
-    '<button id="dockSabotage" class="dockItem danger '+(remain>0?"cooling":"")+'" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
-      '🛑<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>';
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'</button>'+
+    '<button class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
+      missionActionIcon("sabotage")+'<span class="dockLabel">사보타지</span>'+
+      '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
+    '<button class="dockItem deathItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
+    '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">시체발견</span></button>';
  }else{
-   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">☠️</button>';
+   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'</button><span class="dockLabel" style="position:absolute;left:50%;top:174px;transform:translateX(-50%);color:#fff">시체발견</span>';
  }
 }
 
@@ -1862,10 +1947,8 @@ async function getLatestDeadSheep(round){
 
 async function renderTrial(p,g){
  stopAllTimers();
- const announceKey="trial-announcement-"+g.current_round+"-"+String(g.dead_sheep_location||"")+"-"+String(g.notice||"");
- if(localStorage.getItem(announceKey)!=="1"){
-   localStorage.setItem(announceKey,"1");
-   el("trialAnnounceText").textContent="곧 늑대 재판이 시작됩니다. 모두 그래이스홀로 이동해 주십쇼.";
+ if(window.__trialAnnouncementRound!==Number(g.current_round)){
+   window.__trialAnnouncementRound=Number(g.current_round);
    await showScreen("trialAnnouncement");
    await new Promise(r=>setTimeout(r,3000));
  }
@@ -2026,7 +2109,7 @@ async function renderAdmin(){
   gameBtn.disabled=!g.ready || !p.length || !p.filter(x=>x.status==="ALIVE").every(x=>x.card_selected) || g.phase!=="ROLE_REVEAL";
   if(skipBtn)skipBtn.disabled=!g.ready || !["LOBBY","ROLE_SELECT","ROLE_REVEAL"].includes(String(g.phase));
   if(nightBtn)nightBtn.disabled=!["PLAY","INVESTIGATION","TRIAL"].includes(String(g.phase));
-  if(trialBtn)trialBtn.disabled=g.phase!=="INVESTIGATION";
+  if(trialBtn)trialBtn.disabled=false;
   el("prepStatus").textContent=g.ready?("준비완료 · "+p.filter(x=>x.status==="ALIVE").length+"명 확정 · 역할 선정 상태: "+(p.filter(x=>x.status==="ALIVE").every(x=>x.card_selected)?"완료":"진행 중")):"아직 참가 인원이 확정되지 않았습니다.";
   showScreen("admin");
  }catch(e){console.error(e);showError("playerList",e.message||String(e));}
@@ -2202,11 +2285,14 @@ async function nextRound(){
 }
 async function startTrial(){
  const g=await settings();
- if(g.phase!=="INVESTIGATION"){toast("재판 시작은 현장 조사 중에만 가능합니다.");return;}
+ if(["LOBBY","ROLE_INTRO","ROLE_SELECT","ROLE_REVEAL","COUNTDOWN"].includes(String(g.phase))){
+   toast("게임이 아직 시작되지 않았습니다.");return;
+ }
  stopAllAdminBgm();
- await set({phase:"TRIAL",notice:"재판 시작 - 모두 그레이스홀로 모여주십시오."});
+ await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
  await startAdminLoopBgm("trialBgm");
- toast("재판 시작 알림을 전송했습니다.");await renderAdmin();
+ toast("재판 시작 알림을 전송했습니다.");
+ await renderAdmin();
 }
 async function resetGame(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;
