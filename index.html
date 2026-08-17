@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v164</title>
+<title>늑대게임 v165</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v164</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v165</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -615,7 +615,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
      <h1 id="trialDeadName">죽은 양</h1>
    </div>
    <div class="card" style="max-width:900px;margin:0 auto">
-     <h2>플레이어 활성 미션 및 클리어 현황</h2>
+     <h2>나의 미션 클리어 현황</h2>
      <p class="muted">이번 재판에서 현재 플레이어에게 활성화된 미션의 진행 상태입니다.</p>
      <div id="trialMissionList" class="trialMissionList"></div>
    </div>
@@ -2377,7 +2377,7 @@ async function renderTrial(p,g){
 
  const mine=await getRoundMissionLocations(g.current_round,true,p.id);
  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
- const all=await activeMissionLocations();
+ const all=await locations();
  const byId=new Map(all.map(x=>[String(x.id),x]));
  const locations=(mine||[]).map(x=>byId.get(String(x.id))||x);
  el("trialMissionList").innerHTML=locations.length?locations.map(loc=>{
@@ -2387,7 +2387,7 @@ async function renderTrial(p,g){
      <div class="muted">${String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐"}</div>
      <div class="state">${done?"✓ 미션 클리어":"○ 미션 미클리어"}</div>
    </div>`;
- }).join(""):'<div class="muted">활성화된 개인 미션이 없습니다.</div>';
+ }).join(""):'<div class="muted">등록된 미션 장소가 없습니다.</div>';
  showScreen("trial");
 }
 async function renderPlayer(){
