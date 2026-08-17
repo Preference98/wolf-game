@@ -544,6 +544,8 @@ let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
 let lastRealtimePhase=null,lastRealtimeRound=null;
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
+const roleIsWolf=r=>String(r||"").toUpperCase()==="WOLF";
+const roleIsSheep=r=>String(r||"").toUpperCase()==="SHEEP";
 
 // 공통 타이머 정리 함수
 // 새로고침/Realtime 상태 변경으로 route()가 다시 실행될 때도
@@ -1566,8 +1568,7 @@ async function renderSabotageStatus(g,p){
 async function openWolfDeathList(){
  wolfDeathProcessActive=true;
  const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||p.role!=="WOLF"){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
- const attempt=(await db.from("wolf_attempts").select("id").eq("game_round",g.current_round).limit(1)).data||[]; if(attempt.length){toast("이번 라운드의 사망 처리는 이미 사용되었습니다.");return;}
+ if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||!roleIsWolf(p.role)){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
  const players=(await db.from("players").select("id,name,role").eq("status","ALIVE").eq("role","SHEEP").order("name")).data||[];
  if(!players.length){toast("현재 선택할 수 있는 생존 플레이어가 없습니다.");return;}
  const html='<div class="deathConfirmList">'+
@@ -1588,9 +1589,9 @@ function confirmWolfDeath(id,name){
 async function sendDeathConfirmation(victimId,victimName){
  closeOverlay();
  const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||p.role!=="WOLF"){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
+ if(!p||p.status!=="ALIVE"||!(["PLAY","NIGHT"].includes(g.phase))||!roleIsWolf(p.role)){toast("현재는 늑대만 사망 처리를 할 수 있습니다.");return;}
  const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
- if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
+ if(!victim||!roleIsSheep(victim.role)||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
  const attempt=await db.rpc("create_wolf_attempt",{
    p_game_round:g.current_round,
    p_wolf_player_id:String(p.id),
@@ -1601,12 +1602,15 @@ async function sendDeathConfirmation(victimId,victimName){
    toast("사망 처리 기록 실패: "+(attempt.error.message||"알 수 없는 오류"));
    return;
  }
- const r=await db.from("notifications").insert({
-   message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.",
-   target_player:victim.id,
-   notification_type:"DEATH_CONFIRM"
+ const r=await db.rpc("create_death_confirmation_notification",{
+   p_target_player_id:String(victim.id),
+   p_message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요."
  });
- if(r.error){toast("사망 확인 요청 실패: "+r.error.message);return;}
+ if(r.error){
+   console.error("create_death_confirmation_notification 오류:",r.error);
+   toast("사망 확인 요청 실패: "+r.error.message);
+   return;
+ }
  toast(victim.name+" 양에게 사망 확인 요청을 보냈습니다.");
  wolfDeathProcessActive=false;
 }
@@ -1699,6 +1703,29 @@ async function deadSheepFound(location){
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
 }
 
+async function renderInvestigation(p,g){
+  stopMissionTimer();
+  stopRoundTimer();
+  const started=Date.parse(g.investigation_started_at||"");
+  const duration=Math.max(1,Number(rule(g,"investigation_minutes"))||5)*60*1000;
+  const end=started?started+duration:Date.now()+duration;
+  el("investigationNotice").textContent=g.notice||"죽은 양이 발견되었습니다. 현장을 조사하십시오.";
+  el("myCompletedMissions").innerHTML="";
+  showScreen("investigation");
+  if(investigationTimer)clearInterval(investigationTimer);
+  const tick=()=>{
+    const remain=Math.max(0,end-Date.now());
+    const sec=Math.ceil(remain/1000);
+    const mm=String(Math.floor(sec/60)).padStart(2,"0");
+    const ss=String(sec%60).padStart(2,"0");
+    el("investigationTimer").textContent=mm+":"+ss;
+    if(remain<=0){
+      clearInterval(investigationTimer);investigationTimer=null;
+    }
+  };
+  tick();
+  investigationTimer=setInterval(tick,250);
+}
 async function renderPlayer(){
  if(playerRenderBusy){playerRenderQueued=true;return;}
  playerRenderBusy=true;
@@ -2361,9 +2388,11 @@ function startSabotageUiWatcher(){
    const prevActive=prev?prev.endsWith("|ACTIVE"):null;
    const nextSig=sig+"|"+(active?"ACTIVE":"INACTIVE");
    if(prev && prevActive!==active){
-     await renderPlayer();
-   }else if(prev && sig!==prev.split("|ACTIVE")[0] && !active){
-     await renderPlayer();
+     // 메인 게임 화면에 있을 때만 다시 그립니다.
+     // 미션/사보타지 메뉴를 열어둔 상태에서 쿨타임 숫자가 매초 바뀐다고
+     // renderPlayer()를 호출하면 해당 메뉴가 강제로 닫힙니다.
+     const activeScreen=document.querySelector(".screen.active")?.id||"";
+     if(activeScreen==="player") await renderPlayer();
    }
    sabotageUiLastSignature=nextSig;
   }catch(e){console.warn("사보타지 UI 갱신 오류:",e);}
@@ -2560,7 +2589,11 @@ function realtime(){
    if(n.target_player && n.target_player!==playerId)return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="DEATH_CONFIRM"){
-     showDeathConfirmation(n);
+     const nid=String(n.id);
+     if(!seenDeathNotificationIds.has(nid)){
+       seenDeathNotificationIds.add(nid);
+       showDeathConfirmation(n);
+     }
      return;
    }
    openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
