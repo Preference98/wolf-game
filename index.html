@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v141</title>
+<title>늑대게임 v142</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -509,7 +509,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v141</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v142</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -688,7 +688,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <div class="card"><h2>시간 설정</h2>
 <label class="small">한 라운드 진행 시간 (분)</label><input id="roundMinutes" type="number" min="1" max="180" step="1" value="15" inputmode="numeric" placeholder="예: 15">
 <label class="small">죽은 양 발견 후 현장 조사 시간 (분)</label><input id="investigationMinutes" type="number" min="1" max="60" step="1" value="5" inputmode="numeric" placeholder="예: 5">
-<button onclick="saveTiming()">시간 설정 저장</button></div>
+<div class="row" style="align-items:center;gap:10px"><button onclick="saveTiming()">시간 설정 저장</button><span id="timingSaveStatus" class="small muted"></span></div></div>
 
 <div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">시체발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div><p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 장소 정보는 SQL에서 직접 수정하며, 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="locationList"></div></div>
 <div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">미션 장소</h2><button class="secondary" id="refreshMissionLocationsBtn" onclick="refreshMissionLocations()">새로고침</button></div><p class="muted">미션 장소는 10개 고정입니다. 장소 이름·컨셉·NFC 값은 SQL에서 직접 수정합니다. 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p><div id="missionLocationList"></div></div>
@@ -2449,12 +2449,28 @@ async function finishRound(winner){
 }
 async function forceSheepWin(){await finishRound("SHEEP");}
 async function forceWolfWin(){await finishRound("WOLF");}
+const REQUIRED_GAME_SETTINGS_COLUMNS=[
+ "wolf_count","missions_per_sheep","sabotage_location_count","sabotage_duration_seconds","sabotage_cooldown_seconds",
+ "night_duration_seconds","night_gauge_penalty","night_round_penalty_minutes","round_duration_minutes","investigation_duration_minutes",
+ "current_round","phase","ready","started","roles_selected","winner","notice","nfc_enabled","dead_sheep_found","dead_sheep_location",
+ "investigation_started_at","round_started_at","night_started_at","round_time_penalty_total","mission_gauge_penalty_total"
+];
+async function checkGameSettingsSchema(){
+ const r=await db.from("game_settings").select(REQUIRED_GAME_SETTINGS_COLUMNS.join(",")).eq("id",1).maybeSingle();
+ if(!r.error)return true;
+ const msg=String(r.error.message||"");
+ if(/column .* does not exist|schema cache/i.test(msg)){
+   throw new Error("game_settings 스키마가 현재 게임 코드와 맞지 않습니다. v142_game_settings_migration.sql을 먼저 실행해 주세요. 원본 오류: "+msg);
+ }
+ throw new Error("game_settings 확인 실패: "+msg);
+}
 async function saveGameRules(){
  const g=await settings();
  if(g.phase!=="LOBBY"){toast("게임 규칙은 로비에서만 변경할 수 있습니다.");return;}
  const btn=document.querySelector('#admin button[onclick="saveGameRules()"]');
  const done=busy(btn,"저장 중...");
  try{
+   await checkGameSettingsSchema();
    const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
    const wolfCount=Math.floor(Number(el("wolfCount").value));
    const perSheep=Math.floor(Number(el("missionsPerSheep").value));
@@ -2471,8 +2487,8 @@ async function saveGameRules(){
    if(!Number.isInteger(perSheep)||perSheep<1||perSheep>10){
      toast("양 1인당 미션 수는 1~10개여야 합니다.");return;
    }
-   if(!Number.isInteger(sabotageCount)||sabotageCount<1||sabotageCount>perSheep){
-     toast("사보타지 장소 수는 1~양 1인당 미션 수 이하여야 합니다.");return;
+   if(!Number.isInteger(sabotageCount)||sabotageCount<1||sabotageCount>10){
+     toast("사보타지 장소 수는 1~10개여야 합니다.");return;
    }
    if(!Number.isInteger(sabotageDuration)||sabotageDuration<5||sabotageDuration>600){
      toast("사보타지 방해 지속 시간은 5~600초여야 합니다.");return;
@@ -2502,17 +2518,21 @@ async function saveGameRules(){
    };
    const r=await db.from("game_settings").update(payload).eq("id",1);
    if(r.error){
-     if(String(r.error.message||"").includes("missions_per_sheep")){
-       throw new Error("게임 규칙 저장 실패: game_settings에 missions_per_sheep 컬럼이 없습니다. 제공된 v141_game_settings_migration.sql을 Supabase SQL Editor에서 먼저 실행해 주세요.");
+     const msg=String(r.error.message||"");
+     if(/column .* does not exist|schema cache/i.test(msg)){
+       throw new Error("게임 규칙 저장 실패: game_settings 테이블의 게임 규칙 컬럼이 DB에 모두 준비되지 않았습니다. 제공된 v142_game_settings_migration.sql을 Supabase SQL Editor에서 실행한 뒤 다시 저장해 주세요. 원본 오류: "+msg);
      }
-     throw new Error("게임 규칙 저장 실패: "+r.error.message);
+     throw new Error("게임 규칙 저장 실패: "+msg);
    }
 
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
    if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
-   if(Number(verify.data.wolf_count)!==wolfCount){
-     throw new Error("저장 확인 실패: DB의 늑대 수가 "+verify.data.wolf_count+"로 확인되었습니다. 입력값 "+wolfCount+"가 저장되지 않았습니다.");
+   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty};
+   for(const [key,want] of Object.entries(verifyPairs)){
+     if(Number(verify.data[key])!==Number(want)){
+       throw new Error("저장 확인 실패: DB의 "+key+" 값이 "+verify.data[key]+"로 확인되었습니다. 입력값 "+want+"가 저장되지 않았습니다.");
+     }
    }
 
    el("rulesSaveStatus").textContent="✓ 저장 완료 ("+new Date().toLocaleTimeString("ko-KR")+")";
@@ -2545,8 +2565,9 @@ async function saveTiming(){
   if(!Number.isInteger(round)||round<1||round>180){toast("라운드 진행 시간은 1~180분의 정수로 입력해 주세요.");return;}
   if(!Number.isInteger(investigation)||investigation<1||investigation>60){toast("현장 조사 시간은 1~60분의 정수로 입력해 주세요.");return;}
   await set({round_duration_minutes:round,investigation_duration_minutes:investigation});
+  el("timingSaveStatus").textContent="✓ 저장 완료 ("+new Date().toLocaleTimeString("ko-KR")+")";
   toast("시간 설정이 저장되었습니다.");await renderAdmin();
- }catch(e){toast("시간 설정 저장 실패: "+e.message);}finally{done();}
+ }catch(e){el("timingSaveStatus").textContent="✕ 저장 실패";toast("시간 설정 저장 실패: "+e.message);}finally{done();}
 }
 async function addMission(){
  const locationId=el("newMissionLocation").value;
