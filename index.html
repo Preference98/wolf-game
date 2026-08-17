@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v146</title>
+<title>늑대게임 v148</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v147</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v148</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1036,7 +1036,25 @@ async function getPlayerCompletedLocationIds(round,playerIdValue){
 }
 
 async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
-async function checkMissionGaugeAndWin(round){const gauge=await getMissionGauge(round);if(gauge.sheepCount===1)return false;if(gauge.target>0&&gauge.completed>=gauge.target){const r=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice:"미션 게이지가 100%가 되어 양이 승리했습니다."}).eq("id",1).eq("phase","PLAY");return !r.error;}return false;}
+async function checkWolfVictory(round){
+ const r=await db.from("players").select("id").eq("role","SHEEP").eq("status","ALIVE");
+ if(r.error){console.warn("늑대 승리 조건 확인 실패:",r.error.message);return false;}
+ if((r.data||[]).length>0)return false;
+ const u=await db.from("game_settings").update({phase:"FINISHED",winner:"WOLF",started:false,notice:"생존한 양이 없어 늑대가 승리했습니다."}).eq("id",1).eq("phase","PLAY");
+ if(u.error){console.error("늑대 승리 상태 저장 실패:",u.error.message);return false;}
+ return true;
+}
+
+async function checkMissionGaugeAndWin(round){
+ if(await checkWolfVictory(round))return true;
+ const gauge=await getMissionGauge(round);
+ if(gauge.sheepCount<=0)return true;
+ if(gauge.target>0&&gauge.completed>=gauge.target){
+   const r=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice:"미션 게이지가 100%가 되어 양이 승리했습니다."}).eq("id",1).eq("phase","PLAY");
+   return !r.error;
+ }
+ return false;
+}
 async function chooseRegisteredPuzzle(location){
   let pool=[];
 
@@ -1241,10 +1259,12 @@ async function routeCore(){
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
      return;
    case "PLAY":
+     if(document.querySelector("#sabotage.screen.active"))return;
      if(sabotageInterruptUntil>Date.now()){
        if(!document.querySelector("#player.screen.active"))await showScreen("player");
        return;
      }
+     if(await checkWolfVictory(g.current_round)){await renderVictory("WOLF");return;}
      await renderPlayer();return;
    default:
      stopAllTimers();await renderLobby(p,g);return;
@@ -1500,6 +1520,7 @@ async function renderNight(p,g){
  }
 el("nightSheepView").style.display=isWolf?"none":"flex";el("nightWolfView").style.display=isWolf?"block":"none";const timerEl=isWolf?el("nightWolfTimer"):el("nightSheepTimer");if(isWolf)el("nightWolfAction").innerHTML='<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button><p class="small muted">이번 라운드의 사망 처리는 최대 1명입니다.</p>';showScreen("night");if(window.__nightLocalTimer)clearInterval(window.__nightLocalTimer);const tick=()=>{const left=Math.max(0,endMs-Date.now());if(timerEl)timerEl.textContent=formatRoundTime(left);if(left<=0){clearInterval(window.__nightLocalTimer);window.__nightLocalTimer=null;finishNight().catch(e=>console.error("낮 전환 실패:",e));}};tick();window.__nightLocalTimer=setInterval(tick,250);}
 async function renderPlayerCore(){
+  if(document.querySelector("#sabotage.screen.active"))return;
   stopGameStartBgm();
   stopMissionTimer();
   const p=await me(),g=await settings();
@@ -2097,6 +2118,9 @@ async function confirmDeathByPlayer(notificationId){
    toast("사망 처리 실패: "+r.error.message);
    return;
  }
+
+ // 마지막 양이 사망하면 즉시 늑대 승리 상태로 전환
+ await checkWolfVictory((await settings()).current_round);
 
  const attemptRound=(await settings()).current_round;
  const wr=await db.rpc("complete_wolf_attempt",{
@@ -3256,10 +3280,15 @@ function realtime(){
    },350);
  }).subscribe();
 
- db.channel("wg-v7-players").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:"id=eq."+playerId},payload=>{
+ db.channel("wg-v7-players").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:"id=eq."+playerId},async payload=>{
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
    const p=payload.new||{};
    if(p.status!=="ALIVE"){
+     // 마지막 양의 사망이 확정되는 즉시 늑대 승리 상태를 기록합니다.
+     try{
+       const g=await settings();
+       if(g.phase==="PLAY" && p.role==="SHEEP") await checkWolfVictory(g.current_round);
+     }catch(e){console.warn("사망 직후 늑대 승리 판정 오류:",e);}
      // 사망확인 완료 직후 Supabase UPDATE가 발생하면서 이 핸들러가
      // 기존 탈락 화면을 강제로 띄우던 것이 원인이었습니다.
      // 닫기 버튼을 누르기 전에는 사망 경고 화면을 유지합니다.
@@ -3273,6 +3302,17 @@ function realtime(){
      closeOverlay();
      toast("탈락 처리되었습니다.");
    }
+ }).subscribe();
+
+ db.channel("wg-v7-player-status-all").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players"},async payload=>{
+   try{
+     if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+     const g=await settings();
+     if(g.phase!=="PLAY")return;
+     const row=payload.new||{};
+     if(row.role!=="SHEEP"||row.status!=="DEAD")return;
+     if(await checkWolfVictory(g.current_round))await renderVictory("WOLF");
+   }catch(e){console.warn("양 생존자 수 승리 판정 오류:",e);}
  }).subscribe();
 
  db.channel("wg-v7-sabotage").on("postgres_changes",{event:"INSERT",schema:"public",table:"sabotage_events"},async payload=>{
