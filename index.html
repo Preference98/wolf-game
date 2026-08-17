@@ -719,57 +719,19 @@ function randomMissionTypeForLocation(location){
 }
 async function ensureRoundMissionSetup(round){
  const g=await settings();
- const allR=await db.from("mission_locations").select("*").order("sort_order").order("id");
- if(allR.error)throw new Error("미션 장소 목록 조회 실패: "+allR.error.message);
- if((allR.data||[]).length!==10)throw new Error("전체 미션 장소는 정확히 10개여야 합니다. 현재 "+(allR.data||[]).length+"개입니다.");
  const activeCount=Math.max(1,Math.min(10,Math.floor(rule(g,"missions_per_sheep"))));
- const pr=await db.from("players").select("id,status").eq("status","ALIVE");
- if(pr.error)throw new Error("플레이어 목록 조회 실패: "+pr.error.message);
- const players=pr.data||[];
- const ar=await db.from("round_player_mission_locations").select("*").eq("game_round",round).order("sort_order").order("id");
- if(ar.error)throw new Error("개인별 미션 설정 조회 실패: "+ar.error.message);
- let assignments=ar.data||[];
- const validPlayers=new Set(players.map(x=>String(x.id)));
- const validLocations=new Set((allR.data||[]).map(x=>String(x.id)));
- const invalid=assignments.filter(x=>!validPlayers.has(String(x.player_id))||!validLocations.has(String(x.mission_location_id)));
- if(invalid.length){
-   const ids=invalid.map(x=>x.id).filter(x=>x!=null);
-   const dr=await db.from("round_player_mission_locations").delete().in("id",ids);
-   if(dr.error)throw new Error("잘못된 개인별 미션 연결 정리 실패: "+dr.error.message);
-   assignments=assignments.filter(x=>!ids.includes(x.id));
- }
- for(const player of players){
-   let mine=assignments.filter(x=>String(x.player_id)===String(player.id));
-   const seen=new Set(),duplicates=[];
-   mine=mine.filter(x=>{const k=String(x.mission_location_id);if(seen.has(k)){duplicates.push(x.id);return false;}seen.add(k);return true;});
-   if(duplicates.length){
-     const dr=await db.from("round_player_mission_locations").delete().in("id",duplicates);
-     if(dr.error)throw new Error("중복 개인별 미션 연결 정리 실패: "+dr.error.message);
-     assignments=assignments.filter(x=>!duplicates.includes(x.id));
-   }
-   if(mine.length<activeCount){
-     const used=new Set(mine.map(x=>String(x.mission_location_id)));
-     const candidates=(allR.data||[]).filter(x=>!used.has(String(x.id)));
-     for(let i=candidates.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]];}
-     const add=candidates.slice(0,activeCount-mine.length).map((loc,i)=>({game_round:round,player_id:player.id,mission_location_id:loc.id,sort_order:mine.length+i}));
-     if(add.length){
-       const ins=await db.from("round_player_mission_locations")
-       .upsert(add,{onConflict:"game_round,player_id,mission_location_id",ignoreDuplicates:true})
-       .select();
-       if(ins.error)throw new Error("개인별 미션 장소 생성 실패: "+ins.error.message);
-       assignments=assignments.concat(ins.data||[]);
-     }
-   }else if(mine.length>activeCount){
-     const extras=mine.slice(activeCount).map(x=>x.id).filter(x=>x!=null);
-     if(extras.length){
-       const dr=await db.from("round_player_mission_locations").delete().in("id",extras);
-       if(dr.error)throw new Error("초과 개인별 미션 장소 정리 실패: "+dr.error.message);
-       assignments=assignments.filter(x=>!extras.includes(x.id));
-     }
-   }
- }
- return assignments;
+ const result=await db.rpc("setup_round_player_mission_locations",{
+   p_game_round:round,
+   p_active_count:activeCount
+ });
+ if(result.error)throw new Error("개인별 미션 장소 생성 실패: "+result.error.message);
+ return await db.from("round_player_mission_locations")
+   .select("*").eq("game_round",round).order("player_id").order("sort_order").then(r=>{
+     if(r.error)throw new Error("개인별 미션 장소 확인 실패: "+r.error.message);
+     return r.data||[];
+   });
 }
+
 async function getRoundMissionLocations(round,createIfMissing=true,playerId=null){
  if(createIfMissing)await ensureRoundMissionSetup(round);
  let q=db.from("round_player_mission_locations").select("*").eq("game_round",round);
@@ -1182,15 +1144,19 @@ async function renderPlayer(){
   const p=await me(),g=await settings();
 
   if(!p||p.status!=="ALIVE"){await route();return;}
+  if(g.phase==="LOBBY"||g.phase==="ROLE_SELECT"||g.phase==="COUNTDOWN"){
+    await renderLobby(p,g);
+    return;
+  }
   if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
   if(g.phase==="TRIAL"){showTrialLock();return;}
   if(g.phase==="NIGHT"){await renderNight(p,g);return;}
 
-  let locs=[],completedLocations=new Set();
+  let locs=[],completedLocations=new Set(),sabotaged=new Set();
   try{
     locs=await getRoundMissionLocations(g.current_round,true,p.id);
     completedLocations=await getPlayerCompletedLocationIds(g.current_round,p.id);
-    const sabotaged=await getSabotagedLocationIds(g.current_round);
+    sabotaged=await getSabotagedLocationIds(g.current_round);
     const wolfVisual=window.__wolfGameBridge?.getWolfMissionLocationCompletions?.(g.current_round)||new Set();
     wolfVisual.forEach(id=>completedLocations.add(String(id)));
   }catch(e){
