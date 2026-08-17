@@ -361,12 +361,12 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </section>
 
 <section id="lobby" class="screen">
-<div class="card"><div class="row"><h1>대기실</h1><span class="pill" id="role"></span></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
+<div class="card"><div class="row"><h1 style="flex:1">대기실</h1><span class="pill" id="role"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
 </section>
 
 <section id="player" class="screen">
 <div id="noticeBox"></div>
-<div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle">양 생존 중...</h1><span class="pill" id="round"></span></div>
+<div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle" style="flex:1">양 생존 중...</h1><span class="pill" id="round"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button>
 <div id="wolfDeathAction" style="margin-top:10px"></div><p class="small muted">※ 사망확인은 늑대가 양을 공격한 경우에만 사용합니다.</p></div>
@@ -912,6 +912,18 @@ function adminLogout(){
  const nameEl=el("name");if(nameEl)nameEl.value="";
  const statusEl=el("loginStatus");if(statusEl)statusEl.innerHTML="";
  toast("관리자에서 로그아웃했습니다.");
+}
+
+function playerLogout(){
+ localStorage.removeItem("wolf_game_player_v7");
+ playerId=null;
+ stopAllTimers();
+ stopAllAdminBgm();
+ if(typeof stopAllAudio==="function")stopAllAudio();
+ showScreen("login");
+ const nameEl=el("name");if(nameEl)nameEl.value="";
+ const statusEl=el("loginStatus");if(statusEl)statusEl.innerHTML="";
+ toast("플레이어에서 로그아웃했습니다.");
 }
 
 async function join(){
@@ -2109,7 +2121,7 @@ window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.s
 window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
-window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;window.refreshDeathLocations=refreshDeathLocations;window.refreshPlayers=refreshPlayers;
+window.adminLogout=adminLogout;window.missions=missions;window.refreshMissionLocations=refreshMissionLocations;window.refreshDeathLocations=refreshDeathLocations;window.refreshPlayers=refreshPlayers;window.playerLogout=playerLogout;
 boot();
   // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
   window.__wolfGameBridge={
