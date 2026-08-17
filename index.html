@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v160</title>
+<title>늑대게임 v161</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v160</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v161</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1559,8 +1559,7 @@ async function renderPlayerCore(){
 
   const box=el("missions");
   const sabotageState=await getSabotageState(g.current_round);
-  const sabotageEnd=Date.parse(sabotageState.latest?.ends_at||"");
-  const sabotageActive=sabotageEnd>Date.now();
+  const sabotageEnds=sabotageState.activeLocationEnds||new Map();
   const activeIds=new Set(locs.map(x=>String(x.id)));
   box.className="missionBoard";
   box.innerHTML="";
@@ -1573,7 +1572,9 @@ async function renderPlayerCore(){
     const label=String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
     let cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
     let status=done?"✓ 미션 완료":sabotagedHere?"⚠ 사보타지 중":active?"● 활성 미션":"○ 비활성 미션";
-    const sabotageSeconds=sabotagedHere&&sabotageActive?Math.ceil((sabotageEnd-Date.now())/1000):0;
+    const sabotageEnd=Number(sabotageEnds.get(id)||0);
+    const sabotageSeconds=sabotagedHere&&sabotageEnd>Date.now()
+      ?Math.ceil((sabotageEnd-Date.now())/1000):0;
     let action="";
     if(!done&&!sabotagedHere&&active){
       action=nfcOk
@@ -1779,7 +1780,21 @@ async function getSabotageState(round){
 
  const activeEvents=parsed.filter(x=>x.activeUntil>now);
  const activeLocationIds=new Set();
- for(const x of activeEvents)for(const id of x.locationIds)activeLocationIds.add(String(id));
+ const activeLocationEnds=new Map();
+
+ // ★ 각 사보타지 이벤트의 ends_at을 장소별로 독립 보존합니다.
+ // 같은 장소가 중복되는 경우에는 가장 늦게 끝나는 이벤트를 사용하지만,
+ // 서로 다른 장소의 타이머는 절대로 합치지 않습니다.
+ for(const x of activeEvents){
+   for(const id of x.locationIds){
+     const key=String(id);
+     activeLocationIds.add(key);
+     activeLocationEnds.set(key,Math.max(
+       Number(activeLocationEnds.get(key)||0),
+       Number(x.activeUntil||0)
+     ));
+   }
+ }
 
  // 쿨타임은 가장 최근에 실행된 사보타지의 시작 시각 + 현재 설정값.
  // 이전 사보타지의 지속시간이나 ends_at은 쿨타임에 관여하지 않습니다.
@@ -1799,6 +1814,7 @@ async function getSabotageState(round){
    active:activeEvents.length>0,
    activeUntil,
    activeLocationIds,
+   activeLocationEnds,
    cooldownUntil,
    durationSeconds:configuredDuration,
    cooldownSeconds:configuredCooldown,
@@ -3167,10 +3183,14 @@ function startSabotageUiWatcher(){
    const cooldownRemain=Math.max(0,st.cooldownUntil-now);
    const active=activeRemain>0;
    const cooldownTotal=Math.max(1000,Number(st.cooldownSeconds||60)*1000);
+   const locationEnds=st.activeLocationEnds||new Map();
 
-   // 장소 사보타지 지속시간 표시: duration만 사용
+   // ★ 장소별 지속시간을 각 이벤트의 ends_at으로 독립 갱신합니다.
    document.querySelectorAll(".sabotageCountdown").forEach(x=>{
-     x.textContent=activeRemain>0?Math.ceil(activeRemain/1000)+"초":"";
+     const locationId=String(x.getAttribute("data-sabotage-countdown")||"");
+     const end=Number(locationEnds.get(locationId)||0);
+     const remain=Math.max(0,end-now);
+     x.textContent=remain>0?Math.ceil(remain/1000)+"초":"사보타지 종료";
    });
 
    // 늑대 사보타지 버튼: cooldown만 사용
