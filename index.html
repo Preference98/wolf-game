@@ -450,7 +450,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </section>
 
 <section id="admin" class="screen">
-<div class="card"><h1>관리자 대시보드</h1><div id="stats" class="grid"></div></div>
+<div class="card"><div class="row" style="align-items:center;gap:10px"><h1 style="margin:0;flex:1">관리자 대시보드</h1><button class="secondary" onclick="adminLogout()">로그아웃</button></div><div id="stats" class="grid"></div></div>
 
 <div class="card"><h2>게임 준비 및 진행</h2><div class="grid">
 <button id="readyBtn" onclick="confirmAction('준비 완료','현재 접속한 플레이어 수로 이번 라운드 인원을 확정하시겠습니까?','markReady')">준비완료</button>
@@ -458,7 +458,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <button id="gameStartBtn" onclick="confirmAction('게임 시작','역할 선정이 완료되었습니다. 게임을 시작하시겠습니까?','startGame')">게임시작</button>
 <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
 <button onclick="confirmAction('재판 시작','현재 현장 조사 중이라면 즉시 재판을 시작합니다. 재판 시작 알림을 보내시겠습니까?','startTrial')">재판 시작</button>
-<button class="danger" onclick="confirmAction('게임 초기화','게임 상태를 초기화하시겠습니까?','resetGame')">게임 초기화</button>
+<button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
 <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
 <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
 </div><div id="prepStatus" class="notice" style="margin-top:10px"></div></div>
@@ -890,12 +890,31 @@ async function getOrCreateRoundMission(location,round){
 }
 
 async function allMissions(){const r=await db.from("missions").select("*").order("id");if(r.error)throw new Error("미션 목록 오류\\n"+r.error.message);return r.data||[];}
-async function activeMissionLocations(){const r=await db.from("mission_locations").select("*").order("sort_order").order("id");if(r.error)throw new Error("미션 장소 오류\\n"+r.error.message);return r.data||[];}
+async function missions(){return await allMissions();}
+async function activeMissionLocations(){
+ const r=await db.from("mission_locations").select("*").order("sort_order").order("id");
+ if(r.error)throw new Error("미션 장소 오류\n"+r.error.message);
+ const rows=r.data||[];
+ if(rows.length!==10)throw new Error("고정 미션 장소 오류: DB에 미션 장소가 정확히 10개 있어야 합니다. 현재 "+rows.length+"개입니다.");
+ return rows;
+}
+
 async function getMissionLocation(id){const r=await db.from("mission_locations").select("*").eq("id",id).maybeSingle();if(r.error)throw new Error(r.error.message);return r.data;}
 
 async function comps(round){const r=await db.from("mission_completions").select("*").eq("game_round",round);if(r.error)throw new Error("미션 완료 상태 오류\n"+r.error.message);return r.data||[];}
 async function locations(){const r=await db.from("game_locations").select("*").eq("active",true).order("sort_order").order("id");if(r.error)throw new Error("장소 불러오기 오류\n"+r.error.message);return r.data||[];}
 async function set(v){const r=await db.from("game_settings").update(v).eq("id",1);if(r.error)throw new Error(r.error.message);}
+
+function adminLogout(){
+ localStorage.removeItem("wolf_game_admin_v7");
+ playerId=null;
+ stopAllTimers();
+ stopAllAdminBgm();
+ showScreen("login");
+ const nameEl=el("name");if(nameEl)nameEl.value="";
+ const statusEl=el("loginStatus");if(statusEl)statusEl.innerHTML="";
+ toast("관리자에서 로그아웃했습니다.");
+}
 
 async function join(){
  const btn=el("joinBtn"),name=el("name").value.trim();if(!name){toast("이름을 입력해 주세요.");return;}
@@ -1517,7 +1536,9 @@ async function renderAdmin(){
     stopAllAdminBgm();
   }
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
-  const roundMissionLocations=await getRoundMissionLocations(g.current_round,false);
+  const roundMissionLocations=(g.phase==="PLAY"||g.phase==="TRIAL"||g.phase==="NIGHT"||g.phase==="INVESTIGATION")
+    ?await getRoundMissionLocationUnion(g.current_round,false)
+    :[];
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
@@ -1664,8 +1685,10 @@ async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
-  await db.from("mission_completions").delete().eq("game_round",g.current_round);
-  await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
+  for(const table of ["mission_completions","wolf_attempts","round_player_mission_locations","sabotage_events"]){
+    const rr=await db.from(table).delete().eq("game_round",g.current_round);
+    if(rr.error)throw new Error(table+" 라운드 초기화 실패: "+rr.error.message);
+  }
   const next=g.current_round+1;
   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
@@ -1682,10 +1705,19 @@ async function startTrial(){
 }
 async function resetGame(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
- const done=busy(document.querySelector('#admin button[onclick*="resetGame"]'),"초기화 중...");
+ const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
-  await db.from("mission_completions").delete().gte("id",0);await db.from("wolf_attempts").delete().gte("id",0);
-  await db.from("players").update({role:"UNASSIGNED",status:"ALIVE"}).gte("created_at","1970-01-01");
+  for(const [table,column] of [
+    ["mission_completions","id"],
+    ["wolf_attempts","id"],
+    ["round_player_mission_locations","id"],
+    ["sabotage_events","id"]
+  ]){
+    const rr=await db.from(table).delete().gte(column,0);
+    if(rr.error)throw new Error(table+" 초기화 실패: "+rr.error.message);
+  }
+  const pr=await db.from("players").update({role:"UNASSIGNED",status:"ALIVE",card_selected:false,card_position:null}).gte("created_at","1970-01-01");
+  if(pr.error)throw new Error("플레이어 초기화 실패: "+pr.error.message);
   await set({current_round:1,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"게임 시작을 기다리고 있습니다.",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
   toast("게임이 초기화되었습니다.");await renderAdmin();
  }catch(e){toast("초기화 실패: "+e.message);}finally{done();}
@@ -1987,6 +2019,7 @@ window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.s
 window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
+window.adminLogout=adminLogout;window.missions=missions;
 boot();
   // 미니게임은 메인 IIFE 바깥에 있으므로 필요한 앱 상태/함수를 명시적으로 연결합니다.
   window.__wolfGameBridge={
