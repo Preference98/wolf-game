@@ -513,6 +513,9 @@ let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,
 // 존재하지 않는 함수를 호출하지 않도록 모든 화면용 타이머를 한 곳에서 정리합니다.
 function stopRoundTimer(){
   if(roundTimer){ clearInterval(roundTimer); roundTimer=null; }
+  window.__roundTimerRound=0;
+  window.__roundTimerStartedAt=0;
+  window.__roundTimerDurationMs=0;
 }
 function stopMissionTimer(){
   if(missionTimer){ clearInterval(missionTimer); missionTimer=null; }
@@ -1161,14 +1164,19 @@ function tickRoundTimer(){
  if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-Date.now()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){clearInterval(roundTimer);roundTimer=null;if(!window.__roundExpiredHandled){window.__roundExpiredHandled=true;transitionToNight().catch(e=>console.error("밤 전환 실패:",e));}}
 }
 function startRoundTimer(g){
- stopRoundTimer(); window.__roundExpiredHandled=false;
  const timerEl=el("roundTimer");
  if(!timerEl)return;
+ const sameRound=window.__roundTimerRound===Number(g?.current_round)
+   && window.__roundTimerStartedAt
+   && window.__roundTimerDurationMs;
+ if(sameRound && roundTimer)return;
+ stopRoundTimer(); window.__roundExpiredHandled=false;
  const baseMinutes=Number(g?.round_duration_minutes);
  const penaltyMinutes=Math.max(0,Number(g?.round_time_penalty_total)||0);
  const minutes=Math.max(1,(Number.isFinite(baseMinutes)&&baseMinutes>0?baseMinutes:15)-penaltyMinutes);
  const duration=minutes*60*1000;
  const startedMs=Date.parse(g?.round_started_at||"");
+ window.__roundTimerRound=Number(g?.current_round)||0;
  window.__roundTimerStartedAt=Number.isFinite(startedMs)?startedMs:Date.now();
  window.__roundTimerDurationMs=duration;
  tickRoundTimer();
@@ -1728,7 +1736,13 @@ async function renderGameCountdown(p,g){
    await new Promise(r=>setTimeout(r,4000));
 
    const latest=await settings();
-   if(latest.phase==="COUNTDOWN")await set({phase:"PLAY",notice:"게임이 시작되었습니다."});
+   if(latest.phase==="COUNTDOWN"){
+     await set({
+       phase:"PLAY",
+       notice:"게임이 시작되었습니다.",
+       round_started_at:new Date().toISOString()
+     });
+   }
    countdownTimer=null;
  };
  countdownTimer={running:true};
