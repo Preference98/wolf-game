@@ -753,7 +753,9 @@ async function ensureRoundMissionSetup(round){
      for(let i=candidates.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]];}
      const add=candidates.slice(0,activeCount-mine.length).map((loc,i)=>({game_round:round,player_id:player.id,mission_location_id:loc.id,sort_order:mine.length+i}));
      if(add.length){
-       const ins=await db.from("round_player_mission_locations").insert(add).select();
+       const ins=await db.from("round_player_mission_locations")
+       .upsert(add,{onConflict:"game_round,player_id,mission_location_id",ignoreDuplicates:true})
+       .select();
        if(ins.error)throw new Error("개인별 미션 장소 생성 실패: "+ins.error.message);
        assignments=assignments.concat(ins.data||[]);
      }
