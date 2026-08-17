@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v146</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v147</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -734,6 +734,9 @@ let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=n
 let sabotageUiTimer=null,sabotageUiLastSignature="";
 let localSabotageCooldownUntil=0,localSabotageEventId=null;
 let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageEnd=0;
+let sabotageNotificationTimer=null,sabotageNotificationMinId=0,sabotageNotificationStarted=false;
+let sabotageBoardRefreshTimer=null;
+
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
 let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
@@ -1761,34 +1764,172 @@ async function getSabotagedLocationIds(round){
 }
 let selectedSabotageLocationIds=new Set();
 let sabotageInterruptUntil=0;
+async function getGloballyCompletedLocationIds(round){
+ try{
+   return await getCompletedLocationIds(round);
+ }catch(e){
+   console.warn("완료 장소 조회 실패:",e);
+   return new Set();
+ }
+}
+
+async function refreshSabotageBoard(){
+ const board=el("sabotageBoard");
+ if(!board || !document.querySelector("#sabotage.screen.active"))return;
+
+ try{
+   const p=await me(),g=await settings();
+   if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY")return;
+
+   const all=await activeMissionLocations();
+   const assignmentRows=await db.from("round_player_mission_locations")
+     .select("mission_location_id,player_id")
+     .eq("game_round",g.current_round);
+   if(assignmentRows.error)throw new Error(assignmentRows.error.message);
+
+   const sheep=(await db.from("players").select("id").eq("status","ALIVE").eq("role","SHEEP")).data||[];
+   const sheepIds=new Set(sheep.map(x=>String(x.id)));
+   const assignedIds=new Set((assignmentRows.data||[])
+     .filter(x=>sheepIds.has(String(x.player_id)))
+     .map(x=>String(x.mission_location_id)));
+
+   const completedIds=await getGloballyCompletedLocationIds(g.current_round);
+
+   // 이미 선택한 장소가 다른 양의 미션 완료로 무효화되면 즉시 선택 취소합니다.
+   for(const id of [...selectedSabotageLocationIds]){
+     if(completedIds.has(String(id)) || !assignedIds.has(String(id))){
+       selectedSabotageLocationIds.delete(String(id));
+     }
+   }
+
+   const selected=[...selectedSabotageLocationIds];
+   board.innerHTML=all.map(loc=>{
+     const id=String(loc.id);
+     const done=completedIds.has(id);
+     const available=assignedIds.has(id)&&!done;
+     const selectedNow=selected.includes(id);
+     let status=done?"이미 완료됨":available?(selectedNow?"선택됨":"사보타지 가능"):"현재 어떤 양에게도 배정되지 않음";
+     return '<button class="sabotageBlock '+(available?"available":"disabled")+(selectedNow?" selected":"")+'" '+
+       (available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')"':'disabled')+
+       ' data-location-id="'+esc(id)+'"><b>'+esc(loc.name)+'</b><div class="small" style="margin-top:6px">'+status+'</div></button>';
+   }).join("");
+
+   window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(getRoundRules(g).sabotageLocationCount)||1));
+ }catch(e){
+   console.warn("사보타지 장소 실시간 갱신 실패:",e);
+ }
+}
+
+async function startSabotageNotificationWatcher(){
+ if(sabotageNotificationStarted)return;
+ sabotageNotificationStarted=true;
+
+ try{
+   const base=await db.from("notifications").select("id")
+     .eq("target_player",playerId)
+     .eq("notification_type","SABOTAGE")
+     .order("id",{ascending:false}).limit(1);
+   sabotageNotificationMinId=Number(base.data?.[0]?.id||0);
+ }catch(_){sabotageNotificationMinId=0;}
+
+ const check=async()=>{
+   try{
+     const isAdmin=localStorage.getItem("wolf_game_admin_v7")==="1";
+     if(isAdmin || !playerId)return;
+     const p=await me();
+     if(!p||p.status!=="ALIVE")return;
+
+     const r=await db.from("notifications").select("*")
+       .eq("target_player",playerId)
+       .eq("notification_type","SABOTAGE")
+       .gt("id",sabotageNotificationMinId)
+       .order("id",{ascending:true}).limit(10);
+     if(r.error)return;
+
+     for(const n of (r.data||[])){
+       sabotageNotificationMinId=Math.max(sabotageNotificationMinId,Number(n.id)||0);
+
+       // 같은 이벤트가 sabotage_events Realtime으로 이미 처리된 경우 중복 표시하지 않습니다.
+       const sid=String(n.id);
+       if(window.__seenSabotageNoticeIds?.has(sid))continue;
+       if(!window.__seenSabotageNoticeIds)window.__seenSabotageNoticeIds=new Set();
+       window.__seenSabotageNoticeIds.add(sid);
+
+       await handleSabotageNotification(n);
+     }
+   }catch(e){console.warn("사보타지 알림 폴백 감시 오류:",e);}
+ };
+ await check();
+ sabotageNotificationTimer=setInterval(check,500);
+}
+
+async function handleSabotageNotification(n){
+ if(!n)return;
+ const p=await me().catch(()=>null);
+ const isAdmin=localStorage.getItem("wolf_game_admin_v7")==="1";
+ if(!isAdmin && (!p||p.status!=="ALIVE"))return;
+
+ const activeScreen=document.querySelector(".screen.active")?.id||"";
+ const deathProtected=
+   wolfDeathProcessActive ||
+   ["deathConfirm","deathWarning","deathCountdown"].includes(activeScreen) ||
+   localStorage.getItem("wolf_game_death_lock_v1")==="1";
+
+ // 시스템 우선순위: 사보타지 알림보다 먼저 미션/사보타지 메뉴를 종료합니다.
+ if(!deathProtected && !isAdmin){
+   const wasMission=activeScreen==="mission";
+   const wasSabotage=activeScreen==="sabotage";
+   if(wasMission){
+     stopMissionTimer();
+     currentMission=null;
+     window.__wolfGameBridge?.setCurrentMission?.(null);
+     window.__miniOutcomeLocked=true;
+     ["wire","match","direction","memory","safe","shape","trace"].forEach(k=>{
+       const fn=window["__"+k+"Cleanup"];
+       if(typeof fn==="function"){try{fn();}catch(_){}}
+       try{window["__"+k+"Cleanup"]=null;}catch(_){}
+     });
+     if(el("answer")){el("answer").disabled=true;el("answer").readOnly=true;}
+     if(el("answerBtn")){el("answerBtn").disabled=true;el("answerBtn").style.pointerEvents="none";}
+     if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert" style="font-size:22px;font-weight:900">⚠ 사보타지로 미션 실패</div>';
+     if(el("missionResult"))el("missionResult").innerHTML='<div class="notice alert">사보타지로 인해 미션이 실패 처리되었습니다.</div>';
+   }
+   if(wasSabotage){
+     selectedSabotageLocationIds=new Set();
+     closeActionDock();
+   }
+   closeOverlay();
+   await showScreen("player");
+   await renderPlayer().catch(()=>{});
+ }
+
+ // 알림은 누구에게나 동일한 형식으로 표시합니다.
+ openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
+   '<div class="muted" style="margin-bottom:14px">'+
+   esc(n.message||"사보타지가 실행되었습니다.")+
+   '</div><button onclick="closeOverlay()">확인</button>');
+ await playSound("sabotage","notification-sabotage-"+String(n.id)).catch(()=>{});
+}
+
 async function openSabotageScreen(){
  closeActionDock();
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
+
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
  if(st.active){toast("현재 다른 늑대가 사보타지를 진행 중입니다.");return;}
  if(st.cooldownUntil>now){toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
- const all=await activeMissionLocations();
- const assignmentRows=await db.from("round_player_mission_locations")
-   .select("mission_location_id,player_id")
-   .eq("game_round",g.current_round);
- if(assignmentRows.error)throw new Error("사보타지 대상 장소 조회 실패: "+assignmentRows.error.message);
- const sheep=(await db.from("players").select("id").eq("status","ALIVE").eq("role","SHEEP")).data||[];
- const sheepIds=new Set(sheep.map(x=>String(x.id)));
- const assignedIds=new Set((assignmentRows.data||[])
-   .filter(x=>sheepIds.has(String(x.player_id)))
-   .map(x=>String(x.mission_location_id)));
+
  selectedSabotageLocationIds=new Set();
  window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(rules.sabotageLocationCount)||1));
- const board=el("sabotageBoard");
  el("sabotageInstruction").textContent="활성 미션 장소 중 방해할 장소를 최대 "+rules.sabotageLocationCount+"곳 선택하십시오.";
- board.innerHTML=all.map(loc=>{
-   const id=String(loc.id),available=assignedIds.has(id);
-   return '<button class="sabotageBlock '+(available?"available":"disabled")+'" '+(available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')" disabled':'disabled')+' data-location-id="'+esc(id)+'"><b>'+esc(loc.name)+'</b><div class="small" style="margin-top:6px">'+(available?"사보타지 가능":"현재 어떤 양에게도 배정되지 않음")+'</div></button>';
- }).join("");
- // disabled 속성은 전체 버튼에 넣지 않도록 즉시 활성 버튼을 복구
- board.querySelectorAll(".sabotageBlock.available").forEach(x=>x.disabled=false);
+
  await showScreen("sabotage");
+ await refreshSabotageBoard();
+
+ // 메뉴를 열어 둔 동안 양의 미션 완료를 즉시 반영합니다.
+ if(sabotageBoardRefreshTimer)clearInterval(sabotageBoardRefreshTimer);
+ sabotageBoardRefreshTimer=setInterval(refreshSabotageBoard,500);
 }
 function toggleSabotageLocation(id){
  const elb=document.querySelector('.sabotageBlock[data-location-id="'+CSS.escape(String(id))+'"]');
@@ -1802,12 +1943,25 @@ function toggleSabotageLocation(id){
 }
 async function executeSelectedSabotage(){
  const p=await me(),g=await settings(),chosen=[...selectedSabotageLocationIds];
- if(!p||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
+ if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
+
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
- if(st.active){toast("다른 늑대가 먼저 사보타지를 실행했습니다.");return;}
- if(st.cooldownUntil>now){toast("사보타지 쿨타임이 아직 남아 있습니다.");return;}
+ if(st.active){toast("다른 늑대가 먼저 사보타지를 진행 중입니다.");return;}
+ if(st.cooldownUntil>now){toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
  if(!chosen.length){toast("사보타지할 장소를 선택해 주세요.");return;}
  if(chosen.length>rules.sabotageLocationCount){toast("설정된 수보다 많은 장소를 선택했습니다.");return;}
+
+ // 실행 직전에도 완료 여부를 다시 확인합니다.
+ // 메뉴를 연 뒤 양이 완료한 장소가 포함되어 있어도 서버 호출 전에 차단합니다.
+ const completedIds=await getGloballyCompletedLocationIds(g.current_round);
+ const completedChosen=chosen.filter(id=>completedIds.has(String(id)));
+ if(completedChosen.length){
+   for(const id of completedChosen)selectedSabotageLocationIds.delete(String(id));
+   await refreshSabotageBoard();
+   toast("이미 완료된 미션 장소에는 사보타지를 실행할 수 없습니다.");
+   return;
+ }
+
  const r=await db.rpc("execute_sabotage",{
    p_game_round:g.current_round,
    p_wolf_player_id:String(p.id),
@@ -1815,31 +1969,25 @@ async function executeSelectedSabotage(){
  });
  if(r.error){
    console.error("execute_sabotage 오류:",r.error);
-   const msg=String(r.error.message||"");
-   if(msg.includes("sabotage_location_count")){
-     toast("사보타지 설정 컬럼이 DB에 없습니다. v115 SQL을 먼저 실행해 주세요.");
-   }else if(msg.includes("array length of a scalar")){
-     toast("사보타지 장소 전달 형식 오류입니다. v116 SQL과 HTML을 적용해 주세요.");
-   }else{
-     toast("사보타지 실행 실패: "+(msg||"알 수 없는 오류"));
-   }
+   toast("사보타지 실행 실패: "+(r.error.message||"알 수 없는 오류"));
    return;
  }
- selectedSabotageLocationIds=new Set();
 
- // RPC가 성공한 순간을 기준으로 화면의 쿨타임을 즉시 시작합니다.
- // 이후 새로고침하면 getSabotageState가 DB의 started_at + 관리자 설정으로 복구합니다.
- const responseCooldown=Number(r.data?.cooldown_seconds||rules.sabotageCooldownSeconds);
+ selectedSabotageLocationIds=new Set();
+ if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
+
+ // RPC가 반환한 실제 설정값을 사용하고, 새로고침 시 DB started_at + 설정값으로 복구합니다.
+ const responseCooldown=Math.max(10,Number(r.data?.cooldown_seconds)||Number(rules.sabotageCooldownSeconds)||60);
  const responseEventId=String(r.data?.event_id||"");
  localSabotageEventId=responseEventId||null;
- localSabotageCooldownUntil=Date.now()+Math.max(10,responseCooldown)*1000;
+ localSabotageCooldownUntil=Date.now()+responseCooldown*1000;
 
- toast("사보타지가 실행되었습니다.");
  closeSabotageScreen();
  startSabotageUiWatcher();
 }
 function closeSabotageScreen(){
  selectedSabotageLocationIds=new Set();
+ if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
  showScreen("player");
  renderPlayer().catch(e=>console.error("사보타지 화면 복귀 실패:",e));
 }
@@ -2779,6 +2927,9 @@ async function autoLobbyAfterVictory(){ return; }
 function stopSabotageUiWatcher(){
  if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}
  if(sabotageEventTimer){clearInterval(sabotageEventTimer);sabotageEventTimer=null;}
+ if(sabotageNotificationTimer){clearInterval(sabotageNotificationTimer);sabotageNotificationTimer=null;}
+ if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
+ sabotageNotificationStarted=false;
  sabotageUiLastSignature="";
 }
 
@@ -2976,6 +3127,7 @@ function startSabotageUiWatcher(){
 
  uiTick();
  eventTick();
+ startSabotageNotificationWatcher();
  sabotageUiTimer=setInterval(uiTick,250);
  sabotageEventTimer=setInterval(eventTick,500);
 }
@@ -3092,8 +3244,12 @@ function realtime(){
          const g=await settings();
          // 게임 시작 직후 개인별 미션 생성 과정에서 여러 INSERT가 연속 발생하더라도
          // 화면을 매 INSERT마다 재구성하지 않습니다.
-         if(g.phase==="PLAY" && !document.querySelector("#mission.screen.active") && !document.querySelector("#sabotage.screen.active")){
-          await renderPlayer();
+         if(g.phase==="PLAY"){
+          if(document.querySelector("#sabotage.screen.active")){
+            await refreshSabotageBoard();
+          }else if(!document.querySelector("#mission.screen.active")){
+            await renderPlayer();
+          }
         }
        }
      }catch(e){console.warn("미션 완료 Realtime 화면 갱신 오류:",e);}
@@ -3134,29 +3290,9 @@ function realtime(){
    if(n.target_player && n.target_player!==playerId)return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="SABOTAGE"){
-     // notifications는 sabotage_events Realtime의 보조 경로입니다.
-     // 최신 sabotage_events를 다시 가져와 동일한 처리 함수를 호출하므로
-     // 두 경로가 동시에 도착해도 화면 알림이 중복되지 않습니다.
      try{
-       const sr=await db.from("sabotage_events").select("*")
-         .order("id",{ascending:false}).limit(1);
-       const latest=sr.data?.[0]||null;
-       if(latest && Number(latest.game_round)===Number((await settings()).current_round)){
-         await handleSabotageEvent(latest);
-       }else{
-         // 이벤트 행을 즉시 조회하지 못한 경우에도 알림 자체는 표시합니다.
-         const sid=String(n.id);
-         if(!window.__seenSabotageNoticeIds)window.__seenSabotageNoticeIds=new Set();
-         if(window.__seenSabotageNoticeIds.has(sid))return;
-         window.__seenSabotageNoticeIds.add(sid);
-         sabotageInterruptUntil=Date.now()+2500;
-         await showScreen("player");
-         await playSound("sabotage","notification-sabotage-"+sid).catch(()=>{});
-         openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
-           '<div class="muted" style="margin-bottom:14px">'+esc(n.message||"사보타지가 실행되었습니다.")+
-           '</div><button onclick="closeOverlay()">확인</button>');
-       }
-     }catch(err){console.warn("사보타지 알림 fallback 오류:",err);}
+       await handleSabotageNotification(n);
+     }catch(err){console.warn("사보타지 알림 처리 오류:",err);}
      return;
    }
    if(n.notification_type==="DEATH_CONFIRM"){
