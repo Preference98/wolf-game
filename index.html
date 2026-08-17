@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v165</title>
+<title>늑대게임 v166</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v165</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v166</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -2375,12 +2375,11 @@ async function renderTrial(p,g){
  el("trialDeadEye").innerHTML='<span class="trialSheep">🐑</span><span class="trialEyes">✕　✕</span>';
  el("trialDeadName").textContent=dead?dead.name+" 양":"죽은 양";
 
- const mine=await getRoundMissionLocations(g.current_round,true,p.id);
  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
- const all=await locations();
- const byId=new Map(all.map(x=>[String(x.id),x]));
- const locations=(mine||[]).map(x=>byId.get(String(x.id))||x);
- el("trialMissionList").innerHTML=locations.length?locations.map(loc=>{
+ const allLocations=await locations();
+ const byId=new Map(allLocations.map(x=>[String(x.id),x]));
+ const trialLocations=allLocations.map(x=>byId.get(String(x.id))||x);
+ el("trialMissionList").innerHTML=trialLocations.length?trialLocations.map(loc=>{
    const done=completed.has(String(loc.id));
    return `<div class="trialMissionItem ${done?"done":"fail"}">
      <b>${esc(loc.name||"미션 장소")}</b>
