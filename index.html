@@ -1981,19 +1981,12 @@ async function resetGame(){
      }
    };
 
-   const resetRpc=await db.rpc("reset_all_mission_progress");
+   const resetRpc=await db.rpc("reset_all_mission_progress_v2");
    if(resetRpc.error)throw new Error("미션 진행상태 전체 초기화 실패: "+resetRpc.error.message);
 
    // 2) 플레이어 상태를 로비 상태로 복구
-   const pr=await db.from("players")
-     .update({
-       role:"UNASSIGNED",
-       status:"ALIVE",
-       card_selected:false,
-       card_position:null
-     })
-     .not("id","is",null);
-   if(pr.error)throw new Error("플레이어 초기화 실패: "+pr.error.message);
+   const playerReset=await db.rpc("reset_players_for_new_game");
+   if(playerReset.error)throw new Error("플레이어 초기화 실패: "+playerReset.error.message);
 
    // 3) 게임 설정을 초기 로비 상태로 복구
    await set({
