@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v149</title>
+<title>늑대게임 v150</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v149</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v150</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -694,7 +694,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <label class="small">양 1인당 미션 수 <b>(= 라운드 활성 미션 장소 수)</b></label><input id="missionsPerSheep" type="number" min="1" max="10" step="1" value="5">
 <label class="small">사보타지 방해 장소 수</label><input id="sabotageLocationCount" type="number" min="1" max="10" step="1" value="1">
 <label class="small">사보타지 방해 지속 시간 (초)</label><input id="sabotageDurationSeconds" type="number" min="5" max="600" step="1" value="30">
-<label class="small">사보타지 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60">
+<label class="small">사보타지 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60"><div id="sabotageCooldownDbStatus" class="small muted" style="margin-top:4px"></div>
 <label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30">
 <label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1">
 <label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1">
@@ -1747,37 +1747,48 @@ async function enableSound(){
 }
 
 async function getSabotageState(round){
- const r=await db.from("sabotage_events").select("*")
-   .eq("game_round",round).order("id",{ascending:false}).limit(1);
- if(r.error)throw new Error("사보타지 상태 조회 실패: "+r.error.message);
+ const [eventResult,g]=await Promise.all([
+   db.from("sabotage_events").select("*")
+     .eq("game_round",round).order("id",{ascending:false}).limit(1),
+   settings()
+ ]);
+ if(eventResult.error)throw new Error("사보타지 상태 조회 실패: "+eventResult.error.message);
 
- const latest=r.data?.[0]||null;
+ const latest=eventResult.data?.[0]||null;
  const now=Date.now();
  if(!latest)return {latest:null,active:false,cooldownUntil:localSabotageCooldownUntil||0};
 
  const startedAt=Date.parse(latest.started_at||latest.starts_at||latest.created_at||"");
  const endsAt=Date.parse(latest.ends_at||"");
+ const serverCooldownUntil=Date.parse(latest.cooldown_until||"");
  const active=Number.isFinite(endsAt)&&endsAt>now;
 
- // 쿨타임의 기준은 항상 '사보타지 실행 시각 + 현재 라운드의 관리자 설정값'입니다.
- // 서버에 오래된/잘못된 cooldown_until이 남아 있어도 화면이 그 값을 사용하지 않습니다.
- let cooldownUntil=0;
- try{
-   const g=await settings();
-   const configuredMs=Math.max(10,Math.floor(Number(rule(g,"sabotage_cooldown_seconds"))||60))*1000;
-   if(Number.isFinite(startedAt)&&startedAt>0)cooldownUntil=startedAt+configuredMs;
- }catch(_){}
+ // 쿨타임의 기준값은 반드시 현재 game_settings의 저장값입니다.
+ // 이전 버전 RPC가 60초를 저장했더라도 그 값을 그대로 화면에 사용하지 않습니다.
+ const configuredSeconds=Math.max(
+   10,
+   Math.min(1800,Math.floor(Number(g?.sabotage_cooldown_seconds)))
+ );
+ const configuredCooldownUntil=
+   Number.isFinite(startedAt)&&startedAt>0
+     ? startedAt+configuredSeconds*1000
+     : 0;
 
- // 같은 브라우저에서 방금 실행한 경우 RPC 응답으로 얻은 값도 보존합니다.
+ // 서버에 저장된 cooldown_until은 보조 정보로만 사용합니다.
+ // 정상적으로 새 RPC가 적용되어 있으면 configured 값과 일치합니다.
+ // 불일치하면 현재 관리자 설정값을 우선합니다.
+ let cooldownUntil=configuredCooldownUntil||serverCooldownUntil||localSabotageCooldownUntil||0;
+
  if(localSabotageEventId===String(latest.id)&&localSabotageCooldownUntil>cooldownUntil){
    cooldownUntil=localSabotageCooldownUntil;
  }
+
  if(localSabotageEventId!==String(latest.id) && localSabotageCooldownUntil){
    localSabotageCooldownUntil=0;
    localSabotageEventId=null;
  }
 
- return {latest,active,cooldownUntil};
+ return {latest,active,cooldownUntil,configuredSeconds,serverCooldownUntil};
 }
 async function getSabotagedLocationIds(round){
  const st=await getSabotageState(round);if(!st.active)return new Set();
@@ -2005,10 +2016,25 @@ async function executeSelectedSabotage(){
  if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
 
  // RPC가 반환한 실제 설정값을 사용하고, 새로고침 시 DB started_at + 설정값으로 복구합니다.
- const responseCooldown=Math.max(10,Number(r.data?.cooldown_seconds)||Number(rules.sabotageCooldownSeconds)||60);
- const responseEventId=String(r.data?.event_id||"");
+ const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds))));
+ const rpcData=r.data&&typeof r.data==="object"&&!Array.isArray(r.data)?r.data:(Array.isArray(r.data)?r.data[0]:null);
+ const responseCooldown=Number(rpcData?.cooldown_seconds);
+ const responseEventId=String(rpcData?.event_id||"");
+
+ // 서버 RPC가 이전 버전 함수라 기본값을 반환하는 경우를 즉시 감지합니다.
+ // 화면은 관리자 설정값을 기준으로 계속 동작하고, SQL 패치가 적용되었는지는
+ // 관리자 콘솔에서 쉽게 확인할 수 있도록 경고를 남깁니다.
+ if(Number.isFinite(responseCooldown) && responseCooldown!==configuredCooldown){
+   console.error("사보타지 쿨타임 서버 설정 불일치:",{
+     configuredCooldown,
+     responseCooldown,
+     eventId:responseEventId
+   });
+   toast("사보타지는 실행되었지만 서버 RPC가 이전 쿨타임("+responseCooldown+"초)을 반환했습니다. v150_sabotage_cooldown_fix.sql을 적용해 주세요.");
+ }
+
  localSabotageEventId=responseEventId||null;
- localSabotageCooldownUntil=Date.now()+responseCooldown*1000;
+ localSabotageCooldownUntil=Date.now()+configuredCooldown*1000;
 
  closeSabotageScreen();
  startSabotageUiWatcher();
@@ -2028,7 +2054,7 @@ async function renderSabotageStatus(g,p){
  const cdRemain=Math.max(0,st.cooldownUntil-now);
  const remain=activeRemain>0?activeRemain:cdRemain;
  const cooling=remain>0;
- const total=Math.max(1,Number(rules.sabotageCooldownSeconds)||60);
+ const total=Math.max(10,Math.min(1800,Number(st.configuredSeconds)||Number(rules.sabotageCooldownSeconds)||60));
  const pct=Math.min(100,Math.max(0,cdRemain/(total*1000)*100));
  return `<div class="sabotageSkillWrap">
    <button class="sabotageSkill ${cooling?"cooling":"available"}" ${cooling?"disabled":'onclick="openSabotageScreen()"'} title="사보타지" style="--cooldown-pct:${pct}%">
@@ -2406,7 +2432,8 @@ async function renderAdmin(){
     :[];
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
-  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
+  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
+  if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=p.length?p.map((x,i)=>'<div class="item row"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role)+' · '+esc(x.status)+'</div></div></div>').join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
@@ -3074,6 +3101,7 @@ function startSabotageUiWatcher(){
    const end=st.latest?.ends_at?Date.parse(st.latest.ends_at):0;
    const cd=Number(st.cooldownUntil)||0;
    const active=end>now;
+   const configuredCooldownMs=Math.max(10,Math.min(1800,Number(st.configuredSeconds)||60))*1000;
 
    // 모든 사보타지 UI에 동일한 실시간 상태를 적용합니다.
    document.querySelectorAll(".sabotageCountdown").forEach(x=>{
@@ -3108,7 +3136,7 @@ function startSabotageUiWatcher(){
    const dockSab=document.getElementById("dockSabotage");
    if(dockSab){
      const remain=active?Math.max(0,end-now):Math.max(0,cd-now);
-     const cooldownTotal=Math.max(1000,Number(getRoundRules(g).sabotageCooldownSeconds||60)*1000);
+     const cooldownTotal=Math.max(1000,configuredCooldownMs);
      const shade=dockSab.querySelector(".cooldownShade");
      dockSab.style.setProperty("--cd-progress",remain>0?Math.min(100,remain/cooldownTotal*100)+"%":"0%");
      dockSab.disabled=remain>0;
