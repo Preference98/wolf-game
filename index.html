@@ -481,8 +481,6 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialAnnounceStage h1{font-size:clamp(34px,7vw,68px);line-height:1.2;margin:0;text-shadow:0 0 30px #f00000}
 .trialAnnounceStage .subtext{margin-top:14px;font-size:clamp(17px,3vw,27px);color:#aaa}
 
-/* v137: legacy confirmation-style trial lock is no longer used. */
-#trialLock{display:none!important}
 </style>
 </head>
 <body>
@@ -548,7 +546,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </section>
 
 <section id="trialLock" class="screen">
-<div class="lock"><div><div class="symbol">⚖️</div><h1>재판 시작</h1><p class="muted" style="font-size:17px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>
+<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>
 </section>
 <section id="trialAnnouncement" class="screen">
  <div class="trialAnnounceStage">
@@ -1157,8 +1155,15 @@ async function routeCore(){
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
   if(p.status!=="ALIVE"){
-   if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){showScreen("deathWarning");return;}
-   stopAllTimers();showScreen("trialLock");el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">그 자리에서 움직이거나 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';return;
+   if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
+     stopAllTimers();
+     await showScreen("deathWarning");
+     return;
+   }
+   stopAllTimers();
+   await showScreen("trialLock");
+   el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+   return;
   }
   localStorage.removeItem("wolf_game_death_lock_v1");
   const g=await settings();
@@ -1875,11 +1880,13 @@ async function confirmDeathByPlayer(notificationId){
 function closeDeathWarning(){
  localStorage.removeItem("wolf_game_death_lock_v1");
  stopAllTimers();
+ closeOverlay();
  showScreen("trialLock");
  el("trialLock").innerHTML=
    '<div class="lock"><div><div class="symbol">☠️</div>'+
    '<h1 class="deathLockTitle">탈락</h1>'+
-   '<p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+   '<p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.</p>'+
+   '<p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
 }
 async function openLocationChoice(){
  closeActionDock();
@@ -1951,6 +1958,7 @@ async function getLatestDeadSheep(round){
 async function renderTrial(p,g){
  stopAllTimers();
  const trialRound=Number(g.current_round);
+ closeOverlay();
  if(window.__trialAnnouncementRound!==trialRound){
    if(!window.__trialAnnouncementPromise || window.__trialAnnouncementPromiseRound!==trialRound){
      window.__trialAnnouncementRound=trialRound;
@@ -2897,9 +2905,9 @@ function realtime(){
      }
    }
    else if(g.phase==="TRIAL"){
-     openOverlay("⚖️","재판 시작",g.notice,"alarm");
-     // 플레이어는 재판 BGM을 절대 재생하지 않고 재판 시작 효과음만 재생합니다.
-     playSound("trialStart","trial-"+g.current_round+"-"+g.notice);
+     // 재판 시작은 작은 알림창을 사용하지 않습니다.
+     // renderTrial()이 전체화면 안내를 3초간 표시한 뒤 재판 화면으로 전환합니다.
+     playSound("trialStart","trial-"+g.current_round).catch(()=>{});
    }
   }
   // game_settings는 라운드 타이머 때문에 PLAY 중에도 계속 UPDATE됩니다.
@@ -2949,7 +2957,8 @@ function realtime(){
      }
      stopAllTimers();
      showScreen("trialLock");
-     el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';
+     el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+     closeOverlay();
      toast("탈락 처리되었습니다.");
    }
  }).subscribe();
