@@ -42,7 +42,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .sabotageBoard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}
 .sabotageBlock{min-height:90px;border:2px solid #333;border-radius:14px;padding:14px;background:#151515;cursor:pointer;transition:.15s}
 .sabotageBlock.available:hover{border-color:#f87171}.sabotageBlock.selected{border-color:#ef4444;background:#321010;box-shadow:0 0 18px rgba(239,68,68,.3)}
-.sabotageBlock.disabled{opacity:.28;cursor:not-allowed}
+.sabotageBlock.disabled{opacity:.28;cursor:not-allowed}.sabotageSkillWrap{display:flex;align-items:center;gap:12px;margin:10px 0}.sabotageSkill{position:relative;width:76px;height:76px;padding:0!important;border-radius:14px!important;overflow:hidden;border:2px solid #ef4444!important;background:#171717!important;display:flex;align-items:center;justify-content:center;flex:none}.sabotageSkill .skillIcon{font-size:34px;position:relative;z-index:2}.sabotageSkill .cooldownShade{position:absolute;inset:0;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;z-index:3;font-size:21px;font-weight:1000;color:#fff;text-shadow:0 2px 4px #000}.sabotageSkill.cooling{cursor:not-allowed!important;filter:grayscale(.45)}.sabotageSkill.available{box-shadow:0 0 18px rgba(239,68,68,.35)}.sabotageStatusText{flex:1}.sabotageCountdown{font-size:18px;font-weight:1000;color:#f87171;margin-top:5px}
 @media(max-width:600px){.missionBoard,.sabotageBoard{grid-template-columns:1fr}}
 .nightAlertStage{background:#050505;color:#fff}
 .nightAlertStage h1{font-size:42px}.nightAlertStage .wolfNightText{color:#ef3340;font-size:32px;font-weight:900}
@@ -537,6 +537,7 @@ const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
+let sabotageUiTimer=null,sabotageUiLastSignature="";
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
 // 공통 타이머 정리 함수
@@ -571,6 +572,7 @@ function stopAllTimers(){
   stopInvestigationTimer();
   stopCountdownTimer();
   stopRoleRevealTimer();
+  stopSabotageUiWatcher();
   if(adminGameStartEffectTimer){
     clearTimeout(adminGameStartEffectTimer);
     adminGameStartEffectTimer=null;
@@ -1300,6 +1302,9 @@ async function renderPlayer(){
   el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"")+(await renderSabotageStatus(g,p));
 
   const box=el("missions");
+  const sabotageState=await getSabotageState(g.current_round);
+  const sabotageEnd=Date.parse(sabotageState.latest?.ends_at||"");
+  const sabotageActive=sabotageEnd>Date.now();
   const activeIds=new Set(locs.map(x=>String(x.id)));
   box.className="missionBoard";
   box.innerHTML="";
@@ -1312,6 +1317,7 @@ async function renderPlayer(){
     const label=String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
     let cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
     let status=done?"✓ 미션 완료":sabotagedHere?"⚠ 사보타지 중":active?"● 활성 미션":"○ 비활성 미션";
+    const sabotageSeconds=sabotagedHere&&sabotageActive?Math.ceil((sabotageEnd-Date.now())/1000):0;
     let action="";
     if(!done&&!sabotagedHere&&active){
       action=nfcOk
@@ -1320,7 +1326,7 @@ async function renderPlayer(){
     }
     box.innerHTML+=`<div class="missionBlock ${cls}">
       <div class="small">${label}</div><h3 style="margin:5px 0">${esc(loc.name)}</h3>
-      <div class="missionBlockStatus">${status}</div>${action}
+      <div class="missionBlockStatus">${status}</div>${sabotagedHere?'<div class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">'+(sabotageSeconds>0?sabotageSeconds+"초":"사보타지 종료")+'</div>':""}${action}
     </div>`;
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
@@ -1329,6 +1335,7 @@ async function renderPlayer(){
 
   showScreen("player");
   startRoundTimer(g);
+  startSabotageUiWatcher();
 }
 
 async function openMissionByLocation(locationId){
@@ -1546,9 +1553,11 @@ async function useSabotage(){await openSabotageScreen();}
 async function renderSabotageStatus(g,p){
  if(p.role!=="WOLF"||g.phase!=="PLAY")return "";
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
- if(st.active)return '<div class="notice alert">⚠️ 사보타지 진행 중 · '+Math.ceil((Date.parse(st.latest.ends_at)-now)/1000)+'초</div>';
- if(st.cooldownUntil>now)return '<div class="notice">사보타지 쿨타임 · '+Math.ceil((st.cooldownUntil-now)/1000)+'초</div>';
- return '<button class="danger" style="width:100%;margin:8px 0" onclick="openSabotageScreen()">🛑 사보타지</button><div class="small muted">활성 장소 '+rules.sabotageLocationCount+'곳을 '+rules.sabotageDurationSeconds+'초 동안 비활성화합니다. 늑대 전체가 쿨타임을 공유합니다.</div>';
+ const active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
+ const cd=Math.max(0,st.cooldownUntil-now);
+ if(active>0)return `<div class="sabotageSkillWrap"><button class="sabotageSkill cooling" disabled><span class="skillIcon">🛑</span><span class="cooldownShade">${Math.ceil(active/1000)}</span></button><div class="sabotageStatusText"><b>사보타지 진행 중</b><div class="small muted">늑대 전체 적용 · ${Math.ceil(active/1000)}초 후 종료</div></div></div>`;
+ if(cd>0){const total=Math.max(1,Number(rules.sabotageCooldownSeconds)||60),pct=Math.min(100,cd/(total*1000)*100);return `<div class="sabotageSkillWrap"><button class="sabotageSkill cooling" disabled style="--cooldown-pct:${pct}%"><span class="skillIcon">🛑</span><span class="cooldownShade">${Math.ceil(cd/1000)}</span></button><div class="sabotageStatusText"><b>사보타지 쿨타임</b><div class="small muted">늑대 전체 공유 · ${Math.ceil(cd/1000)}초</div></div></div>`;}
+ return `<div class="sabotageSkillWrap"><button class="sabotageSkill available" onclick="openSabotageScreen()" title="사보타지 실행"><span class="skillIcon">🛑</span></button><div class="sabotageStatusText"><b>사보타지</b><div class="small muted">최대 ${rules.sabotageLocationCount}곳 · ${rules.sabotageDurationSeconds}초</div></div></div>`;
 }
 async function openWolfDeathList(){
  const p=await me(),g=await settings();
@@ -1577,7 +1586,16 @@ async function sendDeathConfirmation(victimId,victimName){
  const victim=(await db.from("players").select("id,name,role,status").eq("id",victimId).maybeSingle()).data;
  if(!victim||victim.role!=="SHEEP"||victim.status!=="ALIVE"){toast("이미 탈락했거나 처리할 수 없는 플레이어입니다.");return;}
  const existing=(await db.from("wolf_attempts").select("id").eq("game_round",g.current_round).limit(1)).data||[]; if(existing.length){toast("이번 라운드의 사망 처리는 이미 사용되었습니다.");return;}
- const attempt=await db.from("wolf_attempts").insert({game_round:g.current_round,wolf_player_id:p.id,victim_player_id:victim.id,status:"PENDING"}).select().single(); if(attempt.error){toast("사망 처리 기록 실패: "+attempt.error.message);return;}
+ const attempt=await db.rpc("create_wolf_attempt",{
+   p_game_round:g.current_round,
+   p_wolf_player_id:String(p.id),
+   p_victim_player_id:String(victim.id)
+ });
+ if(attempt.error){
+   console.error("create_wolf_attempt 오류:",attempt.error);
+   toast("사망 처리 기록 실패: "+(attempt.error.message||"알 수 없는 오류"));
+   return;
+ }
  const r=await db.from("notifications").insert({
    message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요.",
    target_player:victim.id,
@@ -1628,7 +1646,12 @@ async function confirmDeathByPlayer(notificationId){
    return;
  }
 
- await db.from("wolf_attempts").update({status:"SUCCESS"}).eq("game_round",(await settings()).current_round).eq("victim_player_id",playerId).eq("status","PENDING");
+ const attemptRound=(await settings()).current_round;
+ const wr=await db.rpc("complete_wolf_attempt",{
+   p_game_round:attemptRound,
+   p_victim_player_id:String(playerId)
+ });
+ if(wr.error)console.error("complete_wolf_attempt 오류:",wr.error);
  warningStage.innerHTML=
    '<div><div class="symbol">☠️</div>'+
    '<h1 class="deathLockTitle">사망 처리 완료</h1>'+
@@ -2298,6 +2321,22 @@ async function renderVictory(winner){
 }
 async function autoLobbyAfterVictory(){ return; }
 
+function stopSabotageUiWatcher(){if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}sabotageUiLastSignature="";}
+function startSabotageUiWatcher(){
+ if(sabotageUiTimer)return;
+ sabotageUiTimer=setInterval(async()=>{
+  try{
+   const p=await me(),g=await settings();
+   if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){stopSabotageUiWatcher();return;}
+   const st=await getSabotageState(g.current_round),now=Date.now();
+   const end=st.latest?.ends_at?Date.parse(st.latest.ends_at):0,cd=st.cooldownUntil||0;
+   document.querySelectorAll(".sabotageCountdown").forEach(x=>{const r=Math.max(0,end-now);x.textContent=r>0?Math.ceil(r/1000)+"초":"사보타지 종료";});
+   const sig=end+"|"+cd;
+   if(sabotageUiLastSignature && sig!==sabotageUiLastSignature)await renderPlayer();
+   sabotageUiLastSignature=sig;
+  }catch(e){console.warn("사보타지 UI 갱신 오류:",e);}
+ },1000);
+}
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
@@ -2361,6 +2400,18 @@ function realtime(){
      el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1>탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p></div></div>';
      toast("탈락 처리되었습니다.");
    }
+ }).subscribe();
+
+ db.channel("wg-v7-sabotage").on("postgres_changes",{event:"INSERT",schema:"public",table:"sabotage_events"},async payload=>{
+  try{
+   const e=payload.new||{},g=await settings();if(Number(g.current_round)!==Number(e.game_round))return;
+   const ids=Array.isArray(e.location_ids)?e.location_ids:[];const names=[];
+   for(const id of ids){const l=await getMissionLocation(id).catch(()=>null);if(l)names.push(l.name);}
+   const sec=Math.max(0,Math.ceil((Date.parse(e.ends_at)-Date.now())/1000));
+   openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",'<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+'<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
+   toast("🛑 사보타지가 실행되었습니다.");
+   if(localStorage.getItem("wolf_game_admin_v7")==="1")await renderAdmin();else await renderPlayer();
+  }catch(err){console.warn("사보타지 알림 오류:",err);}
  }).subscribe();
 
  db.channel("wg-v7-notices").on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications"},payload=>{
