@@ -538,6 +538,7 @@ const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let sabotageUiTimer=null,sabotageUiLastSignature="";
+let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 
@@ -2379,10 +2380,28 @@ function realtime(){
      playSound("trialStart","trial-"+g.current_round+"-"+g.notice);
    }
   }
-  route();
+  if(realtimeRouteTimer)clearTimeout(realtimeRouteTimer);
+  realtimeRouteTimer=setTimeout(async()=>{
+    realtimeRouteTimer=null;
+    try{await route();}catch(e){console.warn("설정 Realtime 화면 갱신 오류:",e);}
+  },250);
  }).subscribe();
 
- db.channel("wg-v7-comps").on("postgres_changes",{event:"*","schema":"public",table:"mission_completions"},()=>{if(localStorage.getItem("wolf_game_admin_v7")==="1")renderAdmin();else route();}).subscribe();
+ db.channel("wg-v7-comps").on("postgres_changes",{event:"*","schema":"public",table:"mission_completions"},()=>{
+   if(realtimeRenderTimer)clearTimeout(realtimeRenderTimer);
+   realtimeRenderTimer=setTimeout(async()=>{
+     realtimeRenderTimer=null;
+     try{
+       if(localStorage.getItem("wolf_game_admin_v7")==="1")await renderAdmin();
+       else{
+         const g=await settings();
+         // 게임 시작 직후 개인별 미션 생성 과정에서 여러 INSERT가 연속 발생하더라도
+         // 화면을 매 INSERT마다 재구성하지 않습니다.
+         if(g.phase==="PLAY")await renderPlayer();
+       }
+     }catch(e){console.warn("미션 완료 Realtime 화면 갱신 오류:",e);}
+   },350);
+ }).subscribe();
 
  db.channel("wg-v7-players").on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:"id=eq."+playerId},payload=>{
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
