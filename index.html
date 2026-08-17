@@ -1961,7 +1961,7 @@ async function renderTrial(p,g){
  el("trialDeadName").textContent=dead?dead.name+" 양":"죽은 양";
 
  const mine=await getRoundMissionLocations(g.current_round,true,p.id);
- const completed=await getCompletedLocationIdsForPlayer(g.current_round,p.id);
+ const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
  const all=await activeMissionLocations();
  const byId=new Map(all.map(x=>[String(x.id),x]));
  const locations=(mine||[]).map(x=>byId.get(String(x.id))||x);
