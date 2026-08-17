@@ -1373,8 +1373,9 @@ async function openMission(id){
 }
 
 async function openMissionObject(m,loc,p,g){
-  const cs=await comps(g.current_round);
-  if(cs.some(x=>String(x.mission_id)===String(m.id))){
+  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
+  const locationId=loc?.id??m.mission_location_id??m.location_id;
+  if(locationId!=null&&completed.has(String(locationId))){
     toast("이미 완료된 미션입니다.");
     return;
   }
@@ -1442,7 +1443,12 @@ async function completeCurrentMission(){
    p_player_id:p.id,
    p_mission_id:currentMission.id
  });
- if(r.error)throw new Error(r.error.message);
+ if(r.error){
+   if(Number(r.status)===404 || /Could not find the function|schema cache/i.test(String(r.error.message||""))){
+     throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
+   }
+   throw new Error(r.error.message);
+ }
  if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
 }
 
@@ -2456,7 +2462,12 @@ function finishMiniGame(success,message){
           p_player_id:p.id,
           p_mission_id:current.id
         });
-        if(r.error)throw new Error(r.error.message);
+        if(r.error){
+          if(Number(r.status)===404 || /Could not find the function|schema cache/i.test(String(r.error.message||""))){
+            throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
+          }
+          throw new Error(r.error.message);
+        }
         if(p.role==="SHEEP"){
           const won=await bridge.checkMissionGaugeAndWin(g.current_round);
           if(won){showMiniMissionOutcome(true,message||"미션 게이지가 100%가 되었습니다.");return;}
