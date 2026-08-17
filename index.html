@@ -397,6 +397,11 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .trialSheepGraphic{position:relative;display:inline-flex;justify-content:center;align-items:center;width:150px;height:100px;filter:grayscale(1) sepia(1) saturate(8) hue-rotate(320deg);text-shadow:0 0 30px #f00000}
 .trialSheep{font-size:88px;line-height:1}
 .trialEyes{position:absolute;top:30px;left:50%;transform:translateX(-50%);font-size:27px;font-weight:1000;color:#ff172b;letter-spacing:3px;white-space:nowrap}
+
+.trialAnnounceStage{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;background:#050505;color:#fff}
+.trialAnnounceStage .trialImage{font-size:92px;filter:grayscale(1) sepia(1) saturate(8) hue-rotate(320deg);margin-bottom:18px}
+.trialAnnounceStage h1{font-size:clamp(28px,6vw,48px);margin:0 0 10px}
+.trialAnnounceStage .subtext{font-size:clamp(16px,3vw,23px);color:#aaa}
 </style>
 </head>
 <body>
@@ -465,10 +470,13 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <div class="lock"><div><div class="symbol">⚖️</div><h1>재판 시작</h1><p class="muted" style="font-size:17px">모두 그레이스홀로 모여주십시오.</p><p class="small">관리자가 다음 라운드를 시작할 때까지<br>게임 화면은 잠겨 있습니다.</p></div></div>
 </section>
 <section id="trialAnnouncement" class="screen">
- <div class="fullStage show"><div>
-  <div class="symbol">⚖️</div>
-  <h1 id="trialAnnounceText">곧 늑대 재판이 시작됩니다.<br>모두 그래이스홀로 이동해 주십쇼.</h1>
- </div></div>
+ <div class="trialAnnounceStage">
+  <div>
+   <div class="trialImage">🐺⚖️</div>
+   <h1>곧 늑대 재판이 시작됩니다.</h1>
+   <div class="subtext">모두 그래이스홀로 이동해 주십시오.</div>
+  </div>
+ </div>
 </section>
 <section id="trial" class="screen">
  <div class="trialScreen">
@@ -548,7 +556,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <button id="nightTestBtn" class="danger" onclick="confirmAction('밤 테스트','현재 라운드를 유지한 채 즉시 밤 상태로 전환하시겠습니까?','testNight')">🌙 밤 테스트</button>
 <button class="danger" onclick="openAdminDeathTest()">🧪 사망처리 테스트</button>
 <button onclick="confirmAction('다음 라운드','완료된 미션을 초기화하고 다음 라운드 대기 상태로 이동하시겠습니까?','nextRound')">다음 라운드</button>
-<button id="trialStartBtn" onclick="confirmAction('재판 시작','현재 현장 조사 중이라면 즉시 재판을 시작합니다. 재판 시작 알림을 보내시겠습니까?','startTrial')">재판 시작</button>
+<button id="trialStartBtn" onclick="confirmAction('재판 시작','즉시 늑대 재판을 시작하시겠습니까?','startTrial')">재판 시작</button>
 <button id="resetGameBtn" class="danger" onclick="confirmAction('게임 초기화','게임 상태와 이번 게임의 미션 진행 데이터를 모두 초기화하시겠습니까?','resetGame')">게임 초기화</button>
 <button class="success" onclick="confirmAction('양 승리 테스트','양의 승리 화면을 테스트하시겠습니까?','forceSheepWin')">🐑 양 승리 테스트</button>
 <button class="danger" onclick="confirmAction('늑대 승리 테스트','늑대의 승리 화면을 테스트하시겠습니까?','forceWolfWin')">🐺 늑대 승리 테스트</button>
