@@ -367,6 +367,17 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .sabotageSkillButton .skillCooldown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);font-size:19px;font-weight:900;color:#fff}
 .sabotageSkillButton.cooling .skillCooldown{display:flex}
 .sabotageSkillButton.cooling{filter:grayscale(.8);cursor:not-allowed}
+
+/* v130: fixed action menu */
+.actionDock{position:fixed;right:22px;bottom:22px;z-index:9000;display:flex;align-items:center;gap:10px;pointer-events:none}
+.actionDock .dockMain,.actionDock .dockItem{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.3);box-shadow:0 8px 24px rgba(0,0,0,.45);font-size:27px;padding:0}
+.actionDock .dockMain{font-size:29px}
+.actionDock .dockItem{opacity:0;transform:translateX(14px) scale(.75);transition:opacity .18s,transform .18s;visibility:hidden}
+.actionDock.expanded .dockItem{opacity:1;transform:translateX(0) scale(1);visibility:visible}
+.actionDock .dockItem.cooling{position:relative;filter:grayscale(.8)}
+.actionDock .dockItem .cooldownShade{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);font-size:16px;font-weight:900}
+.actionDock .dockMain .chev{font-size:11px;display:block;line-height:10px}
+@media(max-width:600px){.actionDock{right:14px;bottom:14px}.actionDock .dockMain,.actionDock .dockItem{width:58px;height:58px}}
 </style>
 </head>
 <body>
@@ -391,9 +402,9 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 <div id="noticeBox"></div>
 <div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle" style="flex:1">양 생존 중...</h1><span class="pill" id="round"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
-<div class="card"><button id="deadSheepBtn" style="width:100%" onclick="openLocationChoice()">☠️ 죽은 양 발견</button>
-<div id="wolfDeathAction" style="margin-top:10px"></div><p class="small muted">※ 사망확인은 늑대가 양을 공격한 경우에만 사용합니다.</p></div>
+<div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
+<div id="actionDock" class="actionDock"></div>
 </section>
 
 <section id="deathConfirm" class="screen">
@@ -1364,21 +1375,40 @@ async function renderPlayerCore(){
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
     el("deadSheepBtn").disabled=false;
-  const wolfAction=el("wolfDeathAction");
-  if(roleIsWolf(p.role)){
-    // 기존 사보타지 버튼(renderSabotageStatus)을 그대로 사용합니다.
-    // 별도의 sabotageSkillButton을 추가하지 않아 중복 버튼이 생기지 않도록 합니다.
-    wolfAction.innerHTML=
-      await renderSabotageStatus(g,p)+
-      '<button class="danger" style="width:100%;margin-top:10px" onclick="openWolfDeathList()">☠️ 사망처리</button>'+
-      '<p class="small muted">※ 사망처리는 라운드 제한 없이 사용할 수 있습니다.</p>';
-  }else{
-    wolfAction.innerHTML="";
-  }
+  renderActionDock(g,p);
 
   showScreen("player");
   startRoundTimer(g);
   startSabotageUiWatcher();
+}
+
+
+function toggleActionDock(){
+ const d=el("actionDock");
+ if(d)d.classList.toggle("expanded");
+}
+function closeActionDock(){
+ const d=el("actionDock");
+ if(d)d.classList.remove("expanded");
+}
+async function renderActionDock(g,p){
+ const d=el("actionDock");
+ if(!d)return;
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";return;}
+
+ if(roleIsWolf(p.role)){
+   const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
+   const now=Date.now(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
+   const remain=active>0?active:cd;
+   d.innerHTML=
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">☠️<span class="chev">◆</span></button>'+
+    '<button class="dockItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">☠️</button>'+
+    '<button class="dockItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">💀</button>'+
+    '<button id="dockSabotage" class="dockItem danger '+(remain>0?"cooling":"")+'" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
+      '🛑<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>';
+ }else{
+   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">☠️</button>';
+ }
 }
 
 async function openMissionByLocation(locationId){
@@ -1508,6 +1538,7 @@ async function getSabotagedLocationIds(round){
 }
 let selectedSabotageLocationIds=new Set();
 async function openSabotageScreen(){
+ closeActionDock();
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
@@ -1600,6 +1631,7 @@ async function renderSabotageStatus(g,p){
  </div>`;
 }
 async function openWolfDeathList(){
+ closeActionDock();
  wolfDeathProcessActive=true;
  const players=(await db.from("players").select("id,name,role,status").order("name")).data||[];
  if(!players.length){toast("플레이어가 없습니다.");return;}
@@ -1711,6 +1743,7 @@ function closeDeathWarning(){
    '<p class="muted">그 자리에서 움직일 수 없으며 말할 수 없습니다.<br>게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
 }
 async function openLocationChoice(){
+ closeActionDock();
  const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
  const ls=await locations();
  if(!ls.length){toast("신고 장소가 등록되어 있지 않습니다.");return;}
@@ -2502,6 +2535,7 @@ function startSabotageUiWatcher(){
      if(remain>0){
        skill.classList.add("cooling");
        skill.disabled=true;
+       skill.removeAttribute("onclick");
        if(shade){
          shade.textContent=Math.ceil(remain/1000);
          shade.style.display="flex";
@@ -2509,6 +2543,7 @@ function startSabotageUiWatcher(){
      }else{
        skill.classList.remove("cooling");
        skill.disabled=false;
+       skill.setAttribute("onclick","closeActionDock();openSabotageScreen()");
        if(shade){
          shade.textContent="";
          shade.style.display="none";
@@ -2516,6 +2551,20 @@ function startSabotageUiWatcher(){
      }
      if(icon)icon.style.opacity=remain>0?".45":"1";
    });
+
+   const dockSab=document.getElementById("dockSabotage");
+   if(dockSab){
+     const remain=active?Math.max(0,end-now):Math.max(0,cd-now);
+     const shade=dockSab.querySelector(".cooldownShade");
+     dockSab.disabled=remain>0;
+     dockSab.classList.toggle("cooling",remain>0);
+     if(remain>0)dockSab.removeAttribute("onclick");
+     else dockSab.setAttribute("onclick","closeActionDock();openSabotageScreen()");
+     if(shade){
+       shade.textContent=remain>0?Math.ceil(remain/1000):"";
+       shade.style.display=remain>0?"flex":"none";
+     }
+   }
 
    const sig=end+"|"+cd+"|"+(active?"ACTIVE":"INACTIVE");
    const prev=sabotageUiLastSignature;
@@ -2597,7 +2646,6 @@ async function startDeathNotificationWatcher(){
 
      // 현재 사망확인 화면이 이미 떠 있다면 중복 표시하지 않습니다.
      if(document.querySelector("#deathConfirm.screen.active"))continue;
-     await playSound("death","death-confirm-notice-"+id).catch(()=>{});
      await showDeathConfirmation(n);
      break;
    }
@@ -2754,7 +2802,7 @@ async function boot(){
 
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.openMissionByLocation=openMissionByLocation;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
-window.openLocationChoice=openLocationChoice;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
+window.openLocationChoice=openLocationChoice;window.toggleActionDock=toggleActionDock;window.closeActionDock=closeActionDock;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.toggleSabotageLocation=toggleSabotageLocation;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.skipToGame=skipToGame;window.testNight=testNight;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
