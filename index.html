@@ -920,7 +920,6 @@ async function join(){
 
 async function route(){
  try{
-  // 페이지 전환으로도 현재 브라우저 세션의 사운드 허용 상태를 유지합니다.
   if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
@@ -930,31 +929,42 @@ async function route(){
   }
   localStorage.removeItem("wolf_game_death_lock_v1");
   const g=await settings();
-  if(g.phase==="ROLE_INTRO"){stopAllTimers();await renderRoleIntro();return;}
-  if(g.phase==="ROLE_SELECT"){stopAllTimers();await renderRoleSelect(p,g);return;}
-  if(g.phase==="ROLE_REVEAL"){stopAllTimers();await renderRoleReveal(p,g);return;}
-  if(g.phase==="COUNTDOWN"){
-    if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
-    await renderGameCountdown(p,g);
-    return;
+
+  switch(String(g.phase||"LOBBY").toUpperCase()){
+   case "LOBBY":
+     stopAllTimers();await renderLobby(p,g);return;
+   case "ROLE_INTRO":
+     stopAllTimers();await renderRoleIntro();return;
+   case "ROLE_SELECT":
+     stopAllTimers();await renderRoleSelect(p,g);return;
+   case "ROLE_REVEAL":
+     stopAllTimers();await renderRoleReveal(p,g);return;
+   case "COUNTDOWN":
+     if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
+     await renderGameCountdown(p,g);return;
+   case "INVESTIGATION":
+     stopRoundTimer();await renderInvestigation(p,g);return;
+   case "NIGHT":
+     await renderNight(p,g);return;
+   case "TRIAL":
+     stopAllTimers();showTrialLock();return;
+   case "FINISHED":
+     if(g.winner)await renderVictory(g.winner);else stopAllTimers();
+     return;
+   case "PLAY":
+     await renderPlayer();return;
+   default:
+     stopAllTimers();await renderLobby(p,g);return;
   }
-  if(g.phase==="FINISHED" && g.winner){await renderVictory(g.winner);return;}
-  if(g.phase==="INVESTIGATION"){stopRoundTimer();await renderInvestigation(p,g);return;}
-  if(g.phase==="NIGHT"){await renderNight(p,g);return;}
-  if(g.phase==="TRIAL"){stopAllTimers();showTrialLock();return;}
-  if(g.phase==="FINISHED"){stopAllTimers();return;}
-  if(g.started)await renderPlayer();else await renderLobby(p,g);
  }catch(e){
   console.error(e);
   const msg=e.message||String(e);
   const status=el("loginStatus");
-  if(status) status.innerHTML='<div class="errorbox">'+esc(msg)+'</div>';
-  // 이미 플레이어 세션이 있으면 로그인 화면으로 되돌리지 않고
-  // 현재 화면에서 오류만 표시합니다.
-  if(playerId) toast("게임 화면을 불러오는 중 오류: "+msg);
-  else showScreen("login");
+  if(status)status.innerHTML='<div class="errorbox">'+esc(msg)+'</div>';
+  if(playerId)toast("게임 화면을 불러오는 중 오류: "+msg);else showScreen("login");
  }
 }
+
 
 async function renderLobby(p,g){
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
@@ -996,7 +1006,7 @@ async function renderRoleSelect(p,g){
  await showScreen("roleSelect");
  const r=await db.from("players").select("*").order("card_position");
  if(r.error){toast(r.error.message);return;}
- const players=r.data||[], chosen=p.card_selected===true;
+ const players=(r.data||[]).filter(x=>x.status==="ALIVE"), chosen=p.card_selected===true;
  el("roleSelectStatus").textContent=chosen?"선택 완료":"선택 대기";
  el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어가 선택을 완료할 때까지 기다려주세요.":"카드 하나를 선택하십시오. 모든 플레이어가 선택할 때까지 결과는 공개되지 않습니다.";
  const box=el("roleCards");box.innerHTML="";
@@ -1008,16 +1018,44 @@ async function renderRoleSelect(p,g){
    });
  }
 }
+let roleCardSelecting=false;
 async function selectRoleCard(position){
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||g.phase!=="ROLE_SELECT"||p.card_selected){toast("현재 카드를 선택할 수 없습니다.");return;}
- const r=await db.from("players").update({card_selected:true,card_position:position}).eq("id",p.id);
- if(r.error){toast("카드 선택 실패: "+r.error.message);return;}
- toast("카드를 선택했습니다.");
- await route();
- const all=(await db.from("players").select("*")).data||[];
- if(all.length && all.every(x=>x.card_selected)){
-   await revealRolesIfReady();
+ if(roleCardSelecting)return;
+ roleCardSelecting=true;
+ try{
+   const p=await me();
+   const g=await settings();
+   if(!p){toast("플레이어 정보를 찾을 수 없습니다.");return;}
+   if(p.status!=="ALIVE"){toast("현재 생존 상태가 아니므로 카드를 선택할 수 없습니다.");return;}
+   if(String(g.phase).toUpperCase()!=="ROLE_SELECT"){
+     toast("카드 선택 시간이 아닙니다. 현재 상태: "+String(g.phase||"알 수 없음"));
+     return;
+   }
+   if(p.card_selected===true){toast("이미 카드를 선택했습니다.");return;}
+
+   const r=await db.from("players")
+     .update({card_selected:true,card_position:Number(position)})
+     .eq("id",p.id)
+     .eq("card_selected",false);
+   if(r.error){toast("카드 선택 실패: "+r.error.message);return;}
+
+   const verify=await db.from("players").select("card_selected,card_position").eq("id",p.id).maybeSingle();
+   if(verify.error)throw new Error("카드 선택 확인 실패: "+verify.error.message);
+   if(!verify.data?.card_selected){throw new Error("카드 선택값이 DB에 저장되지 않았습니다.");}
+
+   toast("카드를 선택했습니다.");
+   await route();
+
+   const all=(await db.from("players").select("id,card_selected,status")).data||[];
+   const alive=all.filter(x=>x.status==="ALIVE");
+   if(alive.length && alive.every(x=>x.card_selected===true)){
+     await revealRolesIfReady();
+   }
+ }catch(e){
+   console.error("selectRoleCard 오류:",e);
+   toast(e.message||String(e));
+ }finally{
+   roleCardSelecting=false;
  }
 }
 async function revealRolesIfReady(){
@@ -1145,17 +1183,13 @@ async function renderPlayer(){
   const p=await me(),g=await settings();
 
   if(!p||p.status!=="ALIVE"){await route();return;}
-  if(g.phase==="LOBBY"||g.phase==="ROLE_SELECT"||g.phase==="COUNTDOWN"){
-    await renderLobby(p,g);
+
+  // renderPlayer는 PLAY 이후의 본게임 화면 전용입니다.
+  // 역할 선정/카드 선택 단계에서는 절대로 미션 준비 코드를 실행하지 않습니다.
+  if(g.phase!=="PLAY"){
+    await route();
     return;
   }
-  if(g.phase==="LOBBY"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_INTRO"||g.phase==="COUNTDOWN"){
-    await renderLobby(p,g);
-    return;
-  }
-  if(g.phase==="INVESTIGATION"){await renderInvestigation(p,g);return;}
-  if(g.phase==="TRIAL"){showTrialLock();return;}
-  if(g.phase==="NIGHT"){await renderNight(p,g);return;}
 
   let locs=[],completedLocations=new Set(),sabotaged=new Set();
   try{
