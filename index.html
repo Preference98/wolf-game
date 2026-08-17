@@ -548,6 +548,7 @@ let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageE
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
 let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
+let deathNotificationMinId=0,deathNotificationWatcherStarted=false;
 let lastRealtimePhase=null,lastRealtimeRound=null;
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
@@ -610,6 +611,7 @@ const SOUND_FILES={
  wolfWin:"sounds/wolf-win.mp3",
  deadSheepFound:"sounds/body-found.mp3",
  death:"sounds/death.mp3",
+ sabotage:"sounds/sabotage.mp3",
  adminNotice:"sounds/admin-notice.mp3"
 };
 const audio={};
@@ -1329,7 +1331,7 @@ async function renderPlayerCore(){
   el("phase").textContent=g.notice||g.phase;
   el("totalMissionCount").innerHTML='전체 장소 <b>10개</b> · 이번 라운드 활성 장소 <b>'+locs.length+'개</b>';
   const gauge=await getMissionGauge(g.current_round); el("missionGaugeText").textContent=gauge.completed+" / "+gauge.target+" ("+gauge.percent+"%)"; el("missionGaugeBar").style.width=gauge.percent+"%";
-  el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"")+(await renderSabotageStatus(g,p));
+  el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"");
 
   const box=el("missions");
   const sabotageState=await getSabotageState(g.current_round);
@@ -2396,10 +2398,10 @@ async function renderVictory(winner){
 }
 async function autoLobbyAfterVictory(){ return; }
 
-function stopSabotageUiWatcher(){if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}sabotageUiLastSignature="";}
 function stopSabotageUiWatcher(){
  if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}
  if(sabotageEventTimer){clearInterval(sabotageEventTimer);sabotageEventTimer=null;}
+ sabotageUiLastSignature="";
 }
 
 async function handleSabotageEvent(e){
@@ -2422,7 +2424,7 @@ async function handleSabotageEvent(e){
    localStorage.getItem("wolf_game_death_lock_v1")==="1";
 
  if(isAdmin){
-   await playSound("adminNotice","sabotage-"+e.id).catch(()=>{});
+   await playSound("sabotage","sabotage-"+e.id).catch(()=>{});
    openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
      '<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+
      '<br><b>지속시간: '+sec+'초</b></div><button onclick="closeOverlay()">확인</button>');
@@ -2431,7 +2433,7 @@ async function handleSabotageEvent(e){
  }
  if(!p||p.status!=="ALIVE")return;
 
- await playSound("adminNotice","sabotage-"+e.id).catch(()=>{});
+ await playSound("sabotage","sabotage-"+e.id).catch(()=>{});
 
  // 사망처리/사망확인은 사보타지의 강제 이동 대상이 아닙니다.
  if(deathProtected){
@@ -2470,7 +2472,7 @@ async function handleSabotageEvent(e){
  await showScreen("player");
  await renderPlayer();
 
- await playSound("adminNotice","sabotage-applied-"+e.id).catch(()=>{});
+ await playSound("sabotage","sabotage-applied-"+e.id).catch(()=>{});
  openOverlay("🛑","사보타지 실행","늑대가 사보타지를 실행했습니다.","alarm",
    '<div class="muted" style="margin-bottom:14px">'+esc(names.join(", ")||"미션 장소")+
    '<br><b>지속시간: '+sec+'초</b>'+
@@ -2558,29 +2560,49 @@ function startSabotageUiWatcher(){
 function stopDeathNotificationWatcher(){
  if(deathNotificationTimer){clearInterval(deathNotificationTimer);deathNotificationTimer=null;}
 }
-function startDeathNotificationWatcher(){
+async function startDeathNotificationWatcher(){
  if(deathNotificationTimer)return;
- deathNotificationTimer=setInterval(async()=>{
+ // 기존에 DB에 남아 있던 사망확인 알림은 이번 접속에서 새 알림으로 취급하지 않습니다.
+ try{
+   const baseline=await db.from("notifications").select("id")
+     .eq("target_player",playerId)
+     .eq("notification_type","DEATH_CONFIRM")
+     .order("id",{ascending:false}).limit(1);
+   deathNotificationMinId=Number(baseline.data?.[0]?.id||0);
+ }catch(e){
+   deathNotificationMinId=0;
+ }
+ deathNotificationWatcherStarted=true;
+
+ const check=async()=>{
   try{
    if(!playerId||localStorage.getItem("wolf_game_admin_v7")==="1")return;
    const p=await me();
    if(!p||p.status!=="ALIVE"){stopDeathNotificationWatcher();return;}
+
    const r=await db.from("notifications").select("*")
      .eq("target_player",playerId)
      .eq("notification_type","DEATH_CONFIRM")
-     .order("id",{ascending:false}).limit(20);
+     .gt("id",deathNotificationMinId)
+     .order("id",{ascending:true}).limit(20);
    if(r.error){console.warn("사망 확인 알림 조회 실패:",r.error.message);return;}
-   const pending=(r.data||[]).find(n=>!seenDeathNotificationIds.has(String(n.id)));
-   if(pending){
-     const id=String(pending.id);
+
+   for(const n of (r.data||[])){
+     const id=String(n.id);
+     if(Number(n.id)>deathNotificationMinId)deathNotificationMinId=Number(n.id);
+     if(seenDeathNotificationIds.has(id))continue;
      seenDeathNotificationIds.add(id);
-     if(!document.querySelector("#deathConfirm.screen.active")){
-       await playSound("death","death-confirm-notice-"+id).catch(()=>{});
-       await showDeathConfirmation(pending);
-     }
+
+     // 현재 사망확인 화면이 이미 떠 있다면 중복 표시하지 않습니다.
+     if(document.querySelector("#deathConfirm.screen.active"))continue;
+     await playSound("death","death-confirm-notice-"+id).catch(()=>{});
+     await showDeathConfirmation(n);
+     break;
    }
   }catch(e){console.warn("사망 확인 알림 폴백 오류:",e);}
- },1000);
+ };
+ check();
+ deathNotificationTimer=setInterval(check,1000);
 }
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
@@ -2692,8 +2714,10 @@ function realtime(){
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="DEATH_CONFIRM"){
      const nid=String(n.id);
+     if(Number(n.id)<=deathNotificationMinId)return;
      if(!seenDeathNotificationIds.has(nid)){
        seenDeathNotificationIds.add(nid);
+       deathNotificationMinId=Math.max(deathNotificationMinId,Number(n.id)||0);
        showDeathConfirmation(n);
      }
      return;
