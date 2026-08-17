@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v158</title>
+<title>늑대게임 v159</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -524,7 +524,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v158</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v159</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1965,8 +1965,12 @@ async function openSabotageScreen(){
  if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
 
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
- if(st.active){toast("현재 다른 늑대가 사보타지를 진행 중입니다.");return;}
- if(st.cooldownUntil>now){toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
+ // 지속시간(active)은 재사용 제한이 아닙니다.
+ // 오직 sabotage_cooldown_seconds로 계산된 cooldownUntil만 사용을 제한합니다.
+ if(st.cooldownUntil>now){
+   toast("사보타지 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");
+   return;
+ }
 
  selectedSabotageLocationIds=new Set();
  window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(rules.sabotageLocationCount)||1));
@@ -2069,23 +2073,21 @@ async function useSabotage(){await openSabotageScreen();}
 async function renderSabotageStatus(g,p){
  if(!roleIsWolf(p.role)||g.phase!=="PLAY")return "";
  const st=await getSabotageState(g.current_round);
- const activeRemain=Math.max(0,st.activeUntil-Date.now());
- const cdRemain=Math.max(0,st.cooldownUntil-Date.now());
+ const now=Date.now();
+ const activeRemain=Math.max(0,st.activeUntil-now);
+ const cdRemain=Math.max(0,st.cooldownUntil-now);
  const cooling=cdRemain>0;
- const active=activeRemain>0;
-
- const total=Math.max(1000,st.cooldownSeconds*1000);
+ const total=Math.max(1000,Number(st.cooldownSeconds||60)*1000);
  const pct=Math.min(100,Math.max(0,cdRemain/total*100));
 
- let label="사보타지";
- let sub="사용 가능";
- if(active){
-   label="사보타지 진행 중";
-   sub="방해 지속 "+Math.ceil(activeRemain/1000)+"초 · 쿨타임 "+Math.ceil(cdRemain/1000)+"초";
- }else if(cooling){
-   label="사보타지 쿨타임";
-   sub="재사용까지 "+Math.ceil(cdRemain/1000)+"초";
- }
+ // 아이콘의 숫자/감소 애니메이션은 오직 쿨타임을 표시합니다.
+ const label=cooling?"사보타지 쿨타임":"사보타지";
+ const sub=cooling
+   ? ("재사용까지 "+Math.ceil(cdRemain/1000)+"초"+
+      (activeRemain>0?" · 현재 방해 지속 "+Math.ceil(activeRemain/1000)+"초":""))
+   : (activeRemain>0
+      ?"현재 방해 지속 "+Math.ceil(activeRemain/1000)+"초"
+      :"사용 가능");
 
  return `<div class="sabotageSkillWrap">
    <button class="sabotageSkill ${cooling?"cooling":"available"}"
