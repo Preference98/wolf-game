@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v173</title>
+<title>늑대게임 v174</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -534,7 +534,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .adminDashboard .card{margin-bottom:0}
 @media(max-width:800px){.adminTwoColumn,.adminSettingGrid{grid-template-columns:1fr}.adminSectionTitle{margin-top:18px}}
 
-/* v173 DESIGN OVERHAUL — industrial / magenta survival-game visual language */
+/* v174 DESIGN OVERHAUL — industrial / magenta survival-game visual language */
 :root{
   --ink:#ff007d;--ink2:#ff2d9b;--blood:#e60018;--metal:#8d8d8d;--paper:#d8d5ce;
 }
@@ -581,9 +581,9 @@ button.secondary{border-color:#555;background:#111}
   content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(circle at 30% 20%,rgba(255,0,125,.20),transparent 12%),
              radial-gradient(circle at 70% 70%,rgba(255,0,125,.12),transparent 16%);
-  animation:v173Pulse 2.8s ease-in-out infinite alternate;
+  animation:v174Pulse 2.8s ease-in-out infinite alternate;
 }
-@keyframes v173Pulse{to{opacity:.35;transform:scale(1.05)}}
+@keyframes v174Pulse{to{opacity:.35;transform:scale(1.05)}}
 
 /* 카드 선택 화면 */
 #roleSelect{margin:-18px;min-height:calc(100vh + 36px);background:#050505}
@@ -602,9 +602,9 @@ button.secondary{border-color:#555;background:#111}
   background-size:31px 31px,53px 53px;
   transform:rotate(-4deg);opacity:.75;filter:blur(.15px);
   mask-image:linear-gradient(to bottom,transparent,#000 22%,#000 70%,transparent);
-  animation:v173Ink 8s linear infinite;
+  animation:v174Ink 8s linear infinite;
 }
-@keyframes v173Ink{to{transform:rotate(-4deg) translateX(-50px)}}
+@keyframes v174Ink{to{transform:rotate(-4deg) translateX(-50px)}}
 #roleSelect>.card>.row{position:relative;z-index:2;justify-content:center;margin-top:4px}
 #roleSelect>.card>.row h1{
   display:inline-flex;align-items:center;justify-content:center;
@@ -680,9 +680,9 @@ button.secondary{border-color:#555;background:#111}
 .roleRevealStage:before{
   content:"";position:absolute;inset:-15%;
   background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.02) 3px 4px);
-  opacity:.5;pointer-events:none;animation:v173Scan 5s linear infinite;
+  opacity:.5;pointer-events:none;animation:v174Scan 5s linear infinite;
 }
-@keyframes v173Scan{to{transform:translateY(30px)}}
+@keyframes v174Scan{to{transform:translateY(30px)}}
 .roleRevealStage.sheep{background:radial-gradient(circle at 50% 42%,rgba(0,255,150,.20),transparent 26%),#020202!important}
 .roleRevealStage.wolf{background:radial-gradient(circle at 50% 42%,rgba(255,0,35,.24),transparent 28%),#020202!important}
 .roleRevealStage .revealCard{
@@ -724,9 +724,9 @@ button.secondary{border-color:#555;background:#111}
 .roleRevealFront .roleImage img{
   width:100%;height:100%;object-fit:contain;
   filter:drop-shadow(0 20px 25px rgba(0,0,0,.8));
-  animation:v173RoleCardFloat 3.2s ease-in-out infinite alternate;
+  animation:v174RoleCardFloat 3.2s ease-in-out infinite alternate;
 }
-@keyframes v173RoleCardFloat{to{transform:translateY(-6px) scale(1.012)}}
+@keyframes v174RoleCardFloat{to{transform:translateY(-6px) scale(1.012)}}
 .roleRevealFront h1{
   position:relative;z-index:6;margin:16px 0 0!important;font-size:clamp(28px,7vw,54px)!important;
   font-weight:1000!important;text-shadow:0 0 20px currentColor,2px 3px 0 #000;
@@ -744,6 +744,45 @@ button.secondary{border-color:#555;background:#111}
 .roleRevealStage.sheep .roleRevealConfirm{color:#20d88a}
 .roleRevealStage.wolf .roleRevealConfirm{color:#ff2c35}
 
+
+/* v174 unified visual language: role selection / countdown */
+#roleSelect{position:fixed!important;inset:0!important;z-index:450!important;margin:0!important;padding:0!important;background:#09090a!important;overflow:hidden!important;color:#fff}
+#roleSelect .roleSelectBackdrop{position:absolute;inset:0;background:radial-gradient(circle at 50% 34%,rgba(255,0,122,.34),transparent 24%),linear-gradient(180deg,#070107 0%,#15040f 45%,#020202 100%);animation:roleBackdropPulse 4s ease-in-out infinite alternate}
+#roleSelect .roleSelectBackdrop:before{content:"";position:absolute;inset:0;opacity:.18;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.05) 4px),linear-gradient(115deg,transparent 0 18%,rgba(255,0,126,.32) 19% 24%,transparent 25% 48%,rgba(255,0,126,.18) 49% 53%,transparent 54%);mix-blend-mode:screen}
+#roleSelect .roleSelectInk{position:absolute;left:4%;right:4%;top:5%;height:42%;opacity:.72;background:radial-gradient(circle at 12% 48%,rgba(255,0,128,.65) 0 2%,transparent 3%),radial-gradient(circle at 26% 55%,rgba(255,0,128,.45) 0 1.5%,transparent 2%),radial-gradient(circle at 75% 34%,rgba(255,0,128,.5) 0 2%,transparent 3%),radial-gradient(circle at 86% 60%,rgba(255,0,128,.35) 0 1%,transparent 2%);background-size:90px 90px,63px 63px,77px 77px,55px 55px;filter:blur(.2px);transform:rotate(-2deg)}
+#roleSelect .roleSelectHeader{position:absolute;top:6%;left:0;right:0;text-align:center;z-index:5}
+#roleSelect .roleSelectTitle{font-family:"Noto Sans KR",Arial,sans-serif;font-size:clamp(42px,9vw,88px);font-weight:1000;letter-spacing:-.06em;color:#fff;text-shadow:4px 5px 0 #330018,0 0 25px #ff1690}
+#roleSelect .roleSelectSub{margin-top:10px;font-size:clamp(16px,3vw,30px);font-weight:800;letter-spacing:.08em;color:#f1dce8;text-shadow:0 2px 10px #000}
+#roleSelect .roleSelectTable{position:absolute;left:-8%;right:-8%;bottom:-2%;height:49%;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#28282a,#101011 28%,#070708 100%);border:2px solid #444;box-shadow:0 -30px 100px rgba(255,0,126,.28),inset 0 25px 45px rgba(255,255,255,.05);transform:perspective(900px) rotateX(18deg);z-index:1}
+#roleSelect .roleSelectTable:after{content:"";position:absolute;inset:12% 5%;border-radius:50%;background:repeating-linear-gradient(105deg,rgba(255,255,255,.035) 0 2px,transparent 2px 8px);opacity:.6}
+#roleSelect .roleSelectBoard{position:absolute;z-index:4;left:7%;right:7%;bottom:18%;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2.2vw,28px);max-width:none;margin:0!important;align-items:end}
+#roleSelect .roleCard.playingCard{width:100%!important;aspect-ratio:2/3!important;height:auto!important;min-height:0!important;padding:0!important;border:0!important;background:transparent!important;position:relative!important;perspective:1000px;box-shadow:none!important;overflow:visible!important;transform:translateY(120px) scale(.82);opacity:0;animation:roleCardDrop .7s cubic-bezier(.14,.9,.2,1) forwards}
+#roleSelect .roleCard.playingCard:nth-child(1){animation-delay:.1s}#roleSelect .roleCard.playingCard:nth-child(2){animation-delay:.24s}#roleSelect .roleCard.playingCard:nth-child(3){animation-delay:.38s}#roleSelect .roleCard.playingCard:nth-child(4){animation-delay:.52s}#roleSelect .roleCard.playingCard:nth-child(5){animation-delay:.66s}#roleSelect .roleCard.playingCard:nth-child(6){animation-delay:.80s}#roleSelect .roleCard.playingCard:nth-child(n+7){animation-delay:.94s}
+#roleSelect .roleCard.playingCard .cardInner{position:absolute;inset:0;width:auto;height:auto;border:3px solid #a7aaa9;border-radius:9px;padding:9px;background:radial-gradient(circle at 50% 18%,rgba(255,255,255,.15),transparent 22%),radial-gradient(circle at 20% 30%,rgba(62,102,97,.7) 0 7%,transparent 8%),radial-gradient(circle at 65% 60%,rgba(91,105,102,.65) 0 8%,transparent 9%),radial-gradient(circle at 34% 78%,rgba(72,105,97,.6) 0 7%,transparent 8%),repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 2px,transparent 2px 6px),#565c5b;box-shadow:inset 0 0 0 3px #252727,inset 0 0 0 6px #b9bcba,0 12px 28px #000;display:flex!important;flex-direction:column!important;align-items:center;justify-content:space-between;overflow:hidden}
+#roleSelect .roleCard.playingCard .cardInner:before{content:"";position:absolute;inset:9px;border:1px solid rgba(220,224,222,.8);border-radius:5px;background:radial-gradient(circle,transparent 0 10%,rgba(20,25,25,.15) 11% 12%,transparent 13% 22%,rgba(20,25,25,.12) 23% 24%,transparent 25%);background-size:38px 38px;opacity:.9}
+#roleSelect .roleCard.playingCard .cardOrnament,#roleSelect .roleCard.playingCard .cardCenter{position:relative;z-index:2;color:#202323;text-shadow:0 1px 1px #ddd;font-family:"Noto Sans KR",Arial,sans-serif}
+#roleSelect .roleCard.playingCard .cardOrnament{font-size:9px;letter-spacing:.25em;opacity:.8}.roleCard.playingCard .cardOrnament.bottom{transform:rotate(180deg)}
+#roleSelect .roleCard.playingCard .cardCenter{display:flex;align-items:center;justify-content:center;width:48%;aspect-ratio:1;border:2px solid rgba(30,34,34,.75);border-radius:50%;font-size:0;background:radial-gradient(circle,#8b9491,#515755 60%,#313433);box-shadow:0 0 0 4px rgba(205,210,207,.4),inset 0 0 18px #252827}
+#roleSelect .roleCard.playingCard:hover .cardInner{transform:translateY(-8px) rotate(-1deg);filter:brightness(1.08)}
+#roleSelect .roleCard.playingCard.selected{opacity:.5;animation:none;transform:translateY(-4px) scale(.98)}
+#roleSelect .roleCard.playingCard.selected .cardInner{box-shadow:0 0 30px rgba(255,0,140,.45),inset 0 0 0 3px #ff5caf,inset 0 0 0 6px #b9bcba,0 12px 28px #000}
+#roleSelect .roleSelectStatus{position:absolute;z-index:6;top:15%;right:4%;padding:7px 13px;border:1px solid #ff4fa8;background:rgba(15,0,12,.72);border-radius:99px;font-size:12px;font-weight:900;color:#ffd5eb}
+#roleSelect .roleSelectWait{position:absolute;z-index:6;left:5%;right:5%;bottom:3%;text-align:center;color:#ddd;font-size:clamp(11px,1.6vw,18px);text-shadow:0 2px 8px #000}
+@keyframes roleBackdropPulse{to{filter:saturate(1.18) brightness(1.05)}}@keyframes roleCardDrop{0%{opacity:0;transform:translateY(120px) rotate(-4deg) scale(.82)}65%{opacity:1;transform:translateY(-12px) rotate(1deg) scale(1.04)}100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+/* role reveal follows the same dark / magenta visual language */
+.roleRevealStage{background:radial-gradient(circle at 50% 40%,rgba(255,0,100,.22),transparent 28%),#020202!important}
+.roleRevealBack{background:radial-gradient(circle at center,rgba(255,0,100,.2),transparent 34%),repeating-radial-gradient(circle at center,rgba(180,180,180,.08) 0 3px,transparent 3px 9px),#545957!important;border:7px solid #a7aaa9!important;box-shadow:inset 0 0 0 3px #222,inset 0 0 0 7px #c7cac7,0 18px 55px #000!important}
+.roleRevealFront{background:#050505!important;border:4px solid #ff3f9f!important;box-shadow:0 0 75px rgba(255,0,125,.35),inset 0 0 45px rgba(255,0,125,.08)!important}
+.roleRevealFront.sheep{color:#fff!important}.roleRevealFront.wolf{color:#fff!important}
+.roleRevealFront .roleImage{width:min(45vw,300px)!important;height:min(45vw,420px)!important}.roleRevealFront .roleImage img{width:100%;height:100%;object-fit:contain;border-radius:8px;filter:drop-shadow(0 12px 25px #000)}
+.roleRevealFront h1{font-family:"Noto Sans KR",Arial,sans-serif!important;letter-spacing:-.04em;text-shadow:0 0 25px currentColor!important}
+/* v171 game-start countdown: keep the exact timing / wording / visual language */
+.gameStartStage{position:fixed!important;inset:0!important;z-index:1000!important;display:flex!important;align-items:center;justify-content:center;background:radial-gradient(circle,#260006 0,#000 70%)!important;text-align:center}
+.gameStartMessage{font-family:Cinzel,"Noto Sans KR",serif!important;font-size:clamp(28px,6vw,64px)!important;font-weight:900!important;color:#fff!important;text-shadow:0 0 30px #b00012!important;animation:startMessageIn .8s ease-out both!important}
+.gameStartCount{font-family:Cinzel,"Noto Sans KR",serif!important;font-size:clamp(120px,28vw,260px)!important;font-weight:900!important;line-height:1!important;color:#fff!important;text-shadow:0 0 30px #f00018,0 0 90px #90000c!important;animation:startCountPulse .9s ease-out both!important}
+.gameStartTitle{font-family:Cinzel,"Noto Sans KR",serif!important;font-size:clamp(48px,10vw,110px)!important;font-weight:900!important;color:#fff!important;text-shadow:0 0 35px #f00018,0 0 90px #90000c!important;animation:startTitleIn .9s ease-out both!important}
+@keyframes startMessageIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}@keyframes startCountPulse{0%{opacity:0;transform:scale(1.45)}35%{opacity:1}100%{opacity:1;transform:scale(1)}}@keyframes startTitleIn{from{opacity:0;transform:scale(1.18)}to{opacity:1;transform:scale(1)}}
+@media(max-width:600px){#roleSelect .roleSelectBoard{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;left:5%;right:5%;bottom:20%}#roleSelect .roleSelectHeader{top:8%}#roleSelect .roleSelectTitle{font-size:clamp(32px,10vw,56px)}#roleSelect .roleSelectSub{font-size:13px}#roleSelect .roleSelectWait{bottom:4%;font-size:10px}}
 </style>
 </head>
 <body>
@@ -851,13 +890,13 @@ button.secondary{border-color:#555;background:#111}
 <div class="fullStage show" id="roleIntroStage"><div><h1>지금부터 양과 늑대를<br>선정하겠습니다.</h1></div></div>
 </section>
 
-<section id="roleSelect" class="screen">
-<div class="card">
-<div class="row"><h1>카드 선택</h1><span class="pill" id="roleSelectStatus">선택 대기</span></div>
-<p class="muted">원하는 카드를 터치하십시오.</p>
+<section id="roleSelect" class="screen roleSelectStage">
+<div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
+<div class="roleSelectHeader"><div class="roleSelectTitle">카드 선택</div><div class="roleSelectSub">원하는 카드를 터치하세요</div></div>
+<div class="roleSelectTable"></div>
 <div id="roleCards" class="roleSelectBoard"></div>
-<div id="roleWait" class="notice">카드를 선택하면 다른 행동을 할 수 없습니다. 모든 플레이어의 선택을 기다립니다.</div>
-</div>
+<div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
+<div id="roleWait" class="roleSelectWait">카드를 선택하면 다른 행동을 할 수 없습니다. 모든 플레이어의 선택을 기다립니다.</div>
 </section>
 
 <section id="roleReveal" class="screen">
@@ -931,7 +970,7 @@ button.secondary{border-color:#555;background:#111}
   <div class="adminSectionTitle">⚖️ 재판 결과</div>
   <div class="card">
     <h2>재판 결과 확인</h2>
-    <p class="muted">처형 결과를 확인할 플레이어를 선택하면 메인 스크린에서 <b>재판결과.mp4</b> 연출 후 실제 역할을 공개합니다. 이 이벤트는 플레이어 화면에는 표시하지 않습니다.</p>
+    <p class="muted">처형 결과를 확인할 플레이어를 선택하면 메인 스크린에서 <b>재판 결과</b> 연출 후 실제 역할을 공개합니다. 이 이벤트는 플레이어 화면에는 표시하지 않습니다.</p>
     <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
       <select id="trialResultPlayer" style="min-width:260px;flex:1"><option value="">플레이어 선택</option></select>
       <button class="danger" onclick="confirmTrialResultBroadcast()">재판 결과 확인</button>
@@ -2973,55 +3012,32 @@ function stopAllAdminBgm(){
 
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
- if(countdownTimer && countdownTimer.running && document.querySelector("#gameCountdown.screen.active"))return;
-
+ if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
  const content=el("gameStartContent");
  if(!content)return;
-
- stopCountdownTimer();
- const started=Date.parse(g?.round_started_at||"");
- const startMs=Number.isFinite(started)?started:Date.now();
- const totalDuration=19000;
- const playedCounts=new Set();
- let finished=false;
-
- const render=async()=>{
-   if(finished)return;
-   const elapsed=Math.max(0,Date.now()-startMs);
-   if(elapsed<5000){
-     content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
-   }else if(elapsed<15000){
-     const n=5-Math.floor((elapsed-5000)/2000);
-     content.innerHTML='<div class="gameStartCount">'+Math.max(1,n)+'</div>';
-     if(!playedCounts.has(n)){
-       playedCounts.add(n);
-       await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n);
-     }
-   }else if(elapsed<19000){
-     content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
-     if(!playedCounts.has("start")){
-       playedCounts.add("start");
-       await playSound("gameStart","game-start-title-"+g.current_round);
-     }
-   }else{
-     finished=true;
-     if(countdownTimer?.timerId)clearInterval(countdownTimer.timerId);
-     countdownTimer=null;
-     const latest=await settings();
-     if(String(latest.phase).toUpperCase()==="COUNTDOWN"){
-       await set({
-         phase:"PLAY",
-         notice:"게임이 시작되었습니다.",
-         round_started_at:new Date().toISOString()
-       });
-     }
+ if(countdownTimer)clearInterval(countdownTimer);
+ const sequence=async()=>{
+   content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
+   await new Promise(r=>setTimeout(r,5000));
+   for(let n=5;n>=1;n--){
+     content.innerHTML='<div class="gameStartCount">'+n+'</div>';
+     await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n+"-"+Date.now());
+     await new Promise(r=>setTimeout(r,2000));
    }
+   content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
+   await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
+   await new Promise(r=>setTimeout(r,4000));
+   const latest=await settings();
+   if(latest.phase==="COUNTDOWN"){
+     await set({phase:"PLAY",notice:"게임이 시작되었습니다.",round_started_at:new Date().toISOString()});
+   }
+   countdownTimer=null;
  };
- countdownTimer={running:true,timerId:setInterval(()=>{render().catch(e=>console.error("게임 시작 연출:",e));},120)};
- await render();
+ countdownTimer={running:true};
+ sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
 }
 
 async function nextRound(){
