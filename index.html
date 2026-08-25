@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v174</title>
+<title>늑대게임 v177</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -833,11 +833,46 @@ button.secondary{border-color:#555;background:#111}
 #trialAnnouncement .trialAnnounceContent .subtext{margin-top:14px!important;font-size:clamp(14px,2.2vw,25px)!important;color:#ddd!important;letter-spacing:.08em}
 @keyframes v175TrialAnnounceBg{from{transform:scale(1.13);filter:saturate(.65) contrast(1.12) brightness(.4)}to{transform:scale(1.06);filter:saturate(.72) contrast(1.08) brightness(.58)}}
 @keyframes v175TrialCardIn{from{opacity:0;transform:translateY(-65px) scale(.45) rotate(0deg);filter:blur(8px)}60%{opacity:1;transform:translateY(8px) scale(1.05) rotate(var(--r,0deg));filter:blur(0)}to{opacity:1;transform:translateY(0) scale(1) rotate(var(--r,0deg))}}
+
+/* v176 — title/trial visual identity: same letter-by-letter cards and same typography */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap");
+:root{--wolf-title-font:"Noto Sans KR",Arial,sans-serif;--wolf-pink:#ff1684;--wolf-pink-bright:#ff4aa4;--wolf-dark:#050005}
+#trialAnnouncement .trialAnnounceStage{font-family:var(--wolf-title-font)!important;background:#050005!important}
+#trialAnnouncement .trialAnnounceBackdrop{background:
+ radial-gradient(circle at 50% 42%,rgba(255,0,106,.18),transparent 30%),
+ linear-gradient(135deg,#070006 0%,#19000e 48%,#020002 100%)!important;
+ filter:saturate(1.3)!important;transform:scale(1.08)!important;animation:v176TrialBackdrop 7s ease-in-out infinite alternate!important}
+#trialAnnouncement .trialAnnounceBackdrop:before{content:"";position:absolute;inset:-8%;background-image:url('assets/trial_bg.jpg');background-size:cover;background-position:center;opacity:.32;filter:blur(2px);transform:scale(1.12);animation:v176TrialArt 7s ease-in-out infinite alternate}
+#trialAnnouncement .trialAnnounceBackdrop:after{background:radial-gradient(circle,rgba(255,0,100,.28) 0 2%,transparent 3%),radial-gradient(circle,rgba(255,0,130,.22) 0 1%,transparent 2%)!important;background-size:40px 40px,67px 67px!important;mix-blend-mode:screen!important;opacity:.55!important}
+#trialAnnouncement .trialAnnounceCards{position:absolute!important;inset:0!important;left:0!important;top:0!important;transform:none!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(5px,1vw,18px)!important;z-index:3!important;transform:translateY(-3vh)!important}
+#trialAnnouncement .trialAnnounceCards div{position:relative!important;width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;display:flex!important;align-items:center!important;justify-content:center!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-family:var(--wolf-title-font)!important;font-size:clamp(58px,9vw,145px)!important;font-weight:900!important;color:#fff!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important;opacity:0!important;transform:translateY(70px) rotate(var(--rot)) scale(.55)!important;animation:v176TitleLetter .65s cubic-bezier(.12,.9,.18,1) forwards!important}
+#trialAnnouncement .trialAnnounceCards div:before{content:"";position:absolute;inset:-14px;z-index:-1;background:linear-gradient(25deg,transparent 15%,rgba(255,0,100,.45) 16% 19%,transparent 20% 35%,rgba(255,0,100,.35) 36% 40%,transparent 41%);filter:blur(3px)}
+#trialAnnouncement .trialAnnounceCards div:nth-child(1){--rot:-8deg;animation-delay:.15s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(2){--rot:4deg;animation-delay:.72s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(3){--rot:-5deg;animation-delay:1.29s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(4){--rot:8deg;animation-delay:1.86s!important}
+#trialAnnouncement .trialAnnounceContent{bottom:8%!important;font-family:var(--wolf-title-font)!important}
+#trialAnnouncement .trialAnnounceContent h1{font-family:var(--wolf-title-font)!important;font-size:clamp(18px,2.3vw,34px)!important;letter-spacing:.20em!important;font-weight:900!important;color:#ddd!important;text-shadow:0 0 20px rgba(255,0,128,.35)!important}
+#trialAnnouncement .trialAnnounceContent .subtext{font-family:var(--wolf-title-font)!important;font-size:clamp(13px,1.8vw,24px)!important;letter-spacing:.08em!important;color:#aaa!important}
+@keyframes v176TitleLetter{0%{opacity:0;transform:translateY(70px) rotate(var(--rot)) scale(.55);filter:blur(9px)}58%{opacity:1;transform:translateY(-12px) rotate(var(--rot)) scale(1.08);filter:blur(0)}100%{opacity:1;transform:translateY(0) rotate(var(--rot)) scale(1)}}
+@keyframes v176TrialBackdrop{from{transform:scale(1.08)}to{transform:scale(1.15) translate3d(-1%,.7%,0)}}
+@keyframes v176TrialArt{from{transform:scale(1.12)}to{transform:scale(1.20) translate3d(-1%,.7%,0)}}
+/* 재판 본 화면도 타이틀과 같은 폰트/타이포그래피 */
+#trial .trialScreen,#trial .trialScreen *{font-family:var(--wolf-title-font)!important}
+#trial .trialDead h1,#trial .trialMissionList{letter-spacing:-.02em}
+
+/* v177 WOLF TRIAL TITLE — intentionally shares the exact visual language of the WOLF GAME title */
+#trialAnnouncement .trialAnnounceCards div{font-family:"Noto Sans KR",Arial,sans-serif!important;width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-size:clamp(58px,9vw,145px)!important;font-weight:1000!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important;border-radius:0!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(1){transform:rotate(-8deg)!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(2){transform:rotate(4deg)!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(3){transform:rotate(-5deg)!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(4){transform:rotate(8deg)!important}
+#trialAnnouncement .trialAnnounceContent h1,#trialAnnouncement .trialAnnounceContent .subtext{font-family:"Noto Sans KR",Arial,sans-serif!important}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v175</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v177</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
