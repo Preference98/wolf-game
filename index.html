@@ -1126,6 +1126,62 @@ button.secondary{border-color:#555;background:#111}
 .playerResultRole.sheep{color:#fff}
 .playerResultCaption{font-size:clamp(22px,3.2vw,46px);font-weight:900;margin-top:4px}
 @keyframes playerResultRevealIn{from{opacity:0;transform:translateY(30px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+
+/* v183: title typography - NO CARD BOXES */
+.titleCluster,.trialTitleCluster{
+ display:flex!important;justify-content:center;align-items:center;gap:clamp(2px,.5vw,10px);
+ background:none!important;border:0!important;box-shadow:none!important;padding:0!important;
+ font-family:"Noto Sans KR",Arial,sans-serif!important;
+}
+.titleCluster span,.trialTitleCluster span{
+ position:relative;display:inline-flex!important;align-items:center;justify-content:center;
+ width:auto!important;height:auto!important;padding:0 .02em!important;
+ background:none!important;border:0!important;box-shadow:none!important;
+ font-family:"Noto Sans KR",Arial,sans-serif!important;
+ font-weight:1000!important;line-height:.92!important;
+ font-size:clamp(42px,8vw,110px)!important;
+ color:#fff!important;
+ text-shadow:4px 5px 0 #2b071c,0 0 16px #ff2b91,0 0 36px rgba(255,0,128,.42)!important;
+}
+.titleCluster span:nth-child(1),.trialTitleCluster span:nth-child(1){color:#ff4fa8!important;transform:rotate(-8deg)}
+.titleCluster span:nth-child(2),.trialTitleCluster span:nth-child(2){color:#fff!important;transform:rotate(4deg)}
+.titleCluster span:nth-child(3),.trialTitleCluster span:nth-child(3){color:#ff7bc2!important;transform:rotate(-5deg)}
+.titleCluster span:nth-child(4),.trialTitleCluster span:nth-child(4){color:#ffe6f4!important;transform:rotate(8deg)}
+.titleCluster span:before,.trialTitleCluster span:before{
+ content:"";position:absolute;z-index:-1;left:-18%;right:-18%;top:46%;height:10%;
+ background:linear-gradient(90deg,transparent,rgba(255,0,98,.85),transparent);
+ filter:blur(6px);transform:rotate(-6deg);opacity:.7;
+}
+.titleCluster span:after,.trialTitleCluster span:after{
+ content:"";position:absolute;z-index:-1;width:68%;height:20%;
+ right:-22%;top:18%;
+ border-top:4px solid rgba(255,30,115,.75);
+ border-bottom:3px solid rgba(255,30,115,.45);
+ transform:rotate(-18deg) skewX(-22deg);
+ filter:drop-shadow(0 0 5px rgba(255,0,110,.65));
+}
+
+/* v184 player 재판 연출 */
+.trialAnnouncementSimple,.trialCountdownStage{
+ position:fixed!important;inset:0!important;display:flex;align-items:center;justify-content:center;
+ background:#020002!important;text-align:center;z-index:2000;
+}
+.trialAnnouncementSimpleText{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(34px,6vw,82px)!important;font-weight:1000!important;color:#fff!important;
+ text-shadow:0 0 25px #ff1684,4px 5px 0 #3a071f!important;animation:v184IntroFade .45s ease both;
+}
+.trialCountdownNumber{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(140px,28vw,330px)!important;font-weight:1000!important;color:#fff!important;
+ text-shadow:0 0 35px #ff1684,0 0 90px rgba(255,0,128,.5)!important;
+ animation:v184Count .8s ease both;
+}
+.trialCenterNotice{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(30px,5vw,72px)!important;font-weight:1000!important;
+ color:#fff!important;text-shadow:0 0 28px rgba(255,0,128,.55),4px 5px 0 #3b0a24!important;
+}
 </style>
 </head>
 <body class="wolf-v181">
@@ -1219,13 +1275,13 @@ button.secondary{border-color:#555;background:#111}
 <div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>
 </section>
 <section id="trialAnnouncement" class="screen">
- <div class="trialAnnounceStage">
-  <div class="trialAnnounceBackdrop"></div>
-  <div class="trialAnnounceCards"><div>늑</div><div>대</div><div>재</div><div>판</div></div>
-  <div class="trialAnnounceContent">
-   <h1>곧 늑대 재판이 시작됩니다.</h1>
-   <div class="subtext">모두 그래이스홀로 이동해 주십시오.</div>
-  </div>
+ <div class="trialAnnounceStage trialAnnouncementSimple">
+  <div class="trialAnnouncementSimpleText">곧 늑대 재판이 시작됩니다.</div>
+ </div>
+</section>
+<section id="trialCountdown" class="screen">
+ <div class="trialCountdownStage">
+  <div class="trialCountdownNumber" id="trialCountdownNumber">5</div>
  </div>
 </section>
 <section id="playerTrialResult" class="screen">
@@ -1994,6 +2050,10 @@ async function routeCore(){
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
      return;
    case "PLAY":
+     if(String(g.notice||"").startsWith("NIGHT_WARNING|")){
+       await renderNightPreAlert(g);
+       return;
+     }
      if(document.querySelector("#sabotage.screen.active"))return;
      if(sabotageInterruptUntil>Date.now()){
        if(!document.querySelector("#player.screen.active"))await showScreen("player");
@@ -2029,6 +2089,7 @@ async function route(){
 }
 
 async function renderLobby(p,g){
+ stopPlayerTrialBgm();
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
  el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
  el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
@@ -2083,6 +2144,12 @@ async function renderNightPreAlert(g){
  await tick();
  nightPreTimer=setInterval(()=>tick().catch(()=>{}),250);
 }
+function stopPlayerTrialBgm(){
+ try{
+   const a=audio.trialBgm;
+   if(a){a.pause();a.currentTime=0;}
+ }catch(_){}
+}
 async function renderPlayerTrialResult(data){
  await showScreen("playerTrialResult");
  const name=String(data.name||"");
@@ -2111,56 +2178,75 @@ async function renderRoleIntro(){
 async function renderRoleSelect(p,g){
  await showScreen("roleSelect");
  const r=await db.from("players").select("*").order("card_position");
- if(r.error){toast(r.error.message);return;}
- const players=(r.data||[]).filter(x=>x.status==="ALIVE"), chosen=p.card_selected===true;
+ if(r.error){toast(r.message||"플레이어 정보를 불러오지 못했습니다.");return;}
+ const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==="ALIVE");
+ const chosen=p.card_selected===true;
  el("roleSelectStatus").textContent=chosen?"선택 완료":"선택 대기";
- el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어가 선택을 완료할 때까지 기다려주세요.":"";
+ el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.":"";
  el("roleSelectSub").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다립니다.":"";
+
  const box=el("roleCards");
  const existing=[...box.querySelectorAll(".roleCard")];
+
  if(existing.length!==players.length){
    box.innerHTML="";
    players.forEach((x,i)=>{
-     const b=document.createElement("button");
-     b.className="roleCard playingCard"+(x.card_selected?" selected":"");
-     b.disabled=!!x.card_selected;
-     b.setAttribute("aria-label","카드 "+(i+1)+" 선택");
-     b.style.setProperty("--deal-delay",(.18+i*.16)+"s");
-     b.style.setProperty("--from-r",((i%2?-8:8))+'deg');
-     b.innerHTML='<span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span>';
-     b.onclick=()=>selectRoleCard(i);
-     box.appendChild(b);
+     const btn=document.createElement("button");
+     btn.type="button";
+     btn.className="roleCard playingCard"+(x.card_selected?" selected":"");
+     btn.disabled=!!x.card_selected;
+     btn.setAttribute("aria-label","카드 "+(i+1)+" 선택");
+     btn.dataset.position=String(i);
+     btn.innerHTML='<span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span>';
+     btn.onclick=()=>selectRoleCard(i);
+     box.appendChild(btn);
    });
-   /* ★ 초기 축소/이동 transform이 적용된 상태의 getBoundingClientRect()를
-      측정하면 실제 최종 카드 위치가 아니라 변형된 카드 위치를 얻게 됩니다.
-      그 값을 딜러 출발점 계산에 다시 사용하면서 카드 크기/위치가 망가졌습니다.
-      따라서 측정 순간에만 animation/transform을 제거하고 최종 레이아웃을 측정합니다. */
-   const dealerOrigin={x:window.innerWidth/2,y:window.innerHeight*.18};
-   const measureCards=[...box.querySelectorAll(".roleCard")];
-   measureCards.forEach(card=>{
+
+   // 카드의 최종 배치 크기를 먼저 확정한 뒤, 딜러 출발점만 계산합니다.
+   const cards=[...box.querySelectorAll(".roleCard.playingCard")];
+   cards.forEach(card=>{
      card.style.setProperty("animation","none","important");
      card.style.setProperty("transform","none","important");
+     card.style.setProperty("opacity","1","important");
    });
-   void box.offsetWidth;
-   measureCards.forEach(card=>{
+   void box.offsetHeight;
+
+   const dealerOrigin={x:window.innerWidth/2,y:Math.max(90,window.innerHeight*.15)};
+   cards.forEach((card,i)=>{
      const r=card.getBoundingClientRect();
-     card.style.setProperty("--from-x",(dealerOrigin.x-(r.left+r.width/2))+"px");
-     card.style.setProperty("--from-y",(dealerOrigin.y-(r.top+r.height/2))+"px");
-   });
-   measureCards.forEach(card=>{
-     card.style.removeProperty("animation");
+     const fromX=dealerOrigin.x-(r.left+r.width/2);
+     const fromY=dealerOrigin.y-(r.top+r.height/2);
+     card.style.setProperty("--from-x",`${fromX}px`);
+     card.style.setProperty("--from-y",`${fromY}px`);
+     card.style.setProperty("--from-r",`${i%2?-8:8}deg`);
+     card.style.setProperty("--deal-delay",`${.12+i*.14}s`);
+     card.style.removeProperty("opacity");
      card.style.removeProperty("transform");
+     card.style.removeProperty("animation");
    });
+
    let dealer=el("roleSelect").querySelector(".dealerArea");
    if(!dealer){
-     dealer=document.createElement("div");dealer.className="dealerArea";
+     dealer=document.createElement("div");
+     dealer.className="dealerArea";
      dealer.innerHTML='<div class="dealerDeck"></div><div class="dealerHand"></div><div class="dealerLabel">DEALER</div>';
      el("roleSelect").appendChild(dealer);
    }
-   const dealDone=Math.max(2300,players.length*180+1200);
-   setTimeout(()=>{dealer?.remove();const latestSub=el("roleSelectSub");if(latestSub && !document.querySelector("#roleSelect.roleIntroTableOnly"))latestSub.textContent="원하는 카드를 터치하세요.";},dealDone);
+
+   const dealDone=Math.max(2300,players.length*140+900);
+   setTimeout(()=>{
+     dealer?.remove();
+     const sub=el("roleSelectSub");
+     if(sub && !document.querySelector("#roleSelect.roleIntroTableOnly"))
+       sub.textContent="원하는 카드를 터치하세요.";
+   },dealDone);
  }else{
-   existing.forEach((b,i)=>{const x=players[i];b.classList.toggle("selected",!!x.card_selected);b.disabled=!!x.card_selected;});
+   existing.forEach((btn,i)=>{
+     const x=players[i];
+     btn.classList.toggle("selected",!!x.card_selected);
+     btn.disabled=!!x.card_selected;
+     btn.onclick=()=>selectRoleCard(i);
+   });
  }
 }
 
@@ -2320,7 +2406,13 @@ function tickMission(){
  }
 }
 function tickRoundTimer(){
- if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-Date.now()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){clearInterval(roundTimer);roundTimer=null;if(!window.__roundExpiredHandled){window.__roundExpiredHandled=true;transitionToNight().catch(e=>console.error("밤 전환 실패:",e));}}
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-Date.now()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
+  clearInterval(roundTimer);roundTimer=null;
+  if(!window.__roundExpiredHandled){
+    window.__roundExpiredHandled=true;
+    transitionToNight().catch(e=>console.error("밤 전환 실패:",e));
+  }
+}
 }
 function startRoundTimer(g){
  const timerEl=el("roundTimer");
@@ -2349,7 +2441,10 @@ async function transitionToNight(){
  const warningNotice="NIGHT_WARNING|"+started;
  const r=await db.from("game_settings").update({notice:warningNotice}).eq("id",1).eq("phase","PLAY");
  if(r.error)throw new Error(r.error.message);
- await new Promise(r=>setTimeout(r,10000));
+
+ // immediately render the shared 10-second warning on this client
+ await renderNightPreAlert({...g,notice:warningNotice});
+
  const latest=await settings();
  if(latest.phase==="PLAY" && String(latest.notice||"")===warningNotice){
    const nr=await db.from("game_settings").update({
@@ -3181,7 +3276,7 @@ function showVisualEvent(type,opts={}){
  const cards=el("visualEventCards");
  if(cards)cards.classList.toggle("hide",kind!=="sabotage");
  if(visualEventHideTimer)clearTimeout(visualEventHideTimer);
- visualEventHideTimer=setTimeout(hideVisualEvent,kind==="body"?3200:5200);
+ visualEventHideTimer=setTimeout(hideVisualEvent,kind==="body"?3200:1500);
 }
 async function renderInvestigation(p,g){
  stopMissionTimer();
@@ -3189,7 +3284,7 @@ async function renderInvestigation(p,g){
  closeOverlay();
  const locationName=String(g.dead_sheep_location||"사건 현장");
  const started=Date.parse(g.investigation_started_at||"");
- const duration=Math.max(1,Number(rule(g,"investigation_minutes"))||5)*60*1000;
+ const duration=Math.max(1,Number(g.investigation_duration_minutes)||5)*60*1000;
  const end=started?started+duration:Date.now()+duration;
  await showScreen("investigationAnnouncement");
  el("investigationAnnouncementMain").textContent=`누군가 ${locationName}에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
@@ -3226,20 +3321,28 @@ async function renderTrial(p,g){
  stopAllTimers();
  const trialRound=Number(g.current_round);
  closeOverlay();
- if(window.__trialAnnouncementRound!==trialRound){
-   if(!window.__trialAnnouncementPromise || window.__trialAnnouncementPromiseRound!==trialRound){
-     window.__trialAnnouncementRound=trialRound;
-     window.__trialAnnouncementPromiseRound=trialRound;
-     window.__trialAnnouncementPromise=(async()=>{
-       await showScreen("trialAnnouncement");
-       await new Promise(r=>setTimeout(r,3000));
-     })().finally(()=>{
-       window.__trialAnnouncementPromise=null;
-     });
+
+ // 재판 BGM은 안내 시작과 동시에 재생하고, 2초 안내 → 5초 카운트다운 → 본 재판 순서로 진행합니다.
+ const trialSequenceKey="trial-sequence-"+trialRound;
+ if(window.__trialSequenceRound!==trialRound){
+   window.__trialSequenceRound=trialRound;
+   try{
+     const bgm=audio.trialBgm;
+     if(bgm){
+       bgm.loop=true;
+       bgm.volume=.45;
+       if(audioContext&&audioContext.state==="suspended")await audioContext.resume();
+       await bgm.play();
+     }
+   }catch(e){console.warn("재판 BGM 재생 실패:",e);}
+   await showScreen("trialAnnouncement");
+   await new Promise(r=>setTimeout(r,2000));
+   await showScreen("trialCountdown");
+   const n=el("trialCountdownNumber");
+   for(let i=5;i>=1;i--){
+     if(n)n.textContent=String(i);
+     await new Promise(r=>setTimeout(r,1000));
    }
-   await window.__trialAnnouncementPromise;
- }else if(window.__trialAnnouncementPromise && window.__trialAnnouncementPromiseRound===trialRound){
-   await window.__trialAnnouncementPromise;
  }
  const gauge=await getMissionGauge(g.current_round);
  el("trialGaugeText").textContent=gauge.percent+"% ("+gauge.completed+"/"+gauge.target+")";
@@ -3247,7 +3350,7 @@ async function renderTrial(p,g){
 
  const dead=await getLatestDeadSheep(g.current_round);
  el("trialDeadEye").innerHTML='<span class="trialSheep">🐑</span><span class="trialEyes">✕　✕</span>';
- el("trialDeadName").textContent=dead?dead.name+" 양":"죽은 양";
+ el("trialDeadName").textContent=dead?dead.name+" 양":"";
 
  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
 
@@ -3266,7 +3369,9 @@ async function renderTrial(p,g){
  showScreen("trial");
 }
 async function renderPlayer(){
- hideVisualEvent();
+ stopPlayerTrialBgm();
+ const activeEvent=document.querySelector("#visualEventOverlay.show");
+ if(!activeEvent)hideVisualEvent();
  if(playerRenderBusy){playerRenderQueued=true;return;}
  playerRenderBusy=true;
  try{await renderPlayerCore();}
