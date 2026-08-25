@@ -1421,6 +1421,127 @@ body{
 #roleSelect .roleCard.playingCard,.wolf-v181 #roleSelect .roleCard.playingCard{width:min(100%,145px)!important;max-width:145px!important;height:auto!important;max-height:none!important;aspect-ratio:2/3!important;opacity:1!important;transform:none!important;animation:none!important;visibility:visible!important}
 #roleSelect .roleCard.playingCard .cardInner{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 @media(max-width:600px){#roleSelect .roleSelectTable{width:94vw!important}#roleSelect .roleSelectBoard{width:90vw!important;top:40%!important;height:44%!important}#roleSelect .roleCard.playingCard{width:min(100%,108px)!important;max-width:108px!important}}
+
+/* v192 canonical role-card layout */
+#roleSelect .roleSelectTable{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:56%!important;
+  bottom:auto!important;
+  width:min(92vw,1080px)!important;
+  height:min(58vh,620px)!important;
+  transform:translate(-50%,-50%) perspective(1000px) rotateX(8deg)!important;
+  border-radius:50%!important;
+  z-index:1!important;
+}
+#roleSelect .roleSelectBoard{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:42%!important;
+  bottom:auto!important;
+  width:min(82vw,900px)!important;
+  height:auto!important;
+  min-height:0!important;
+  transform:translateX(-50%)!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-flow:row!important;
+  grid-auto-rows:auto!important;
+  gap:clamp(12px,2vw,24px)!important;
+  align-items:center!important;
+  justify-items:center!important;
+  margin:0!important;
+  z-index:4!important;
+}
+#roleSelect .roleSelectBoard .roleCard{
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:min(100%,150px)!important;
+  max-width:150px!important;
+  height:auto!important;
+  max-height:none!important;
+  aspect-ratio:2/3!important;
+  min-width:0!important;
+  justify-self:center!important;
+  align-self:center!important;
+}
+#roleSelect .roleCard.playingCard{
+  position:relative!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+#roleSelect .roleCard.playingCard .cardInner{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:600px){
+  #roleSelect .roleSelectTable{
+    width:94vw!important;
+    height:54vh!important;
+  }
+  #roleSelect .roleSelectBoard{
+    width:88vw!important;
+    top:43%!important;
+    gap:10px!important;
+  }
+  #roleSelect .roleSelectBoard .roleCard{
+    width:min(100%,108px)!important;
+    max-width:108px!important;
+  }
+}
+
+/* v192: player main screen must visibly use trial_bg */
+#player{
+  position:relative!important;
+  isolation:isolate!important;
+  background:#020204!important;
+  overflow:hidden!important;
+}
+#player:before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:-1!important;
+  background:
+    linear-gradient(rgba(0,0,0,.48),rgba(0,0,0,.78)),
+    url("assets/trial_bg.jpg") center center/cover fixed no-repeat!important;
+  pointer-events:none!important;
+}
+#player>.card{
+  position:relative!important;
+  z-index:1!important;
+}
+
+/* v192: role reveal has only the flip control */
+.roleRevealActions{
+  bottom:5%!important;
+}
+.roleRevealActions .roleRevealConfirm{display:none!important}
+.roleRevealFlipBtn{
+  min-width:190px!important;
+  border:2px solid #8d0014!important;
+  background:rgba(8,2,4,.92)!important;
+  color:#eee!important;
+  box-shadow:0 0 22px rgba(180,0,30,.38)!important;
+  font-family:var(--wolf-title-font)!important;
+}
+
+
+/* v192: exact shared main title treatment */
+.wolfHeaderTitle span{
+  font-family:var(--wolf-rough-font)!important;
+}
+#player .playerStatusTitle{
+  font-family:var(--wolf-rough-font)!important;
+  color:#eee!important;
+  text-shadow:3px 4px 0 #26030a,0 0 18px rgba(170,0,25,.55)!important;
+}
+
 </style>
 </head>
 <body class="wolf-v181">
@@ -1975,15 +2096,20 @@ async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdmin
 window.__serverClockOffsetMs = Number(window.__serverClockOffsetMs)||0;
 function gameNow(){ return Date.now() + (Number(window.__serverClockOffsetMs)||0); }
 function syncGameClock(g){
- const phase=String(g?.phase||"").toUpperCase(), candidates=[];
+ const candidates=[];
+ // updated_at is the DB write timestamp and is the best common clock reference.
+ if(g?.updated_at)candidates.push(g.updated_at);
  if(g?.round_started_at)candidates.push(g.round_started_at);
- if(phase==="NIGHT"&&g?.night_started_at)candidates.push(g.night_started_at);
- if(phase==="INVESTIGATION"&&g?.investigation_started_at)candidates.push(g.investigation_started_at);
- if(!candidates.length&&g?.updated_at)candidates.push(g.updated_at);
- const stamp=Date.parse(candidates[0]||"");
- if(Number.isFinite(stamp)){
+ if(String(g?.phase||"").toUpperCase()==="NIGHT"&&g?.night_started_at)candidates.push(g.night_started_at);
+ if(String(g?.phase||"").toUpperCase()==="INVESTIGATION"&&g?.investigation_started_at)candidates.push(g.investigation_started_at);
+ for(const value of candidates){
+   const stamp=Date.parse(value||"");
+   if(!Number.isFinite(stamp))continue;
    const measured=stamp-Date.now();
-   if(Math.abs(measured)<120000)window.__serverClockOffsetMs=measured;
+   if(Math.abs(measured)<120000){
+     window.__serverClockOffsetMs=measured;
+     break;
+   }
  }
  return g;
 }
@@ -2569,7 +2695,6 @@ async function renderRoleReveal(p,g){
    '</div>'+
    '<div class="roleRevealActions">'+
      '<button class="roleRevealFlipBtn" type="button" onclick="toggleRoleReveal()">카드 뒤집기</button>'+
-     '<button class="roleRevealConfirm" onclick="confirmRoleReveal()">확인</button>'+
    '</div>'+
   '</div>';
 }
@@ -2580,15 +2705,6 @@ function toggleRoleReveal(){
  const back=flip.classList.toggle("isBack");
  if(btn)btn.textContent=back?"앞면 보기":"카드 뒤집기";
 }
-function confirmRoleReveal(){
- const b=document.querySelector(".roleRevealConfirm");
- if(!b)return;
- b.textContent="확인 완료";
- b.disabled=true;
- b.style.opacity=".55";
- toast("역할 결과를 확인했습니다.");
-}
-
 async function startRoleSelection(){
  try{
   await activateStageAudio();
@@ -3843,7 +3959,7 @@ async function startGame(){
      notice:"잠시후 게임이 시작됩니다.",winner:null,
      dead_sheep_found:false,dead_sheep_location:null,
      investigation_started_at:null,
-     round_started_at:new Date().toISOString(),
+     round_started_at:null,
      night_started_at:null,
      round_time_penalty_total:0
    });
@@ -3930,7 +4046,9 @@ async function renderGameCountdown(p,g){
    await new Promise(r=>setTimeout(r,4000));
    const latest=await settings();
    if(latest.phase==="COUNTDOWN"){
-     await set({phase:"PLAY",notice:"게임이 시작되었습니다.",round_started_at:new Date().toISOString()});
+     // 카운트다운이 끝난 이 시점부터 실제 라운드 시간이 시작됩니다.
+     const startedAt=new Date().toISOString();
+     await set({phase:"PLAY",notice:"게임이 시작되었습니다.",round_started_at:startedAt});
    }
    countdownTimer=null;
  };
@@ -4292,10 +4410,20 @@ async function confirmTrialResultBroadcast(){
  const p=r.data,role=String(p.role||'').toUpperCase();
  if(!['WOLF','SHEEP'].includes(role)){toast('아직 역할이 확정되지 않은 플레이어입니다.');return;}
  const payload={player_id:p.id,name:p.name||'',role,round:Number(g.current_round||0),event_id:(crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():String(Date.now())};
- const ins=await db.from('notifications').insert({message:JSON.stringify(payload),target_player:null,notification_type:'TRIAL_RESULT'});
- if(ins.error){toast('재판 결과 전송 실패: '+ins.error.message);return;}
- if(el('trialResultStatus'))el('trialResultStatus').textContent='플레이어와 방송스크린에 '+(p.name||'플레이어')+'의 재판 결과를 표시했습니다.';
- toast((p.name||'플레이어')+'의 재판 결과를 표시했습니다.');
+ const ins=await db.from('notifications').insert({
+   message:JSON.stringify(payload),
+   target_player:null,
+   notification_type:'TRIAL_RESULT'
+ }).select('id').maybeSingle();
+ if(ins.error){
+   toast('재판 결과 전송 실패: '+ins.error.message);
+   return;
+ }
+ // 관리자도 전송 직후 화면 상태를 명확하게 확인할 수 있도록 기록합니다.
+ if(el('trialResultStatus')){
+   el('trialResultStatus').textContent='전송 완료 · '+(p.name||'플레이어')+' · '+(role==='WOLF'?'늑대':'양')+' · 플레이어/스크린 표시 대기';
+ }
+ toast((p.name||'플레이어')+'의 재판 결과를 전송했습니다.');
 }
 
 async function sendNotice(){
