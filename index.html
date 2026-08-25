@@ -1405,6 +1405,22 @@ body{
  100%{opacity:1;transform:translate3d(0,0,0) rotate(0) scale(1)}
 }
 
+
+/* v191 */
+.wolfHeaderTitle span,#roleSelect .roleSelectTitle span,#playerTrialResult .playerResultTitle span{
+ font-family:var(--wolf-rough-font)!important;
+ text-shadow:4px 5px 0 #31000d,0 0 20px rgba(255,0,45,.55)!important;
+}
+.wolfHeaderTitle span:nth-child(1){color:#b9142c!important}.wolfHeaderTitle span:nth-child(2){color:#f0e7ea!important}
+.wolfHeaderTitle span:nth-child(3){color:#c9283a!important}.wolfHeaderTitle span:nth-child(4){color:#eee2e6!important}
+.wolfHeaderTitle span:before{background:linear-gradient(90deg,transparent,#69000c 15%,#d21d31 38%,transparent 58%,#79000e 82%,transparent)!important;height:7px!important}
+.wolfHeaderTitle span:after{background:radial-gradient(ellipse at 20% 18%,rgba(170,0,20,.95) 0 4px,transparent 5px),radial-gradient(ellipse at 67% 47%,rgba(215,0,30,.8) 0 3px,transparent 4px),radial-gradient(ellipse at 80% 82%,rgba(120,0,15,.9) 0 5px,transparent 6px)!important}
+#trial .trialTitleCluster,#trial .trialDead{display:none!important}
+#roleSelect .roleSelectTable{left:50%!important;right:auto!important;width:min(92vw,1100px)!important;top:34%!important;bottom:auto!important;height:57%!important;transform:translateX(-50%)!important;border-radius:50%!important;z-index:1!important}
+#roleSelect .roleSelectBoard{left:50%!important;right:auto!important;width:min(86vw,920px)!important;top:39%!important;bottom:auto!important;height:45%!important;transform:translateX(-50%)!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:1fr!important;align-items:center!important;justify-items:center!important;z-index:4!important}
+#roleSelect .roleCard.playingCard,.wolf-v181 #roleSelect .roleCard.playingCard{width:min(100%,145px)!important;max-width:145px!important;height:auto!important;max-height:none!important;aspect-ratio:2/3!important;opacity:1!important;transform:none!important;animation:none!important;visibility:visible!important}
+#roleSelect .roleCard.playingCard .cardInner{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+@media(max-width:600px){#roleSelect .roleSelectTable{width:94vw!important}#roleSelect .roleSelectBoard{width:90vw!important;top:40%!important;height:44%!important}#roleSelect .roleCard.playingCard{width:min(100%,108px)!important;max-width:108px!important}}
 </style>
 </head>
 <body class="wolf-v181">
@@ -1522,11 +1538,6 @@ body{
    <div class="trialGauge">
      <div class="row"><b>미션 게이지</b><b id="trialGaugeText">0%</b></div>
      <div class="trialGaugeBar"><div id="trialGaugeFill" class="trialGaugeFill" style="width:0%"></div></div>
-   </div>
-   <div class="trialTitleCluster" aria-label="늑대재판"><span>늑</span><span>대</span><span>재</span><span>판</span></div>
-   <div class="trialDead">
-     <div id="trialDeadEye" class="trialSheepGraphic"><span class="trialSheep">🐑</span><span class="trialEyes">✕　✕</span></div>
-     <h1 id="trialDeadName">죽은 양</h1>
    </div>
    <div class="card" style="max-width:900px;margin:0 auto">
      <h2>나의 미션 클리어 현황</h2>
@@ -1964,14 +1975,15 @@ async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdmin
 window.__serverClockOffsetMs = Number(window.__serverClockOffsetMs)||0;
 function gameNow(){ return Date.now() + (Number(window.__serverClockOffsetMs)||0); }
 function syncGameClock(g){
- const stamp=Date.parse(g?.updated_at||"");
+ const phase=String(g?.phase||"").toUpperCase(), candidates=[];
+ if(g?.round_started_at)candidates.push(g.round_started_at);
+ if(phase==="NIGHT"&&g?.night_started_at)candidates.push(g.night_started_at);
+ if(phase==="INVESTIGATION"&&g?.investigation_started_at)candidates.push(g.investigation_started_at);
+ if(!candidates.length&&g?.updated_at)candidates.push(g.updated_at);
+ const stamp=Date.parse(candidates[0]||"");
  if(Number.isFinite(stamp)){
    const measured=stamp-Date.now();
-   // 여러 모바일 기기에서 발생하는 로컬 시계 차이를 줄입니다.
-   // 아주 큰 지연값은 네트워크 지연으로 볼 수 있으므로 과도하게 적용하지 않습니다.
-   if(Math.abs(measured)<120000){
-     window.__serverClockOffsetMs = (Number(window.__serverClockOffsetMs)||0)*0.25 + measured*0.75;
-   }
+   if(Math.abs(measured)<120000)window.__serverClockOffsetMs=measured;
  }
  return g;
 }
@@ -2470,56 +2482,24 @@ async function renderRoleSelect(p,g){
  if(r.error){toast(r.message||"플레이어 정보를 불러오지 못했습니다.");return;}
  const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==="ALIVE");
  const chosen=p.card_selected===true;
-
  if(el("roleSelectStatus"))el("roleSelectStatus").textContent=chosen?"선택 완료":"선택 대기";
  if(el("roleWait"))el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.":"";
-
+ if(el("roleSelectSub"))el("roleSelectSub").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다립니다.":"원하는 카드를 터치하세요";
+ const box=el("roleCards"); if(!box)return;
  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}:${x.card_position}`).join("|");
- const box=el("roleCards");
- if(!box)return;
-
- // 같은 상태에서 route()가 반복 호출되어도 카드를 다시 만들지 않습니다.
- if(window.__roleDealSignature===signature && box.children.length===players.length){
-   if(el("roleSelectSub") && !chosen)el("roleSelectSub").textContent="원하는 카드를 터치하세요";
-   return;
- }
- window.__roleDealSignature=signature;
-
- if(el("roleSelectSub"))el("roleSelectSub").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다립니다.":"카드가 배부되고 있습니다.";
-
+ if(window.__stableRoleCardSignature===signature && box.children.length===players.length)return;
+ window.__stableRoleCardSignature=signature;
  box.innerHTML="";
  players.forEach((x,i)=>{
    const btn=document.createElement("button");
-   btn.type="button";
-   btn.className="roleCard playingCard"+(x.card_selected?" selected":"");
-   btn.disabled=!!x.card_selected;
+   btn.type="button";btn.className="roleCard playingCard"+(x.card_selected?" selected":"");
+   btn.disabled=!!x.card_selected;btn.dataset.position=String(i);
    btn.setAttribute("aria-label","카드 "+(i+1)+" 선택");
-   btn.dataset.position=String(i);
    btn.innerHTML='<span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span>';
-   btn.onclick=()=>selectRoleCard(i);
-   box.appendChild(btn);
+   btn.onclick=()=>selectRoleCard(i);box.appendChild(btn);
  });
-
- // 카드 배치는 CSS grid가 담당합니다. 애니메이션은 각 카드의 transform만 변경합니다.
- const cards=[...box.querySelectorAll(".roleCard.playingCard")];
- void box.offsetWidth;
- const board=box.getBoundingClientRect();
- const origin={x:window.innerWidth/2,y:Math.max(60,window.innerHeight*.12)};
- cards.forEach((card,i)=>{
-   const r=card.getBoundingClientRect();
-   card.style.setProperty("--from-x",`${origin.x-(r.left+r.width/2)}px`);
-   card.style.setProperty("--from-y",`${origin.y-(r.top+r.height/2)}px`);
-   card.style.setProperty("--from-r",`${i%2?-7:7}deg`);
-   card.style.setProperty("--deal-delay",`${.10+i*.13}s`);
-   card.style.setProperty("opacity","0","important");
-   card.style.setProperty("animation",`wolfDealerDeal .78s cubic-bezier(.12,.86,.2,1) ${.10+i*.13}s both`,"important");
- });
- const done=Math.max(1200,players.length*130+700);
- setTimeout(()=>{
-   if(window.__roleDealSignature===signature && el("roleSelectSub") && !chosen)
-     el("roleSelectSub").textContent="원하는 카드를 터치하세요";
- },done);
 }
+
 
 let roleCardSelecting=false;
 async function selectRoleCard(position){
@@ -2658,7 +2638,7 @@ function tickMission(){
  const timerEl=el("missionTimer");
  if(!timerEl)return;
 
- const left=Math.max(0,missionEndAt-Date.now());
+ const left=Math.max(0,missionEndAt-gameNow());
  const total=Math.ceil(left/1000);
  const min=Math.floor(total/60);
  const sec=total%60;
@@ -2677,7 +2657,7 @@ function tickMission(){
  }
 }
 function tickRoundTimer(){
- if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-Date.now()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
   clearInterval(roundTimer);roundTimer=null;
   if(!window.__roundExpiredHandled){
     window.__roundExpiredHandled=true;
@@ -2699,7 +2679,7 @@ function startRoundTimer(g){
  const duration=minutes*60*1000;
  const startedMs=Date.parse(g?.round_started_at||"");
  window.__roundTimerRound=Number(g?.current_round)||0;
- window.__roundTimerStartedAt=Number.isFinite(startedMs)?startedMs:Date.now();
+ window.__roundTimerStartedAt=Number.isFinite(startedMs)?startedMs:gameNow();
  window.__roundTimerDurationMs=duration;
  tickRoundTimer();
  roundTimer=setInterval(tickRoundTimer,250);
@@ -2769,7 +2749,7 @@ async function renderNight(p,g){
 
  const timerEl=isWolf?el("nightWolfTimer"):el("nightSheepTimer");
  const tick=()=>{
-   const left=Math.max(0,endMs-Date.now());
+   const left=Math.max(0,endMs-gameNow());
    if(timerEl)timerEl.textContent=formatRoundTime(left);
    if(left<=0){
      if(window.__nightLocalTimer){clearInterval(window.__nightLocalTimer);window.__nightLocalTimer=null;}
@@ -2779,7 +2759,7 @@ async function renderNight(p,g){
 
  if(window.__nightLocalTimer)clearInterval(window.__nightLocalTimer);
  tick();
- if(Date.now()<endMs)window.__nightLocalTimer=setInterval(tick,250);
+ if(gameNow()<endMs)window.__nightLocalTimer=setInterval(tick,250);
 }
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
@@ -2835,8 +2815,8 @@ async function renderPlayerCore(){
     let cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
     let status=done?"✓ 미션 완료":sabotagedHere?"⚠ 사보타지 중":active?"● 활성 미션":"○ 비활성 미션";
     const sabotageEnd=Number(sabotageEnds.get(id)||0);
-    const sabotageSeconds=sabotagedHere&&sabotageEnd>Date.now()
-      ?Math.ceil((sabotageEnd-Date.now())/1000):0;
+    const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
+      ?Math.ceil((sabotageEnd-gameNow())/1000):0;
     let action="";
     if(!done&&!sabotagedHere&&active){
       action=nfcOk
@@ -2880,7 +2860,7 @@ async function renderActionDock(g,p){
  const discovery=missionActionIcon("discovery");
  if(roleIsWolf(p.role)){
    const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
-   const now=Date.now(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
+   const now=gameNow(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
    const remain=active>0?active:cd;
    d.innerHTML=
     '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>'+
@@ -3023,7 +3003,7 @@ async function getSabotageState(round){
    Math.floor(Number(g?.sabotage_cooldown_seconds)||60)));
  const configuredDuration=Math.max(5,Math.min(600,
    Math.floor(Number(g?.sabotage_duration_seconds)||30)));
- const now=Date.now();
+ const now=gameNow();
 
  const parsed=events.map(ev=>{
    const startedAt=Date.parse(ev.started_at||ev.starts_at||ev.created_at||"");
@@ -3369,7 +3349,7 @@ async function useSabotage(){await openSabotageScreen();}
 async function renderSabotageStatus(g,p){
  if(!roleIsWolf(p.role)||g.phase!=="PLAY")return "";
  const st=await getSabotageState(g.current_round);
- const now=Date.now();
+ const now=gameNow();
  const activeRemain=Math.max(0,st.activeUntil-now);
  const cdRemain=Math.max(0,st.cooldownUntil-now);
  const cooling=cdRemain>0;
@@ -3594,7 +3574,7 @@ async function renderInvestigation(p,g){
  const locationName=String(g.dead_sheep_location||"사건 현장");
  const started=Date.parse(g.investigation_started_at||"");
  const duration=Math.max(1,Number(g.investigation_duration_minutes)||5)*60*1000;
- const end=started?started+duration:Date.now()+duration;
+ const end=started?started+duration:gameNow()+duration;
  await showScreen("investigationAnnouncement");
  el("investigationAnnouncementMain").textContent=`누군가 ${locationName}에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
  if(investigationTimer)clearInterval(investigationTimer);
@@ -4303,18 +4283,19 @@ async function refreshTrialResultPlayers(players){
 }
 
 async function confirmTrialResultBroadcast(){
-  const id=el('trialResultPlayer')?.value;
-  if(!id){toast('재판 결과를 확인할 플레이어를 선택해 주세요.');return;}
-  const r=await db.from('players').select('id,name,role,status').eq('id',id).maybeSingle();
-  if(r.error||!r.data){toast('플레이어 정보를 불러오지 못했습니다.');return;}
-  const p=r.data;
-  if(!['WOLF','SHEEP'].includes(String(p.role||'').toUpperCase())){toast('아직 역할이 확정되지 않은 플레이어입니다.');return;}
-  const g=await settings();
-  const payload={player_id:p.id,name:p.name||'',role:String(p.role).toUpperCase(),round:Number(g.current_round||0)};
-  const ins=await db.from('notifications').insert({message:JSON.stringify(payload),target_player:null,notification_type:'TRIAL_RESULT'});
-  if(ins.error){toast('스크린 재판 결과 전송 실패: '+ins.error.message);return;}
-  if(el('trialResultStatus'))el('trialResultStatus').textContent='스크린에 '+(p.name||'플레이어')+'의 재판 결과를 표시했습니다.';
-  toast('재판 결과를 스크린에 표시했습니다.');
+ const id=el('trialResultPlayer')?.value;
+ if(!id){toast('재판 결과를 확인할 플레이어를 선택해 주세요.');return;}
+ const g=await settings();
+ if(String(g.phase||'').toUpperCase()!=='TRIAL'){toast('재판 화면에서만 재판 결과를 확인할 수 있습니다.');return;}
+ const r=await db.from('players').select('id,name,role,status').eq('id',id).maybeSingle();
+ if(r.error||!r.data){toast('플레이어 정보를 불러오지 못했습니다.');return;}
+ const p=r.data,role=String(p.role||'').toUpperCase();
+ if(!['WOLF','SHEEP'].includes(role)){toast('아직 역할이 확정되지 않은 플레이어입니다.');return;}
+ const payload={player_id:p.id,name:p.name||'',role,round:Number(g.current_round||0),event_id:(crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():String(Date.now())};
+ const ins=await db.from('notifications').insert({message:JSON.stringify(payload),target_player:null,notification_type:'TRIAL_RESULT'});
+ if(ins.error){toast('재판 결과 전송 실패: '+ins.error.message);return;}
+ if(el('trialResultStatus'))el('trialResultStatus').textContent='플레이어와 방송스크린에 '+(p.name||'플레이어')+'의 재판 결과를 표시했습니다.';
+ toast((p.name||'플레이어')+'의 재판 결과를 표시했습니다.');
 }
 
 async function sendNotice(){
@@ -4417,7 +4398,7 @@ async function handleSabotageEvent(e){
 
  const startedAt=Date.parse(e.started_at||e.starts_at||e.created_at||"");
  const endsAt=Date.parse(e.ends_at||"");
- const sec=Math.max(0,Math.ceil((endsAt-Date.now())/1000));
+ const sec=Math.max(0,Math.ceil((endsAt-gameNow())/1000));
 
  const activeScreen=document.querySelector(".screen.active")?.id||"";
  const deathProtected=
