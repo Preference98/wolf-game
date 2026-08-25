@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v177</title>
+<title>늑대게임 v176</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -861,18 +861,90 @@ button.secondary{border-color:#555;background:#111}
 #trial .trialScreen,#trial .trialScreen *{font-family:var(--wolf-title-font)!important}
 #trial .trialDead h1,#trial .trialMissionList{letter-spacing:-.02em}
 
-/* v177 WOLF TRIAL TITLE — intentionally shares the exact visual language of the WOLF GAME title */
-#trialAnnouncement .trialAnnounceCards div{font-family:"Noto Sans KR",Arial,sans-serif!important;width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-size:clamp(58px,9vw,145px)!important;font-weight:1000!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important;border-radius:0!important}
-#trialAnnouncement .trialAnnounceCards div:nth-child(1){transform:rotate(-8deg)!important}
-#trialAnnouncement .trialAnnounceCards div:nth-child(2){transform:rotate(4deg)!important}
-#trialAnnouncement .trialAnnounceCards div:nth-child(3){transform:rotate(-5deg)!important}
-#trialAnnouncement .trialAnnounceCards div:nth-child(4){transform:rotate(8deg)!important}
-#trialAnnouncement .trialAnnounceContent h1,#trialAnnouncement .trialAnnounceContent .subtext{font-family:"Noto Sans KR",Arial,sans-serif!important}
+/* v177: unified title system + true top-down steel table + stable card dealing */
+:root{--wolf-pink:#ff1684;--wolf-pink2:#ff4aa4;--wolf-deep:#28000f;--wolf-steel:#6b706e;--wolf-font:"Noto Sans KR",Arial,sans-serif}
+/* Game-facing section titles use the same visual grammar as the opening title. */
+#roleSelect .roleSelectTitle,
+#roleReveal .roleRevealFront h1,
+#trialAnnouncement h1,
+#trial .trialDead h1,
+#trial .trialScreen h2,
+#trial .trialScreen .trialDeadName,
+#investigation h1,
+#night h1,
+#play h1,
+#mission h1{
+  font-family:var(--wolf-font)!important;font-weight:1000!important;letter-spacing:-.07em!important;
+  text-shadow:4px 5px 0 #6b1643,0 0 24px rgba(255,0,135,.72)!important;
+}
+/* Role-selection title becomes a title-card cluster rather than a plain heading. */
+#roleSelect .roleSelectTitle{display:inline-flex!important;padding:.08em .18em!important;background:linear-gradient(135deg,var(--wolf-pink),#9b003f 55%,var(--wolf-deep))!important;border:3px solid var(--wolf-pink2)!important;box-shadow:0 0 28px rgba(255,0,110,.58),9px 11px 0 rgba(25,0,15,.72)!important;transform:rotate(-2deg)!important;color:#fff!important}
+/* True top-down round steel table: full ellipse, not a perspective half-table. */
+#roleSelect .roleSelectTable{
+ left:4%!important;right:4%!important;top:31%!important;bottom:auto!important;height:62%!important;
+ border-radius:50%!important;transform:none!important;z-index:1!important;
+ background:
+  radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.08),transparent 43%),
+  repeating-radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.055) 0 2px,transparent 2px 9px),
+  repeating-linear-gradient(13deg,rgba(255,255,255,.035) 0 2px,transparent 2px 7px),
+  repeating-linear-gradient(97deg,rgba(0,0,0,.18) 0 3px,transparent 3px 11px),
+  radial-gradient(ellipse at 50% 48%,#676b69 0%,#414443 48%,#202222 78%,#0c0d0d 100%)!important;
+ border:7px solid #2a2c2c!important;
+ box-shadow:inset 0 0 0 2px #9b9e9c,inset 0 0 0 8px #3b3e3d,inset 0 0 80px rgba(0,0,0,.72),0 25px 70px rgba(0,0,0,.85),0 0 70px rgba(255,0,126,.18)!important;
+ overflow:hidden!important;
+}
+#roleSelect .roleSelectTable:before{content:"";position:absolute;inset:2%;border-radius:50%;background:radial-gradient(circle at 22% 31%,rgba(255,255,255,.13) 0 1px,transparent 2px),radial-gradient(circle at 67% 62%,rgba(255,255,255,.10) 0 1px,transparent 2px),radial-gradient(circle at 44% 73%,rgba(0,0,0,.28) 0 2px,transparent 3px);background-size:37px 31px,43px 47px,51px 53px;opacity:.7;mix-blend-mode:screen}
+#roleSelect .roleSelectTable:after{content:"";position:absolute;inset:5%;border-radius:50%;border:1px solid rgba(255,255,255,.15);box-shadow:inset 0 0 35px rgba(0,0,0,.5)}
+/* Cards have a deterministic 3-column grid and a hard size ceiling. */
+#roleSelect .roleSelectBoard{left:10%!important;right:10%!important;top:38%!important;bottom:auto!important;height:49%!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:1fr!important;gap:clamp(10px,1.8vw,22px)!important;align-items:center!important;justify-items:center!important}
+#roleSelect .roleCard.playingCard{width:min(100%,150px)!important;max-width:150px!important;height:auto!important;max-height:none!important;aspect-ratio:2/3!important;justify-self:center!important;align-self:center!important}
+#roleSelect .roleCard.playingCard .cardInner{width:100%!important;height:100%!important}
+#roleSelect .roleCard.playingCard.selected{transform:translateY(-5px) scale(.98)!important}
+/* Dealer deck is centered above the table; cards fly from it to their final grid cells. */
+#roleSelect .dealerArea{left:50%!important;top:18%!important;z-index:8!important}
+#roleSelect .dealerDeck{width:64px!important;height:92px!important}
+#roleSelect .dealerHand{top:60px!important}
+/* Reveal screen: same title-card language instead of a separate visual system. */
+#roleReveal .roleRevealFront h1{display:inline-block;padding:.08em .18em;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f);border:3px solid #ff4aa4;box-shadow:0 0 28px rgba(255,0,110,.5),8px 10px 0 rgba(25,0,15,.7);color:#fff!important}
+/* Trial announcement: exact same four-card title construction as the opening title. */
+#trialAnnouncement .trialAnnounceCards{gap:clamp(6px,1vw,18px)!important}
+#trialAnnouncement .trialAnnounceCards div{width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-family:var(--wolf-font)!important;font-size:clamp(58px,9vw,145px)!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important}
+#trialAnnouncement .trialAnnounceContent h1{font-family:var(--wolf-font)!important;font-weight:1000!important;letter-spacing:-.06em!important;text-shadow:4px 5px 0 #6b1643,0 0 24px rgba(255,0,135,.72)!important}
+/* Trial screen title cluster. */
+#trial .trialScreen h2{display:inline-block;padding:.06em .16em;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f);border:2px solid #ff4aa4;box-shadow:0 0 20px rgba(255,0,110,.4),7px 8px 0 rgba(25,0,15,.6);color:#fff!important}
+@media(max-width:600px){
+ #roleSelect .roleSelectTable{left:2%!important;right:2%!important;top:34%!important;height:57%!important}
+ #roleSelect .roleSelectBoard{left:7%!important;right:7%!important;top:40%!important;height:47%!important;gap:8px!important}
+ #roleSelect .roleCard.playingCard{width:min(100%,108px)!important;max-width:108px!important}
+ #roleSelect .dealerArea{top:19%!important}
+}
+
+
+/* v177 title clusters: same four-letter card treatment as opening title */
+#roleSelect .roleSelectTitle{display:flex!important;gap:clamp(4px,.7vw,10px)!important;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;transform:none!important}
+#roleSelect .roleSelectTitle span,.trialTitleCluster span{
+ display:flex;align-items:center;justify-content:center;width:clamp(58px,8vw,120px);height:clamp(78px,12vw,175px);
+ background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f);border:3px solid #ff4aa4;
+ box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7);
+ color:#fff;font-family:var(--wolf-font);font-size:clamp(38px,7vw,105px);font-weight:1000;
+ text-shadow:4px 5px 0 #25000f,0 0 20px #fff;
+}
+#roleSelect .roleSelectTitle span:nth-child(1),.trialTitleCluster span:nth-child(1){transform:rotate(-8deg)}
+#roleSelect .roleSelectTitle span:nth-child(2),.trialTitleCluster span:nth-child(2){transform:rotate(4deg)}
+#roleSelect .roleSelectTitle span:nth-child(3),.trialTitleCluster span:nth-child(3){transform:rotate(-5deg)}
+#roleSelect .roleSelectTitle span:nth-child(4),.trialTitleCluster span:nth-child(4){transform:rotate(8deg)}
+.trialTitleCluster{display:flex;justify-content:center;gap:clamp(4px,.7vw,10px);margin:18px auto 2px;position:relative;z-index:4}
+.trialTitleCluster span{animation:titleClusterSettle .65s cubic-bezier(.12,.9,.18,1) both}
+.trialTitleCluster span:nth-child(1){animation-delay:.05s}.trialTitleCluster span:nth-child(2){animation-delay:.15s}.trialTitleCluster span:nth-child(3){animation-delay:.25s}.trialTitleCluster span:nth-child(4){animation-delay:.35s}
+@keyframes titleClusterSettle{from{opacity:0;transform:translateY(55px) scale(.55) rotate(0)}58%{opacity:1;transform:translateY(-8px) scale(1.06) rotate(var(--r,0))}to{opacity:1;transform:translateY(0) scale(1) rotate(var(--r,0))}}
+.trialTitleCluster span:nth-child(1){--r:-8deg}.trialTitleCluster span:nth-child(2){--r:4deg}.trialTitleCluster span:nth-child(3){--r:-5deg}.trialTitleCluster span:nth-child(4){--r:8deg}
+@media(max-width:600px){#roleSelect .roleSelectTitle span,.trialTitleCluster span{width:clamp(45px,12vw,72px);height:clamp(62px,16vw,105px);font-size:clamp(30px,9vw,58px)}}
+
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v177</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v176</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -959,6 +1031,7 @@ button.secondary{border-color:#555;background:#111}
      <div class="row"><b>미션 게이지</b><b id="trialGaugeText">0%</b></div>
      <div class="trialGaugeBar"><div id="trialGaugeFill" class="trialGaugeFill" style="width:0%"></div></div>
    </div>
+   <div class="trialTitleCluster" aria-label="늑대재판"><span>늑</span><span>대</span><span>재</span><span>판</span></div>
    <div class="trialDead">
      <div id="trialDeadEye" class="trialSheepGraphic"><span class="trialSheep">🐑</span><span class="trialEyes">✕　✕</span></div>
      <h1 id="trialDeadName">죽은 양</h1>
@@ -978,7 +1051,7 @@ button.secondary{border-color:#555;background:#111}
 
 <section id="roleSelect" class="screen roleSelectStage">
 <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-<div class="roleSelectHeader"><div class="roleSelectTitle">카드 선택</div><div class="roleSelectSub">원하는 카드를 터치하세요</div></div>
+<div class="roleSelectHeader"><div class="roleSelectTitle"><span>카</span><span>드</span><span>선</span><span>택</span></div><div class="roleSelectSub">원하는 카드를 터치하세요</div></div>
 <div class="roleSelectTable"></div>
 <div id="roleCards" class="roleSelectBoard"></div>
 <div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
@@ -1772,12 +1845,17 @@ async function renderRoleSelect(p,g){
      b.disabled=!!x.card_selected;
      b.setAttribute("aria-label","카드 "+(i+1)+" 선택");
      b.style.setProperty("--deal-delay",(.18+i*.16)+"s");
-     b.style.setProperty("--from-x",((i-(players.length-1)/2)*12)+"px");
-     b.style.setProperty("--from-y","-22vh");
      b.style.setProperty("--from-r",((i%2?-8:8))+'deg');
      b.innerHTML='<span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span>';
      b.onclick=()=>selectRoleCard(i);
      box.appendChild(b);
+   });
+   /* Measure each final card position and make the animation originate at the dealer deck. */
+   const dealerOrigin={x:window.innerWidth/2,y:window.innerHeight*.18};
+   [...box.querySelectorAll(".roleCard")].forEach((card)=>{
+     const r=card.getBoundingClientRect();
+     card.style.setProperty("--from-x",(dealerOrigin.x-(r.left+r.width/2))+"px");
+     card.style.setProperty("--from-y",(dealerOrigin.y-(r.top+r.height/2))+"px");
    });
    let dealer=el("roleSelect").querySelector(".dealerArea");
    if(!dealer){
