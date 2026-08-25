@@ -1321,7 +1321,7 @@ button.secondary{border-color:#555;background:#111}
 
 <section id="roleSelect" class="screen roleSelectStage">
 <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-<div class="roleSelectHeader"><div class="roleSelectTitle"><span>카</span><span>드</span><span>선</span><span>택</span></div><div class="roleSelectSub">원하는 카드를 터치하세요</div></div>
+<div class="roleSelectHeader"><div class="roleSelectTitle"><span>카</span><span>드</span><span>선</span><span>택</span></div><div id="roleSelectSub" class="roleSelectSub"></div></div>
 <div class="roleSelectTable"></div>
 <div id="roleCards" class="roleSelectBoard"></div>
 <div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
@@ -2183,7 +2183,7 @@ async function renderRoleSelect(p,g){
  const chosen=p.card_selected===true;
  el("roleSelectStatus").textContent=chosen?"선택 완료":"선택 대기";
  el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.":"";
- el("roleSelectSub").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다립니다.":"";
+ if(el("roleSelectSub"))el("roleSelectSub").textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다립니다.":"";
 
  const box=el("roleCards");
  const existing=[...box.querySelectorAll(".roleCard")];
