@@ -783,11 +783,61 @@ button.secondary{border-color:#555;background:#111}
 .gameStartTitle{font-family:Cinzel,"Noto Sans KR",serif!important;font-size:clamp(48px,10vw,110px)!important;font-weight:900!important;color:#fff!important;text-shadow:0 0 35px #f00018,0 0 90px #90000c!important;animation:startTitleIn .9s ease-out both!important}
 @keyframes startMessageIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}@keyframes startCountPulse{0%{opacity:0;transform:scale(1.45)}35%{opacity:1}100%{opacity:1;transform:scale(1)}}@keyframes startTitleIn{from{opacity:0;transform:scale(1.18)}to{opacity:1;transform:scale(1)}}
 @media(max-width:600px){#roleSelect .roleSelectBoard{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;left:5%;right:5%;bottom:20%}#roleSelect .roleSelectHeader{top:8%}#roleSelect .roleSelectTitle{font-size:clamp(32px,10vw,56px)}#roleSelect .roleSelectSub{font-size:13px}#roleSelect .roleSelectWait{bottom:4%;font-size:10px}}
+
+/* v175 unified role/trial design + dealer dealing animation */
+#roleSelect .roleSelectBackdrop{background:radial-gradient(circle at 50% 32%,rgba(255,0,128,.30),transparent 24%),linear-gradient(180deg,#050106 0%,#12030d 46%,#020202 100%)!important}
+#roleSelect .roleSelectHeader{top:6%!important}
+#roleSelect .roleSelectTitle{font-family:"Noto Sans KR",Arial,sans-serif!important;font-size:clamp(38px,7vw,76px)!important;letter-spacing:-.08em!important;text-shadow:3px 4px 0 #4b0030,0 0 24px #ff1590!important}
+#roleSelect .roleSelectSub{font-family:"Noto Sans KR",Arial,sans-serif!important;font-size:clamp(15px,2.4vw,26px)!important;color:#f2e7ed!important}
+#roleSelect .roleSelectTable{background:linear-gradient(180deg,#333436,#151516 30%,#070708 100%)!important;border-color:#555!important;box-shadow:0 -28px 90px rgba(255,0,126,.22),inset 0 22px 42px rgba(255,255,255,.05)!important}
+#roleSelect .roleSelectBoard{left:8%!important;right:8%!important;bottom:15%!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:clamp(10px,2vw,22px)!important;align-items:end!important}
+#roleSelect .roleCard.playingCard{width:min(100%,145px)!important;justify-self:center!important;aspect-ratio:2/3!important;height:auto!important;max-height:30vh!important;transform:translate(var(--from-x,0),var(--from-y,0)) scale(.22) rotate(var(--from-r,0deg))!important;animation:dealerDeal .78s cubic-bezier(.12,.86,.2,1) var(--deal-delay,0s) forwards!important}
+#roleSelect .roleCard.playingCard .cardInner{border:3px solid #a7aaa9!important;background:radial-gradient(circle at 50% 15%,rgba(255,255,255,.15),transparent 22%),repeating-radial-gradient(circle at 50% 50%,rgba(220,225,222,.16) 0 2px,transparent 2px 12px),repeating-linear-gradient(45deg,rgba(255,255,255,.045) 0 2px,transparent 2px 7px),#555b59!important;box-shadow:inset 0 0 0 3px #252727,inset 0 0 0 6px #b9bcba,inset 0 0 25px #202222,0 12px 28px #000!important}
+#roleSelect .roleCard.playingCard .cardInner:before{background:radial-gradient(circle,transparent 0 10%,rgba(20,25,25,.16) 11% 12%,transparent 13% 22%,rgba(20,25,25,.12) 23% 24%,transparent 25%)!important}
+#roleSelect .roleCard.playingCard.selected{animation:none!important;transform:translateY(-4px) scale(.98)!important;opacity:.48!important}
+#roleSelect .roleSelectWait{bottom:3%!important;background:rgba(7,3,7,.68)!important;border:1px solid rgba(255,0,125,.28)!important;padding:8px 12px!important;border-radius:4px!important}
+.dealerArea{position:absolute;left:50%;top:15%;z-index:6;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.dealerDeck{position:relative;width:58px;height:82px;border:3px solid #a7aaa9;border-radius:6px;background:repeating-radial-gradient(circle,#747a78 0 2px,#4a4f4e 2px 8px);box-shadow:0 0 0 3px #202222,0 12px 24px #000;transform:rotate(-5deg)}
+.dealerDeck:before,.dealerDeck:after{content:"";position:absolute;inset:0;border:2px solid rgba(255,255,255,.25);border-radius:5px}.dealerDeck:after{transform:translate(6px,-5px);z-index:-1;opacity:.6}
+.dealerLabel{margin-top:8px;font-size:10px;letter-spacing:.28em;color:#aaa;text-shadow:0 2px 5px #000}
+.dealerHand{position:absolute;width:90px;height:26px;top:54px;left:30px;border-radius:60% 45% 40% 55%;background:linear-gradient(90deg,#222,#777,#222);filter:drop-shadow(0 8px 9px #000);transform:rotate(18deg);opacity:.9}
+.dealerHand:before{content:"";position:absolute;left:48px;top:-19px;width:35px;height:38px;border-radius:60% 40% 45% 50%;background:#656967;transform:rotate(15deg);box-shadow:-18px 5px 0 -5px #555,-30px 11px 0 -7px #4b4f4e}
+@keyframes dealerDeal{0%{opacity:0;transform:translate(var(--from-x),var(--from-y)) scale(.22) rotate(var(--from-r))}18%{opacity:1}68%{transform:translate(0,-14px) scale(1.04) rotate(1deg)}100%{opacity:1;transform:translate(0,0) scale(1) rotate(0)}}
+@media(max-width:600px){#roleSelect .roleSelectBoard{left:7%!important;right:7%!important;bottom:17%!important;gap:8px!important}#roleSelect .roleCard.playingCard{max-height:28vh!important}.dealerArea{top:13%}.dealerDeck{width:48px;height:68px}.dealerHand{transform:scale(.8) rotate(18deg);transform-origin:left center}}
+/* 재판도 카드 선택과 같은 금속/마젠타 디자인 언어를 사용 */
+#trial.trialScreen{position:relative!important;overflow:hidden!important;background:#030303!important;padding:0!important}
+#trial.trialScreen:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 22%,rgba(255,0,128,.24),transparent 28%),linear-gradient(180deg,rgba(4,0,4,.28),rgba(0,0,0,.78)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.72) contrast(1.08) brightness(.58);transform:scale(1.05);animation:v175TrialBg 8s ease-in-out infinite alternate}
+#trial.trialScreen:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.025) 3px 4px);opacity:.35}
+#trial.trialScreen>*{position:relative;z-index:2}
+#trial .trialGauge{margin:0;background:rgba(4,2,4,.78)!important;border-bottom:1px solid rgba(255,0,128,.4)!important;backdrop-filter:blur(10px);padding:12px 18px!important}
+#trial .trialGaugeBar{background:#242126!important;border:1px solid #4a3b46!important}
+#trial .trialGaugeFill{background:linear-gradient(90deg,#ff1589,#ff3150)!important;box-shadow:0 0 18px rgba(255,0,120,.45)}
+#trial .trialDead{margin:20px auto!important;padding:18px 20px!important;max-width:650px;background:rgba(5,2,5,.62);border:1px solid rgba(255,0,120,.35);box-shadow:0 0 35px rgba(255,0,120,.1)}
+#trial .trialDead .eye{color:#ff2b83!important;text-shadow:0 0 25px #ff006f!important}
+#trial .trialDead h1{color:#fff!important;text-shadow:0 0 18px rgba(255,0,128,.55)}
+#trial .card{background:rgba(5,4,5,.76)!important;border:1px solid #4a3442!important;box-shadow:inset 0 0 30px rgba(255,0,128,.05),0 14px 40px #000!important;backdrop-filter:blur(7px)}
+#trial .trialMissionItem{border:1px solid #4a3442!important;background:linear-gradient(145deg,rgba(22,18,22,.92),rgba(5,5,6,.92))!important;border-radius:5px!important}
+#trial .trialMissionItem.done{border-color:#24d58b!important;background:linear-gradient(145deg,rgba(8,45,30,.9),rgba(4,15,11,.94))!important}
+#trial .trialMissionItem .state{color:#ddd}.trialAnnounceStage{background:radial-gradient(circle at 50% 35%,rgba(255,0,128,.3),transparent 28%),linear-gradient(180deg,#050005,#000)!important}
+@keyframes v175TrialBg{from{transform:scale(1.04) translate3d(0,0,0)}to{transform:scale(1.09) translate3d(-.4%,.3%,0)}}
+
+/* v175 trial announcement: same composition language as the screen trial intro */
+#trialAnnouncement .trialAnnounceStage{position:fixed!important;inset:0!important;overflow:hidden!important;background:#020202!important}
+#trialAnnouncement .trialAnnounceBackdrop{position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,0,2,.38),rgba(2,0,2,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.72) contrast(1.08) brightness(.58);transform:scale(1.06);animation:v175TrialAnnounceBg 4s ease-out forwards}
+#trialAnnouncement .trialAnnounceBackdrop:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 34%,rgba(255,0,128,.28),transparent 26%),repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.025) 3px 4px)}
+#trialAnnouncement .trialAnnounceCards{position:absolute;left:50%;top:19%;transform:translateX(-50%);display:flex;gap:clamp(5px,1vw,14px);z-index:3}
+#trialAnnouncement .trialAnnounceCards div{width:clamp(54px,9vw,115px);height:clamp(76px,13vw,165px);display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#ff1684,#760038 58%,#19000a);border:3px solid #ff4aa4;box-shadow:0 0 28px rgba(255,0,120,.48),9px 12px 0 rgba(0,0,0,.55);font-size:clamp(38px,7vw,90px);font-weight:1000;color:#fff;text-shadow:3px 4px 0 #2b0016;opacity:0;animation:v175TrialCardIn .55s cubic-bezier(.12,.9,.18,1) forwards}
+#trialAnnouncement .trialAnnounceCards div:nth-child(1){transform:rotate(-8deg);animation-delay:.2s}#trialAnnouncement .trialAnnounceCards div:nth-child(2){transform:rotate(4deg);animation-delay:.38s}#trialAnnouncement .trialAnnounceCards div:nth-child(3){transform:rotate(-4deg);animation-delay:.56s}#trialAnnouncement .trialAnnounceCards div:nth-child(4){transform:rotate(8deg);animation-delay:.74s}
+#trialAnnouncement .trialAnnounceContent{position:absolute;left:5%;right:5%;bottom:13%;z-index:4;text-align:center}
+#trialAnnouncement .trialAnnounceContent h1{font-family:"Noto Sans KR",Arial,sans-serif!important;font-size:clamp(25px,5vw,58px)!important;font-weight:1000!important;color:#fff!important;text-shadow:3px 4px 0 #4b0030,0 0 28px #ff1590!important}
+#trialAnnouncement .trialAnnounceContent .subtext{margin-top:14px!important;font-size:clamp(14px,2.2vw,25px)!important;color:#ddd!important;letter-spacing:.08em}
+@keyframes v175TrialAnnounceBg{from{transform:scale(1.13);filter:saturate(.65) contrast(1.12) brightness(.4)}to{transform:scale(1.06);filter:saturate(.72) contrast(1.08) brightness(.58)}}
+@keyframes v175TrialCardIn{from{opacity:0;transform:translateY(-65px) scale(.45) rotate(0deg);filter:blur(8px)}60%{opacity:1;transform:translateY(8px) scale(1.05) rotate(var(--r,0deg));filter:blur(0)}to{opacity:1;transform:translateY(0) scale(1) rotate(var(--r,0deg))}}
 </style>
 </head>
 <body>
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v170</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
+<header><div class="title" style="height:auto;text-align:center;font-size:42px;font-weight:900;line-height:1.15;padding:18px 0">늑대게임 <span style="font-size:18px;font-weight:800;color:#aaa;vertical-align:middle">v175</span></div><div class="sub">REAL-WORLD SURVIVAL GAME</div></header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -860,8 +910,9 @@ button.secondary{border-color:#555;background:#111}
 </section>
 <section id="trialAnnouncement" class="screen">
  <div class="trialAnnounceStage">
-  <div>
-   <div class="trialImage">🐺⚖️</div>
+  <div class="trialAnnounceBackdrop"></div>
+  <div class="trialAnnounceCards"><div>늑</div><div>대</div><div>재</div><div>판</div></div>
+  <div class="trialAnnounceContent">
    <h1>곧 늑대 재판이 시작됩니다.</h1>
    <div class="subtext">모두 그래이스홀로 이동해 주십시오.</div>
   </div>
@@ -1675,16 +1726,36 @@ async function renderRoleSelect(p,g){
  if(r.error){toast(r.error.message);return;}
  const players=(r.data||[]).filter(x=>x.status==="ALIVE"), chosen=p.card_selected===true;
  el("roleSelectStatus").textContent=chosen?"선택 완료":"선택 대기";
- el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어가 선택을 완료할 때까지 기다려주세요.":"카드 하나를 선택하십시오. 모든 플레이어가 선택할 때까지 결과는 공개되지 않습니다.";
- const box=el("roleCards");box.innerHTML="";
- if(chosen){
-   box.innerHTML='<div class="notice success" style="grid-column:1/-1">✓ 카드 선택 완료</div>';
- }else{
+ el("roleWait").textContent=chosen?"카드를 선택했습니다. 모든 플레이어가 선택을 완료할 때까지 기다려주세요.":"딜러가 카드를 배부합니다. 원하는 카드 한 장을 선택하십시오.";
+ const box=el("roleCards");
+ const existing=[...box.querySelectorAll(".roleCard")];
+ if(existing.length!==players.length){
+   box.innerHTML="";
    players.forEach((x,i)=>{
-     box.innerHTML+='<button class="roleCard playingCard '+(x.card_selected?"selected":"")+'" '+(x.card_selected?"disabled":"")+' aria-label="카드 '+(i+1)+' 선택" onclick="selectRoleCard('+i+')"><span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span></button>';
+     const b=document.createElement("button");
+     b.className="roleCard playingCard"+(x.card_selected?" selected":"");
+     b.disabled=!!x.card_selected;
+     b.setAttribute("aria-label","카드 "+(i+1)+" 선택");
+     b.style.setProperty("--deal-delay",(.18+i*.16)+"s");
+     b.style.setProperty("--from-x",((i-(players.length-1)/2)*12)+"px");
+     b.style.setProperty("--from-y","-22vh");
+     b.style.setProperty("--from-r",((i%2?-8:8))+'deg');
+     b.innerHTML='<span class="cardInner"><span class="cardOrnament">WOLF GAME</span><span class="cardCenter"></span><span class="cardOrnament bottom">WOLF GAME</span></span>';
+     b.onclick=()=>selectRoleCard(i);
+     box.appendChild(b);
    });
+   let dealer=el("roleSelect").querySelector(".dealerArea");
+   if(!dealer){
+     dealer=document.createElement("div");dealer.className="dealerArea";
+     dealer.innerHTML='<div class="dealerDeck"></div><div class="dealerHand"></div><div class="dealerLabel">DEALER</div>';
+     el("roleSelect").appendChild(dealer);
+   }
+   setTimeout(()=>dealer?.remove(),Math.max(2300,players.length*180+1200));
+ }else{
+   existing.forEach((b,i)=>{const x=players[i];b.classList.toggle("selected",!!x.card_selected);b.disabled=!!x.card_selected;});
  }
 }
+
 let roleCardSelecting=false;
 async function selectRoleCard(position){
  if(roleCardSelecting)return;
