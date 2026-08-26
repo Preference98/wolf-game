@@ -369,7 +369,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .sabotageSkillButton.cooling{filter:grayscale(.8);cursor:not-allowed}
 
 /* v130: fixed action menu */
-.actionDock{position:fixed;right:22px;bottom:22px;z-index:9000;display:flex;align-items:center;gap:10px;pointer-events:none}
+.actionDock{position:fixed;right:22px;bottom:22px;z-index:1500;display:flex;align-items:center;gap:10px;pointer-events:none}
 .actionDock .dockMain,.actionDock .dockItem{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.3);box-shadow:0 8px 24px rgba(0,0,0,.45);font-size:27px;padding:0}
 .actionDock .dockMain{font-size:29px}
 .actionDock .dockItem{opacity:0;transform:translateX(14px) scale(.75);transition:opacity .18s,transform .18s;visibility:hidden}
@@ -2056,10 +2056,10 @@ body{
   position:relative!important;
   will-change:transform,opacity,filter!important;
 }
-.imageTitleCluster .titleCard1{transform:rotate(-6deg)}
-.imageTitleCluster .titleCard2{transform:rotate(3deg)}
-.imageTitleCluster .titleCard3{transform:rotate(-5deg)}
-.imageTitleCluster .titleCard4{transform:rotate(6deg)}
+.imageTitleCluster .titleCard1{transform:rotate(-6deg)!important}
+.imageTitleCluster .titleCard2{transform:rotate(3deg)!important}
+.imageTitleCluster .titleCard3{transform:rotate(-5deg)!important}
+.imageTitleCluster .titleCard4{transform:rotate(6deg)!important}
 
 .imageTitleCluster .titleCard{
   opacity:0;
@@ -2108,8 +2108,10 @@ body{
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
-<div id="actionDock" class="actionDock"></div>
+
 </section>
+
+<div id="actionDock" class="actionDock" aria-label="게임 행동 메뉴"></div>
 
 <section id="deathConfirm" class="screen">
 <div class="fullStage show"><div>
@@ -2605,14 +2607,28 @@ function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disab
 async function showScreen(id){
  const target=el(id);
  if(!target)return;
+
+ // The player header is an entry/lobby header only.
+ const header=el("wolfHeaderTitle") || document.querySelector(".wolfHeaderTitle");
+ const showHeader=(id==="login" || id==="lobby");
+ document.body.classList.toggle("playerHeaderHidden",!showHeader);
+ if(header){
+   header.setAttribute("aria-hidden",showHeader?"false":"true");
+ }
+
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
  if(alreadyActive)return;
+
  document.querySelectorAll(".screen").forEach(x=>{
    x.classList.remove("active");
    x.style.display="none";
+   x.setAttribute("aria-hidden","true");
  });
  target.classList.add("active");
  target.style.display="block";
+ target.setAttribute("aria-hidden","false");
+
+ // Do not remove actionDock here. It is intentionally viewport-fixed.
  if(fadeBusy)return;
  fadeBusy=true;
  try{
@@ -3522,7 +3538,7 @@ function missionActionIcon(type){
 async function renderActionDock(g,p){
  const d=el("actionDock");
  if(!d)return;
- if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";return;}
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";d.classList.remove("expanded");d.style.display="none";return;} d.style.display="flex";
  const discovery=missionActionIcon("discovery");
  if(roleIsWolf(p.role)){
    const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
@@ -4164,13 +4180,21 @@ function closeDeathWarning(){
    '<p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
 }
 async function canDiscoverDeadSheep(g){
+ // 사망확인 후 players.status=DEAD가 최종 확정 상태입니다.
+ // wolf_attempts의 SUCCESS 여부는 보조 기록일 뿐이므로,
+ // RPC 완료 상태 때문에 발견 버튼이 막히지 않도록 합니다.
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
-   .eq("game_round",Number(g.current_round)).eq("status","SUCCESS")
-   .order("id",{ascending:false}).limit(1);
+   .eq("game_round",Number(g.current_round))
+   .order("id",{ascending:false}).limit(20);
  if(r.error||!r.data?.length)return false;
- const victim=r.data[0].victim_player_id;
- const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
- return vr.data?.status==="DEAD";
+
+ for(const attempt of r.data){
+   const victim=attempt?.victim_player_id;
+   if(!victim)continue;
+   const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
+   if(vr.data?.status==="DEAD")return true;
+ }
+ return false;
 }
 async function openLocationChoice(){
  closeActionDock();
@@ -4264,11 +4288,15 @@ async function renderInvestigation(p,g){
 }
 async function getLatestDeadSheep(round){
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
-   .eq("game_round",round).eq("status","SUCCESS").order("id",{ascending:false}).limit(1);
+   .eq("game_round",round).order("id",{ascending:false}).limit(20);
  if(r.error||!r.data?.length)return null;
- const victim=r.data[0].victim_player_id;
- const p=await db.from("players").select("id,name,role,status").eq("id",victim).maybeSingle();
- return p.data||null;
+ for(const attempt of r.data){
+   const victim=attempt?.victim_player_id;
+   if(!victim)continue;
+   const p=await db.from("players").select("id,name,role,status").eq("id",victim).maybeSingle();
+   if(p.data?.status==="DEAD")return p.data;
+ }
+ return null;
 }
 
 async function renderTrial(p,g){
@@ -6975,3 +7003,30 @@ function miniTrace(r){
 </script>
 </body>
 </html>
+
+<style id="v224-floating-action-dock">
+/* v224: action buttons are truly viewport-fixed, not children of #player. */
+#actionDock.actionDock{
+  position:fixed!important;
+  right:22px!important;
+  bottom:22px!important;
+  z-index:1500!important;
+  pointer-events:none!important;
+}
+#actionDock.actionDock > button{
+  pointer-events:auto!important;
+}
+@media(max-width:600px){
+  #actionDock.actionDock{right:14px!important;bottom:14px!important}
+}
+</style>
+
+<style id="v224-player-header-visibility">
+/* The global header exists in DOM for layout, but is visible only on
+   the entry/lobby screens. Gameplay screens do not inherit the title. */
+body.playerHeaderHidden .wolfHeaderTitle{
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+</style>
