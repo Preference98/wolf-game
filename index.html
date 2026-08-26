@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v196</title>
+<title>늑대게임 v197</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -1305,35 +1305,47 @@ body{
  border-bottom:1px solid rgba(145,0,22,.46)!important;
  backdrop-filter:blur(4px);
 }
-.wolfHeaderTitle{
- position:relative;display:flex;justify-content:center;align-items:center;gap:clamp(2px,.7vw,9px);
+ .wolfHeaderTitle{
+ position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(3px,.8vw,8px);
  height:clamp(64px,10vw,105px);
+ white-space:nowrap;
 }
 .wolfHeaderTitle span{
- position:relative;display:inline-block;
- font-family:var(--wolf-rough-font)!important;
- font-size:clamp(48px,9vw,92px)!important;
- line-height:.85!important;font-weight:900!important;
- color:#e9e2e5!important;
- text-shadow:3px 4px 0 #26030a,-2px -1px 0 rgba(255,255,255,.12),0 0 15px rgba(170,0,25,.5)!important;
- transform:rotate(var(--r)) skewX(-5deg);
+ position:relative;display:flex;align-items:center;justify-content:center;
+ width:clamp(42px,8vw,82px);height:clamp(56px,8.8vw,94px);
+ font-family:"Noto Sans KR",Arial,sans-serif!important;
+ font-size:clamp(34px,7vw,76px)!important;font-weight:1000!important;line-height:1!important;
+ color:#fff!important;border:3px solid #ff64b8!important;
+ box-shadow:0 0 18px rgba(255,0,128,.58),7px 9px 0 rgba(25,0,15,.78),inset 0 0 16px rgba(255,255,255,.08)!important;
+ overflow:visible;
 }
-.wolfHeaderTitle span:nth-child(1){--r:-7deg;color:#b61a2b!important}
-.wolfHeaderTitle span:nth-child(2){--r:3deg}
-.wolfHeaderTitle span:nth-child(3){--r:-4deg;color:#c83a45!important}
-.wolfHeaderTitle span:nth-child(4){--r:7deg}
-.wolfHeaderTitle span:before{
- content:"";position:absolute;left:-14%;top:48%;width:125%;height:5px;
- background:linear-gradient(90deg,transparent,#7c0013 15%,#d51c2d 42%,transparent 72%,#62000e);
- transform:rotate(-9deg) skewX(-25deg);filter:blur(.35px);opacity:.85;pointer-events:none;
+.wolfHeaderTitle span:nth-child(1){
+ background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;
+ transform:rotate(-8deg)!important;
+ text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important;
 }
-.wolfHeaderTitle span:after{
- content:"";position:absolute;left:12%;top:-4%;width:70%;height:110%;
+.wolfHeaderTitle span:nth-child(2){
+ background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;
+ transform:rotate(4deg)!important;border-color:#ff77bc!important;
+ text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
+}
+.wolfHeaderTitle span:nth-child(3){
+ background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;
+ transform:rotate(-5deg)!important;
+ text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
+}
+.wolfHeaderTitle span:nth-child(4){
+ background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;
+ transform:rotate(8deg)!important;border-color:#ff77bc!important;
+ text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
+}
+.wolfHeaderTitle span::before{content:none!important;display:none!important;}
+.wolfHeaderTitle span::after{
+ content:"";position:absolute;inset:-8px;pointer-events:none;
  background:
- radial-gradient(ellipse at 20% 18%,rgba(155,0,20,.9) 0 4px,transparent 5px),
- radial-gradient(ellipse at 66% 46%,rgba(190,0,30,.75) 0 3px,transparent 4px),
- radial-gradient(ellipse at 78% 84%,rgba(115,0,16,.8) 0 5px,transparent 6px);
- pointer-events:none;
+ radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 3px,transparent 4px),
+ radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 3px,transparent 4px),
+ radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 2px,transparent 3px);
 }
 #login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory{
  background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
@@ -1416,6 +1428,14 @@ body{
 .wolfHeaderTitle span:before{background:linear-gradient(90deg,transparent,#69000c 15%,#d21d31 38%,transparent 58%,#79000e 82%,transparent)!important;height:7px!important}
 .wolfHeaderTitle span:after{background:radial-gradient(ellipse at 20% 18%,rgba(170,0,20,.95) 0 4px,transparent 5px),radial-gradient(ellipse at 67% 47%,rgba(215,0,30,.8) 0 3px,transparent 4px),radial-gradient(ellipse at 80% 82%,rgba(120,0,15,.9) 0 5px,transparent 6px)!important}
 #trial .trialTitleCluster,#trial .trialDead{display:none!important}
+/* v197: wolfHeaderTitle matches screenTitleCluster card design */
+.wolfHeaderTitle span{font-family:"Noto Sans KR",Arial,sans-serif!important;font-weight:1000!important}
+.wolfHeaderTitle span:nth-child(1){background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;color:#fff!important;transform:rotate(-8deg)!important;text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important}
+.wolfHeaderTitle span:nth-child(2){background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;transform:rotate(4deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
+.wolfHeaderTitle span:nth-child(3){background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;color:#fff!important;transform:rotate(-5deg)!important;text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important}
+.wolfHeaderTitle span:nth-child(4){background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;transform:rotate(8deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
+.wolfHeaderTitle span::before{content:none!important;display:none!important;}
+.wolfHeaderTitle span::after{background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 3px,transparent 4px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 3px,transparent 4px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 2px,transparent 3px)!important}
 #roleSelect .roleSelectTable{left:50%!important;right:auto!important;width:min(92vw,1100px)!important;top:34%!important;bottom:auto!important;height:57%!important;transform:translateX(-50%)!important;border-radius:50%!important;z-index:1!important}
 #roleSelect .roleSelectBoard{left:50%!important;right:auto!important;width:min(86vw,920px)!important;top:39%!important;bottom:auto!important;height:45%!important;transform:translateX(-50%)!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:1fr!important;align-items:center!important;justify-items:center!important;z-index:4!important}
 #roleSelect .roleCard.playingCard,.wolf-v181 #roleSelect .roleCard.playingCard{width:min(100%,145px)!important;max-width:145px!important;height:auto!important;max-height:none!important;aspect-ratio:2/3!important;opacity:1!important;transform:none!important;animation:none!important;visibility:visible!important}
@@ -1629,6 +1649,114 @@ body{
 /* 8. Victory -> lobby/next round: hide stale victory immediately on phase change. */
 .screenVictory{z-index:20!important}
 
+</style>
+<style id="wolfHeaderTitleScreenTitleClusterExact">
+
+/* v198: wolfHeaderTitle = screenTitleCluster visual system */
+.wolfHeaderTitle{
+  position:relative!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  gap:clamp(4px,.9vw,12px)!important;
+  height:clamp(76px,12vw,150px)!important;
+}
+.wolfHeaderTitle span{
+  position:relative!important;
+  display:block!important;
+  width:clamp(58px,9vw,112px)!important;
+  height:clamp(78px,12vw,146px)!important;
+  padding:0!important;
+  box-sizing:border-box!important;
+  border:3px solid #ff77bc!important;
+  border-radius:2px!important;
+  font-family:var(--wolf-rough-font)!important;
+  font-size:clamp(50px,8vw,100px)!important;
+  line-height:1!important;
+  font-weight:900!important;
+  color:#fff!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  overflow:visible!important;
+  box-shadow:0 12px 22px rgba(255,0,128,.22),0 0 18px rgba(255,0,128,.22)!important;
+  text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
+  transform-origin:center!important;
+  transform:rotate(-8deg)!important;
+}
+.wolfHeaderTitle span:nth-child(1){
+  background:linear-gradient(135deg,#d41467,#5b002c 62%,#160008)!important;
+  color:#fff!important;
+  transform:rotate(-8deg)!important;
+}
+.wolfHeaderTitle span:nth-child(2){
+  background:linear-gradient(135deg,#fff,#eee8ee)!important;
+  color:#111!important;
+  transform:rotate(4deg)!important;
+  text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
+}
+.wolfHeaderTitle span:nth-child(3){
+  background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;
+  color:#fff!important;
+  transform:rotate(-5deg)!important;
+  text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
+}
+.wolfHeaderTitle span:nth-child(4){
+  background:linear-gradient(135deg,#fff,#eee8ee)!important;
+  color:#111!important;
+  transform:rotate(8deg)!important;
+  text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
+}
+.wolfHeaderTitle span::before{content:none!important;display:none!important;}
+.wolfHeaderTitle span::after{
+  content:""!important;
+  position:absolute!important;
+  inset:-12px!important;
+  pointer-events:none!important;
+  background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 4px,transparent 5px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 4px,transparent 5px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 3px,transparent 4px)!important;
+}
+</style>
+
+<style id="wolfHeaderTitleExactScreenTitleCluster">
+/* EXACT copy of screenTitleCluster card design for wolfHeaderTitle.
+   Only the container positioning is adapted to remain inside wolfHeader. */
+.wolfHeaderTitle{
+ position:relative!important;
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ gap:clamp(5px,1vw,18px)!important;
+ z-index:10!important;
+ white-space:nowrap!important;
+ height:clamp(105px,15vw,235px)!important;
+}
+.wolfHeaderTitle span{
+ position:relative!important;
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ width:clamp(78px,10vw,170px)!important;
+ height:clamp(105px,15vw,235px)!important;
+ font-family:"Noto Sans KR",Arial,sans-serif!important;
+ font-size:clamp(58px,9vw,145px)!important;
+ font-weight:1000!important;
+ line-height:1!important;
+ color:#fff!important;
+ border:4px solid #ff64b8!important;
+ box-shadow:0 0 28px rgba(255,0,128,.58),10px 13px 0 rgba(25,0,15,.78),inset 0 0 22px rgba(255,255,255,.08)!important;
+ overflow:visible!important;
+}
+.wolfHeaderTitle span:nth-child(1){background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;transform:rotate(-8deg)!important;text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important}
+.wolfHeaderTitle span:nth-child(2){background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;transform:rotate(4deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
+.wolfHeaderTitle span:nth-child(3){background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;color:#fff!important;transform:rotate(-5deg)!important;text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important}
+.wolfHeaderTitle span:nth-child(4){background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;transform:rotate(8deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
+.wolfHeaderTitle span::before{content:none!important;display:none!important;}
+.wolfHeaderTitle span::after{content:""!important;position:absolute!important;inset:-12px!important;pointer-events:none!important;background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 4px,transparent 5px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 4px,transparent 5px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 3px,transparent 4px)!important}
+@media(max-width:700px){
+ .wolfHeaderTitle{gap:7px!important}
+ .wolfHeaderTitle span{width:clamp(54px,17vw,85px)!important;height:clamp(72px,22vw,116px)!important;font-size:clamp(36px,12vw,64px)!important}
+}
 </style>
 </head>
 <body class="wolf-v181">
@@ -6521,3 +6649,26 @@ function miniTrace(r){
 </script>
 </body>
 </html>
+
+
+/* v201: wolfHeaderTitle substantially smaller */
+.wolfHeaderTitle{
+  gap:clamp(1px,.35vw,4px)!important;
+  height:clamp(38px,6vw,62px)!important;
+}
+.wolfHeaderTitle span{
+  width:clamp(28px,5vw,48px)!important;
+  height:clamp(38px,6vw,62px)!important;
+  min-width:0!important;
+  min-height:0!important;
+  font-size:clamp(26px,5vw,50px)!important;
+  line-height:1!important;
+  border-width:2px!important;
+}
+.wolfHeaderTitle span::before{
+  display:none!important;
+}
+.wolfHeaderTitle span::after{
+  inset:-6px!important;
+}
+
