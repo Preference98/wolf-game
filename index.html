@@ -2028,6 +2028,59 @@ body{
 }
 </style>
 
+
+<style id="v223-title-images-player">
+/* v223: title artwork is image-based; CSS only controls layout/animation. */
+.imageTitleCluster{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(-8px,-.45vw,0px)!important;
+  position:relative!important;
+  width:min(96vw,720px)!important;
+  height:clamp(110px,25vw,260px)!important;
+  margin:0 auto!important;
+}
+.imageTitleCluster .titleCard{
+  display:block!important;
+  width:auto!important;
+  height:clamp(95px,20vw,215px)!important;
+  max-width:none!important;
+  object-fit:contain!important;
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:none!important;
+  box-shadow:none!important;
+  position:relative!important;
+  will-change:transform,opacity,filter!important;
+}
+.imageTitleCluster .titleCard1{transform:rotate(-6deg)}
+.imageTitleCluster .titleCard2{transform:rotate(3deg)}
+.imageTitleCluster .titleCard3{transform:rotate(-5deg)}
+.imageTitleCluster .titleCard4{transform:rotate(6deg)}
+
+.imageTitleCluster .titleCard{
+  opacity:0;
+  animation:v223CardIn .62s cubic-bezier(.12,.9,.18,1) forwards;
+}
+.imageTitleCluster .titleCard1{animation-delay:.08s}
+.imageTitleCluster .titleCard2{animation-delay:.27s}
+.imageTitleCluster .titleCard3{animation-delay:.46s}
+.imageTitleCluster .titleCard4{animation-delay:.65s}
+
+@keyframes v223CardIn{
+  0%{opacity:0;transform:translateY(45px) scale(.55) rotate(0deg);filter:blur(7px)}
+  62%{opacity:1;filter:blur(0) drop-shadow(0 0 18px rgba(255,0,130,.65))}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r));filter:drop-shadow(0 8px 14px rgba(255,0,130,.3))}
+}
+.imageTitleCluster .titleCard1{--r:-6deg}
+.imageTitleCluster .titleCard2{--r:3deg}
+.imageTitleCluster .titleCard3{--r:-5deg}
+.imageTitleCluster .titleCard4{--r:6deg}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2160,7 +2213,10 @@ body{
 
 <section id="roleSelect" class="screen roleSelectStage">
 <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-<div class="roleSelectHeader"><div class="roleSelectTitle"><span>카</span><span>드</span><span>선</span><span>택</span></div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요</div></div>
+<div class="roleSelectHeader"><div class="roleSelectTitle imageTitleCluster" aria-label="카드 선택"><img class="titleCard titleCard1" src="assets/card_selection_01_카.png" alt="카">
+<img class="titleCard titleCard2" src="assets/card_selection_02_드.png" alt="드">
+<img class="titleCard titleCard3" src="assets/card_selection_03_선.png" alt="선">
+<img class="titleCard titleCard4" src="assets/card_selection_04_택.png" alt="택"></div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요</div></div>
 <div class="roleSelectTable"></div>
 <div id="roleCards" class="roleSelectBoard"></div>
 <div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
