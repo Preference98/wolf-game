@@ -1286,6 +1286,17 @@ body{background:#020204!important}
  filter:blur(1px)!important;
 }
 
+
+/* Login + lobby: no title/header and no background image. */
+body.noWolfChrome,
+body.noWolfChrome .wrap{
+  background:#020203!important;
+  background-image:none!important;
+}
+body.noWolfChrome .wolfHeader{
+  display:none!important;
+}
+
 /* v189: unified dark horror system */
 @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Dokdo&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
 :root{
@@ -1349,6 +1360,7 @@ body{
 #lobby{
  background:#000!important;
 }
+#lobby .lobbyLogoutBtn{display:block!important;width:min(320px,80%);margin:32px auto 0;padding:11px 13px;}
 #lobby .lobbyWaitingMessage{
  display:flex;
  flex-direction:column;
@@ -1600,7 +1612,7 @@ body{
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>(흰색)을 모두 입력하여 로그인하여 주세요.</p>
+<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>을 모두 입력하여 로그인하여 주세요.</p>
 <input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
@@ -1609,6 +1621,7 @@ body{
     <div>곧 게임이 시작됩니다.</div>
     <div>대기하여 주십시오.</div>
   </div>
+  <button id="lobbyLogoutBtn" class="secondary lobbyLogoutBtn" type="button" onclick="playerLogout()">로그아웃</button>
 </section>
 
 <section id="player" class="screen">
@@ -2114,10 +2127,16 @@ document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:tru
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
 window.addEventListener("focus",()=>activateStageAudio());
 
+/* v-login-lobby-chrome: login/lobby have no wolfHeader and no image background. */
+function syncLoginLobbyChrome(id){
+  const hideChrome = id === "login" || id === "lobby";
+  document.body.classList.toggle("noWolfChrome", hideChrome);
+}
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
+ syncLoginLobbyChrome(id);
  const target=el(id);
  if(!target)return;
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
