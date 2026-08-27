@@ -1458,7 +1458,19 @@ async function unlock(){
 
   // 현재 DB 상태는 다음 polling / realtime UPDATE에서 정상적으로 반영합니다.
 }
-async function titleSequence(){const token=++seqToken;show('s-title');stopAllScreenBgm();await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);await wait(3200);if(token!==seqToken)return;}
+async function titleSequence(){
+ const token=++seqToken;
+ const title=$('waitingScreenTitle');
+ const bg=document.querySelector('#s-title .waitingScreenBackdrop');
+ // 준비완료 때마다 타이틀 등장 애니메이션을 처음부터 다시 시작합니다.
+ if(title){title.style.animation='none';void title.offsetWidth;title.style.animation='';}
+ if(bg){bg.style.animation='none';void bg.offsetWidth;bg.style.animation='';}
+ show('s-title');
+ stopAllScreenBgm();
+ await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);
+ await wait(3200);
+ if(token!==seqToken)return;
+}
 async function playTitle2(){stopScreenSound('titleBgm');await playScreenSound('title2Bgm','title2',true,.48);}
 async function roleSelectSequence(){
  show('s-role');
