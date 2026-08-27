@@ -1438,45 +1438,18 @@ async function getSettings(){const r=await db.from('game_settings').select('*').
 async function getPlayers(){const r=await db.from('players').select('id,name,role,status,card_selected,card_position').order('card_position');return r.data||[]}
 function setStatus(t){$('screenStatus').textContent=t}
 async function unlock(){
-  // 스크린 시작 버튼은 "스크린 활성화"만 담당합니다.
-  // 이전 게임의 game_settings / notification 상태를 시작 순간에 재생하지 않습니다.
-  unlocked=true;
-  // 시작 직후 Supabase에 이미 큐에 남아 있는 UPDATE/INSERT 이벤트가
-  // 새 이벤트처럼 처리되지 않도록 짧은 startup 보호 구간을 둡니다.
-  screenStartupLockUntil=Date.now()+1800;
-  $('unlock').style.display='none';
-  show('s-idle');
-  lastPhase=null;
-  lastReady=false;
+  // 중요: DB의 현재 phase를 읽는 동안에는 unlocked를 true로 만들지 않습니다.
+  // 그래야 버튼을 누르는 순간 도착한 stale realtime UPDATE가
+  // handlePhase()를 호출하여 TRIAL 화면을 띄울 수 없습니다.
+  screenStartupLive=false;
+  screenStartupLockUntil=Number.MAX_SAFE_INTEGER;
+  screenStartupBaseline=null;
   seqToken++;
+  show('s-idle');
+  $('unlock').style.display='none';
   try{localStorage.setItem('wolf_screen_audio_unlocked','1')}catch(_){}
 
-  // 스크린 시작 순간의 기존 DB 상태를 "새 이벤트"로 처리하지 않습니다.
-  // 특히 이전 게임이 TRIAL/FINISHED 상태인 경우 시작 버튼만 눌렀는데
-  // 재판 시작/결과 화면으로 튀는 것을 막기 위해 현재 상태를 기준점으로 잡습니다.
-  try{
-    const current=await getSettings();
-    lastPhase=String(current.phase||'LOBBY').toUpperCase();
-    lastReady=!!current.ready;
-    window.__lastScreenNotice=String(current.notice||'');
-    window.__screenLatestSettings=current;
-    screenStartupBaseline={
-      updated_at:String(current.updated_at||''),
-      phase:String(current.phase||'LOBBY').toUpperCase(),
-      ready:!!current.ready,
-      notice:String(current.notice||''),
-      current_round:Number(current.current_round||0),
-      started:!!current.started
-    };
-    screenStartupLive=false;
-  }catch(e){
-    // DB 조회에 실패하면 기존 기본값을 유지하고 다음 이벤트에서 복구합니다.
-    lastPhase='LOBBY';
-    lastReady=false;
-    window.__lastScreenNotice='';
-  }
-
-  // 실제 사운드 권한 확보는 실패해도 스크린 활성화를 막지 않습니다.
+  // 사용자 클릭 안에서 오디오 권한만 먼저 확보합니다. 화면 상태 처리는 하지 않습니다.
   try{await unlockScreenAudio();}catch(_){}
   try{
     const a=$('titleBgm');
@@ -1490,7 +1463,45 @@ async function unlock(){
     }
   }catch(e){console.warn('스크린 오디오 권한 확보 실패:',e);}
 
-  // 이후 game_settings의 "새로운 UPDATE"만 다음 단계로 처리합니다.
+  // 현재 DB 상태를 새 이벤트가 아닌 '시작 기준점'으로 먼저 확정합니다.
+  let current=null;
+  try{
+    current=await getSettings();
+  }catch(e){
+    console.warn('스크린 시작 시 게임 상태 확인 실패:',e);
+    current={phase:'LOBBY',ready:false,notice:'',current_round:0,started:false,updated_at:''};
+  }
+
+  const baseline={
+    updated_at:String(current.updated_at||''),
+    phase:String(current.phase||'LOBBY').toUpperCase(),
+    ready:!!current.ready,
+    notice:String(current.notice||''),
+    current_round:Number(current.current_round||0),
+    started:!!current.started
+  };
+  screenStartupBaseline=baseline;
+  window.__screenLatestSettings=current;
+  window.__lastScreenNotice=baseline.notice;
+  lastPhase=baseline.phase;
+  lastReady=baseline.ready;
+
+  // 이제부터만 realtime/polling을 허용합니다.
+  unlocked=true;
+  screenStartupLockUntil=Date.now()+1200;
+  screenStartupLive=false;
+
+  // 시작 당시 이미 '준비완료 대기화면' 상태였다면 그 화면만 즉시 표시합니다.
+  // TRIAL/FINISHED/ROLE_* 등 이전 게임 상태는 시작 시점에 절대 재생하지 않습니다.
+  if(baseline.phase==='LOBBY' && baseline.ready){
+    await titleSequence();
+  }else{
+    show('s-idle');
+    stopAllScreenBgm();
+  }
+
+  // startup 보호구간 동안 들어온 stale UPDATE는 버립니다.
+  // 이후의 실제 변경만 subscribe()/polling에서 처리합니다.
 }
 async function titleSequence(){
  const token=++seqToken;
@@ -1803,19 +1814,22 @@ function subscribe(){
     const next=payload.new||{};
     // 스크린 시작 시점에 이미 DB에 존재하던 상태/지연된 realtime payload는
     // 절대로 새 단계로 취급하지 않습니다. 반드시 시작 이후의 새로운 UPDATE여야 합니다.
-    if(!unlocked)return;
+    if(!unlocked || !screenStartupBaseline)return;
     if(!screenStartupLive){
-      const base=screenStartupBaseline||{};
+      if(Date.now()<screenStartupLockUntil)return;
+      const base=screenStartupBaseline;
       const nextUpdated=String(next.updated_at||'');
       const baseUpdated=String(base.updated_at||'');
-      const hasNewTimestamp=!!nextUpdated && !!baseUpdated && nextUpdated!==baseUpdated && Date.parse(nextUpdated)>=Date.parse(baseUpdated);
+      const hasNewTimestamp=!!nextUpdated && !!baseUpdated && nextUpdated!==baseUpdated && Date.parse(nextUpdated)>Date.parse(baseUpdated);
       const changed=String(next.phase||'LOBBY').toUpperCase()!==String(base.phase||'LOBBY').toUpperCase() ||
                     !!next.ready!==!!base.ready ||
                     String(next.notice||'')!==String(base.notice||'') ||
                     Number(next.current_round||0)!==Number(base.current_round||0) ||
                     !!next.started!==!!base.started;
-      if(Date.now()<screenStartupLockUntil)return;
-      if(!hasNewTimestamp && !changed)return;
+      // phase/ready/notice 등이 실제로 바뀌었고, 가능하면 updated_at도 시작 시점보다
+      // 새 값이어야만 첫 live 이벤트로 인정합니다.
+      if(!changed)return;
+      if(baseUpdated && nextUpdated && !hasNewTimestamp)return;
       screenStartupLive=true;
       screenStartupLockUntil=0;
     }
@@ -1837,7 +1851,8 @@ function subscribe(){
       // 실제 새 단계로 인정합니다. 오래된 realtime payload는 처리하지 않습니다.
       if(!screenStartupLive){
         if(Date.now()<screenStartupLockUntil)return;
-        const base=screenStartupBaseline||{};
+        const base=screenStartupBaseline;
+        if(!base)return;
         const phase=String(current.phase||'LOBBY').toUpperCase();
         const changed=phase!==String(base.phase||'LOBBY').toUpperCase() ||
                       !!current.ready!==!!base.ready ||
@@ -1845,6 +1860,9 @@ function subscribe(){
                       Number(current.current_round||0)!==Number(base.current_round||0) ||
                       !!current.started!==!!base.started;
         if(!changed)return;
+        const baseUpdated=String(base.updated_at||'');
+        const currentUpdated=String(current.updated_at||'');
+        if(baseUpdated && currentUpdated && Date.parse(currentUpdated)<=Date.parse(baseUpdated))return;
         screenStartupLive=true;
         screenStartupLockUntil=0;
       }
