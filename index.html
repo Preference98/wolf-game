@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>늑대게임 v197</title>
+<title>늑대게임 v188</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -112,10 +112,6 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @media(max-width:600px){.roleSelectBoard{gap:9px}.playingCard .cardInner{border-width:5px;padding:8px}.playingCard:before{inset:9px}.roleRevealStage .revealCard{width:82vw;height:78vh}}
 
 
-/* v226: 게임시작 안내 - 플레이어는 타이틀+안내문만 표시 */
-.gameStartPlayerStage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(28px,5vw,54px);text-align:center;padding:30px;box-sizing:border-box;background:#000;}
-.gameStartPlayerTitle{margin:0!important;}
-.gameStartPlayerMessage{font-family:"Noto Sans KR",Arial,sans-serif;font-size:clamp(24px,4.5vw,52px);font-weight:900;color:#fff;letter-spacing:-1px;text-shadow:0 0 24px rgba(176,0,18,.75);}
 /* GAME START COUNTDOWN v17 */
 .gameStartStage{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#250006 0,#000 68%);text-align:center}
 .gameStartMessage{font-family:Cinzel,serif;font-size:clamp(28px,6vw,64px);font-weight:900;letter-spacing:2px;text-shadow:0 0 30px #b00012;animation:startMessageIn .8s ease-out both}
@@ -373,7 +369,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .sabotageSkillButton.cooling{filter:grayscale(.8);cursor:not-allowed}
 
 /* v130: fixed action menu */
-.actionDock{position:fixed;right:22px;bottom:22px;z-index:1500;display:flex;align-items:center;gap:10px;pointer-events:none}
+.actionDock{position:fixed;right:22px;bottom:22px;z-index:9000;display:flex;align-items:center;gap:10px;pointer-events:none}
 .actionDock .dockMain,.actionDock .dockItem{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.3);box-shadow:0 8px 24px rgba(0,0,0,.45);font-size:27px;padding:0}
 .actionDock .dockMain{font-size:29px}
 .actionDock .dockItem{opacity:0;transform:translateX(14px) scale(.75);transition:opacity .18s,transform .18s;visibility:hidden}
@@ -1309,47 +1305,35 @@ body{
  border-bottom:1px solid rgba(145,0,22,.46)!important;
  backdrop-filter:blur(4px);
 }
- .wolfHeaderTitle{
- position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(3px,.8vw,8px);
+.wolfHeaderTitle{
+ position:relative;display:flex;justify-content:center;align-items:center;gap:clamp(2px,.7vw,9px);
  height:clamp(64px,10vw,105px);
- white-space:nowrap;
 }
 .wolfHeaderTitle span{
- position:relative;display:flex;align-items:center;justify-content:center;
- width:clamp(42px,8vw,82px);height:clamp(56px,8.8vw,94px);
- font-family:"Noto Sans KR",Arial,sans-serif!important;
- font-size:clamp(34px,7vw,76px)!important;font-weight:1000!important;line-height:1!important;
- color:#fff!important;border:3px solid #ff64b8!important;
- box-shadow:0 0 18px rgba(255,0,128,.58),7px 9px 0 rgba(25,0,15,.78),inset 0 0 16px rgba(255,255,255,.08)!important;
- overflow:visible;
+ position:relative;display:inline-block;
+ font-family:var(--wolf-rough-font)!important;
+ font-size:clamp(48px,9vw,92px)!important;
+ line-height:.85!important;font-weight:900!important;
+ color:#e9e2e5!important;
+ text-shadow:3px 4px 0 #26030a,-2px -1px 0 rgba(255,255,255,.12),0 0 15px rgba(170,0,25,.5)!important;
+ transform:rotate(var(--r)) skewX(-5deg);
 }
-.wolfHeaderTitle span:nth-child(1){
- background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;
- transform:rotate(-8deg)!important;
- text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important;
+.wolfHeaderTitle span:nth-child(1){--r:-7deg;color:#b61a2b!important}
+.wolfHeaderTitle span:nth-child(2){--r:3deg}
+.wolfHeaderTitle span:nth-child(3){--r:-4deg;color:#c83a45!important}
+.wolfHeaderTitle span:nth-child(4){--r:7deg}
+.wolfHeaderTitle span:before{
+ content:"";position:absolute;left:-14%;top:48%;width:125%;height:5px;
+ background:linear-gradient(90deg,transparent,#7c0013 15%,#d51c2d 42%,transparent 72%,#62000e);
+ transform:rotate(-9deg) skewX(-25deg);filter:blur(.35px);opacity:.85;pointer-events:none;
 }
-.wolfHeaderTitle span:nth-child(2){
- background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;
- transform:rotate(4deg)!important;border-color:#ff77bc!important;
- text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
-}
-.wolfHeaderTitle span:nth-child(3){
- background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;
- transform:rotate(-5deg)!important;
- text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
-}
-.wolfHeaderTitle span:nth-child(4){
- background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;
- transform:rotate(8deg)!important;border-color:#ff77bc!important;
- text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
-}
-.wolfHeaderTitle span::before{content:none!important;display:none!important;}
-.wolfHeaderTitle span::after{
- content:"";position:absolute;inset:-8px;pointer-events:none;
+.wolfHeaderTitle span:after{
+ content:"";position:absolute;left:12%;top:-4%;width:70%;height:110%;
  background:
- radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 3px,transparent 4px),
- radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 3px,transparent 4px),
- radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 2px,transparent 3px);
+ radial-gradient(ellipse at 20% 18%,rgba(155,0,20,.9) 0 4px,transparent 5px),
+ radial-gradient(ellipse at 66% 46%,rgba(190,0,30,.75) 0 3px,transparent 4px),
+ radial-gradient(ellipse at 78% 84%,rgba(115,0,16,.8) 0 5px,transparent 6px);
+ pointer-events:none;
 }
 #login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory{
  background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
@@ -1432,14 +1416,6 @@ body{
 .wolfHeaderTitle span:before{background:linear-gradient(90deg,transparent,#69000c 15%,#d21d31 38%,transparent 58%,#79000e 82%,transparent)!important;height:7px!important}
 .wolfHeaderTitle span:after{background:radial-gradient(ellipse at 20% 18%,rgba(170,0,20,.95) 0 4px,transparent 5px),radial-gradient(ellipse at 67% 47%,rgba(215,0,30,.8) 0 3px,transparent 4px),radial-gradient(ellipse at 80% 82%,rgba(120,0,15,.9) 0 5px,transparent 6px)!important}
 #trial .trialTitleCluster,#trial .trialDead{display:none!important}
-/* v197: wolfHeaderTitle matches screenTitleCluster card design */
-.wolfHeaderTitle span{font-family:"Noto Sans KR",Arial,sans-serif!important;font-weight:1000!important}
-.wolfHeaderTitle span:nth-child(1){background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;color:#fff!important;transform:rotate(-8deg)!important;text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important}
-.wolfHeaderTitle span:nth-child(2){background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;transform:rotate(4deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
-.wolfHeaderTitle span:nth-child(3){background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;color:#fff!important;transform:rotate(-5deg)!important;text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important}
-.wolfHeaderTitle span:nth-child(4){background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;transform:rotate(8deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
-.wolfHeaderTitle span::before{content:none!important;display:none!important;}
-.wolfHeaderTitle span::after{background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 3px,transparent 4px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 3px,transparent 4px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 2px,transparent 3px)!important}
 #roleSelect .roleSelectTable{left:50%!important;right:auto!important;width:min(92vw,1100px)!important;top:34%!important;bottom:auto!important;height:57%!important;transform:translateX(-50%)!important;border-radius:50%!important;z-index:1!important}
 #roleSelect .roleSelectBoard{left:50%!important;right:auto!important;width:min(86vw,920px)!important;top:39%!important;bottom:auto!important;height:45%!important;transform:translateX(-50%)!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:1fr!important;align-items:center!important;justify-items:center!important;z-index:4!important}
 #roleSelect .roleCard.playingCard,.wolf-v181 #roleSelect .roleCard.playingCard{width:min(100%,145px)!important;max-width:145px!important;height:auto!important;max-height:none!important;aspect-ratio:2/3!important;opacity:1!important;transform:none!important;animation:none!important;visibility:visible!important}
@@ -1566,530 +1542,34 @@ body{
   text-shadow:3px 4px 0 #26030a,0 0 18px rgba(170,0,25,.55)!important;
 }
 
-
-/* v193 canonical fixes requested by user */
-/* 1. Player role-selection table: remove/rebuild with an explicit mathematical center. */
-#roleSelect .roleSelectTable{
- position:absolute!important;left:50%!important;right:auto!important;top:55%!important;bottom:auto!important;
- width:min(92vw,1080px)!important;height:min(56vh,600px)!important;
- margin:0!important;transform:translate(-50%,-50%)!important;border-radius:50%!important;
- transform-origin:center center!important;z-index:1!important;
-}
-#roleSelect .roleSelectBoard{
- position:absolute!important;left:50%!important;right:auto!important;top:43%!important;bottom:auto!important;
- width:min(78vw,760px)!important;height:auto!important;min-height:0!important;
- margin:0!important;transform:translateX(-50%)!important;
- display:flex!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:center!important;
- gap:clamp(10px,2vw,22px)!important;z-index:4!important;
-}
-#roleSelect .roleSelectBoard .roleCard.playingCard{
- flex:0 0 clamp(82px,10vw,145px)!important;width:clamp(82px,10vw,145px)!important;
- max-width:145px!important;min-width:0!important;height:auto!important;aspect-ratio:2/3!important;
- margin:0!important;transform:none!important;animation:none!important;opacity:1!important;
-}
-@media(max-width:600px){
- #roleSelect .roleSelectTable{width:94vw!important;height:52vh!important;top:56%!important}
- #roleSelect .roleSelectBoard{width:88vw!important;top:44%!important;gap:8px!important}
- #roleSelect .roleSelectBoard .roleCard.playingCard{flex-basis:clamp(76px,26vw,108px)!important;width:clamp(76px,26vw,108px)!important}
-}
-/* Same rebuilt geometry on the broadcast screen; screen cards are display-only. */
-.wolf-v181-screen .roleStage .roleSelectTable{
- position:absolute!important;left:50%!important;right:auto!important;top:55%!important;bottom:auto!important;
- width:min(92vw,1080px)!important;height:min(56vh,600px)!important;
- transform:translate(-50%,-50%)!important;margin:0!important;z-index:1!important
-}
-.wolf-v181-screen .roleStage .cards{
- position:absolute!important;left:50%!important;right:auto!important;top:43%!important;bottom:auto!important;
- width:min(78vw,760px)!important;height:auto!important;
- transform:translateX(-50%)!important;display:flex!important;flex-wrap:nowrap!important;
- justify-content:center!important;align-items:center!important;gap:clamp(10px,2vw,22px)!important;z-index:4!important
-}
-.wolf-v181-screen .roleStage .gameCard{
- flex:0 0 clamp(82px,10vw,145px)!important;width:clamp(82px,10vw,145px)!important;
- max-width:145px!important;height:auto!important;aspect-ratio:2/3!important;margin:0!important;
- cursor:default!important;pointer-events:none!important;transform:none!important;animation:none!important;opacity:1!important
-}
-@media(max-width:900px){.wolf-v181-screen .roleStage .cards{left:50%!important;right:auto!important;width:88vw!important;top:44%!important;gap:8px!important}.wolf-v181-screen .roleStage .gameCard{flex-basis:clamp(76px,26vw,108px)!important;width:clamp(76px,26vw,108px)!important}}
-/* Screen card back must be visually identical to the player's card back. */
-.wolf-v181-screen .roleStage .gameCard.playingCard .cardInner{
- border:4px solid #c5c8c5!important;border-radius:8px!important;
- background:repeating-radial-gradient(circle at 50% 50%,rgba(226,231,227,.18) 0 2px,transparent 2px 11px),repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 7px),linear-gradient(135deg,#68706e,#3f4443)!important;
- box-shadow:inset 0 0 0 2px #222,inset 0 0 0 6px #b9bdbb,inset 0 0 25px #111,0 14px 30px rgba(0,0,0,.85)!important
-}
-/* 2. All requested ready/intro/player backgrounds use trial_bg directly. */
-#roleIntro,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#gameCountdown,#playerTrialResult{
- background:linear-gradient(rgba(0,0,0,.56),rgba(0,0,0,.78)),url("assets/trial_bg.jpg") center/cover fixed!important
-}
-#roleIntroStage{background:linear-gradient(rgba(0,0,0,.48),rgba(0,0,0,.78)),url("assets/trial_bg.jpg") center/cover!important}
-#trialReadyAnnouncement .broadcastEventStage,#trialAnnouncement .trialAnnounceStage,#trialCountdown .trialCountdownStage{background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.78)),url("assets/trial_bg.jpg") center/cover!important}
-/* 3. Player main screen: background is a true layer, not hidden behind opaque cards. */
-#player{background:#020204!important;isolation:isolate!important;position:relative!important;overflow:hidden!important}
-#player:before{content:""!important;position:absolute!important;inset:0!important;z-index:0!important;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url("assets/trial_bg.jpg") center/cover no-repeat!important;pointer-events:none!important}
-#player>.card{position:relative!important;z-index:1!important;background:rgba(4,4,5,.48)!important;backdrop-filter:blur(2px)!important}
-#player .wolfHeaderTitle,#player .playerStatusTitle,#player .missionBoard,#player .actionDock{position:relative!important;z-index:2!important}
-/* 4. Top red WOLF GAME title now uses the same title-card construction as the main title. */
-.wolfHeader{background:rgba(0,0,0,.30)!important;border-bottom:0!important;position:relative!important;z-index:10!important}
-.wolfHeaderTitle{gap:clamp(5px,1vw,12px)!important;height:clamp(82px,11vw,128px)!important}
-.wolfHeaderTitle span{
- width:clamp(48px,6.2vw,92px)!important;height:clamp(66px,8.8vw,126px)!important;
- display:flex!important;align-items:center!important;justify-content:center!important;
- border:3px solid #ff4aa4!important;border-radius:3px!important;
- background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;color:#fff!important;
- font-family:var(--wolf-rough-font)!important;font-size:clamp(36px,5.4vw,78px)!important;font-weight:1000!important;
- text-shadow:4px 5px 0 #25000f,0 0 18px #fff!important;
- box-shadow:0 0 25px rgba(255,0,110,.55),8px 10px 0 rgba(25,0,15,.72),inset 0 0 18px rgba(255,255,255,.08)!important;
- transform:rotate(var(--r))!important
-}
-.wolfHeaderTitle span:nth-child(1){--r:-8deg!important;color:#fff!important}.wolfHeaderTitle span:nth-child(2){--r:4deg!important;background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#111!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}.wolfHeaderTitle span:nth-child(3){--r:-5deg!important}.wolfHeaderTitle span:nth-child(4){--r:8deg!important;background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
-/* 5. Role reveal: initial state is truly the back; button replaces state classes instead of stacking them. */
-.roleRevealFlip.isBack{transform:rotateY(0deg)!important}.roleRevealFlip.isFront{transform:rotateY(180deg)!important}
-/* 6. Trial result control is an actual global handler; make the result stage readable over trial_bg. */
-#playerTrialResult .playerResultStage{background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.78)),url("assets/trial_bg.jpg") center/cover!important}
-/* 7. Main screen title/background layer. */
-#s-main{background:#030003!important;overflow:hidden!important}
-#s-main .titleCssBackdrop{background:linear-gradient(rgba(0,0,0,.38),rgba(0,0,0,.70)),url("assets/trial_bg.jpg") center/cover no-repeat!important;opacity:.96!important}
-#s-main:before{z-index:0!important}
-#s-main .screenTitleCluster,#s-main .roundLiveTimer{z-index:3!important}
-/* 8. Victory -> lobby/next round: hide stale victory immediately on phase change. */
-.screenVictory{z-index:20!important}
-
-</style>
-<style id="wolfHeaderTitleScreenTitleClusterExact">
-
-/* v198: wolfHeaderTitle = screenTitleCluster visual system */
-.wolfHeaderTitle{
-  position:relative!important;
-  display:flex!important;
-  justify-content:center!important;
-  align-items:center!important;
-  gap:clamp(4px,.9vw,12px)!important;
-  height:clamp(76px,12vw,150px)!important;
-}
-.wolfHeaderTitle span{
-  position:relative!important;
-  display:block!important;
-  width:clamp(58px,9vw,112px)!important;
-  height:clamp(78px,12vw,146px)!important;
-  padding:0!important;
-  box-sizing:border-box!important;
-  border:3px solid #ff77bc!important;
-  border-radius:2px!important;
-  font-family:var(--wolf-rough-font)!important;
-  font-size:clamp(50px,8vw,100px)!important;
-  line-height:1!important;
-  font-weight:900!important;
-  color:#fff!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  text-align:center!important;
-  overflow:visible!important;
-  box-shadow:0 12px 22px rgba(255,0,128,.22),0 0 18px rgba(255,0,128,.22)!important;
-  text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
-  transform-origin:center!important;
-  transform:rotate(-8deg)!important;
-}
-.wolfHeaderTitle span:nth-child(1){
-  background:linear-gradient(135deg,#d41467,#5b002c 62%,#160008)!important;
-  color:#fff!important;
-  transform:rotate(-8deg)!important;
-}
-.wolfHeaderTitle span:nth-child(2){
-  background:linear-gradient(135deg,#fff,#eee8ee)!important;
-  color:#111!important;
-  transform:rotate(4deg)!important;
-  text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
-}
-.wolfHeaderTitle span:nth-child(3){
-  background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;
-  color:#fff!important;
-  transform:rotate(-5deg)!important;
-  text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important;
-}
-.wolfHeaderTitle span:nth-child(4){
-  background:linear-gradient(135deg,#fff,#eee8ee)!important;
-  color:#111!important;
-  transform:rotate(8deg)!important;
-  text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important;
-}
-.wolfHeaderTitle span::before{content:none!important;display:none!important;}
-.wolfHeaderTitle span::after{
-  content:""!important;
-  position:absolute!important;
-  inset:-12px!important;
-  pointer-events:none!important;
-  background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 4px,transparent 5px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 4px,transparent 5px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 3px,transparent 4px)!important;
-}
 </style>
 
-<style id="wolfHeaderTitleExactScreenTitleCluster">
-/* EXACT copy of screenTitleCluster card design for wolfHeaderTitle.
-   Only the container positioning is adapted to remain inside wolfHeader. */
-.wolfHeaderTitle{
- position:relative!important;
- display:flex!important;
- align-items:center!important;
- justify-content:center!important;
- gap:clamp(5px,1vw,18px)!important;
- z-index:10!important;
- white-space:nowrap!important;
- height:clamp(105px,15vw,235px)!important;
-}
-.wolfHeaderTitle span{
- position:relative!important;
- display:flex!important;
- align-items:center!important;
- justify-content:center!important;
- width:clamp(78px,10vw,170px)!important;
- height:clamp(105px,15vw,235px)!important;
- font-family:"Noto Sans KR",Arial,sans-serif!important;
- font-size:clamp(58px,9vw,145px)!important;
- font-weight:1000!important;
- line-height:1!important;
- color:#fff!important;
- border:4px solid #ff64b8!important;
- box-shadow:0 0 28px rgba(255,0,128,.58),10px 13px 0 rgba(25,0,15,.78),inset 0 0 22px rgba(255,255,255,.08)!important;
- overflow:visible!important;
-}
-.wolfHeaderTitle span:nth-child(1){background:linear-gradient(135deg,#ff1789,#a70558 55%,#300012)!important;transform:rotate(-8deg)!important;text-shadow:4px 5px 0 #56002a,0 0 14px #fff!important}
-.wolfHeaderTitle span:nth-child(2){background:linear-gradient(135deg,#fff,#f0ebef)!important;color:#0b0b0b!important;transform:rotate(4deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
-.wolfHeaderTitle span:nth-child(3){background:linear-gradient(135deg,#5b1239,#23000f 62%,#080003)!important;color:#fff!important;transform:rotate(-5deg)!important;text-shadow:3px 4px 0 #5e0031,0 0 12px #fff!important}
-.wolfHeaderTitle span:nth-child(4){background:linear-gradient(135deg,#fff,#eee8ee)!important;color:#111!important;transform:rotate(8deg)!important;border-color:#ff77bc!important;text-shadow:3px 4px 0 #fff,0 0 10px rgba(255,0,128,.35)!important}
-.wolfHeaderTitle span::before{content:none!important;display:none!important;}
-.wolfHeaderTitle span::after{content:""!important;position:absolute!important;inset:-12px!important;pointer-events:none!important;background:radial-gradient(circle at 20% 18%,rgba(255,0,110,.95) 0 4px,transparent 5px),radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 4px,transparent 5px),radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 3px,transparent 4px)!important}
-@media(max-width:700px){
- .wolfHeaderTitle{gap:7px!important}
- .wolfHeaderTitle span{width:clamp(54px,17vw,85px)!important;height:clamp(72px,22vw,116px)!important;font-size:clamp(36px,12vw,64px)!important}
-}
+<style id="spreadsheet-stage-fix-index">
+.loginInstruction{font-size:clamp(20px,2.8vw,34px);font-weight:900;line-height:1.5;text-align:center;margin:0 0 20px}
+.roleIntroVisual{position:absolute;inset:0;z-index:1}
+.roleIntroTableImg{position:absolute;left:50%;bottom:4%;width:min(94vw,1200px);height:58vh;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 -18px 45px rgba(255,0,128,.22))}
+.roleIntroTitleImages,.roleSelectImageTitle{display:flex;align-items:center;justify-content:center;gap:clamp(3px,.7vw,12px)}
+.roleIntroTitleImages{position:absolute;top:7%;left:50%;transform:translateX(-50%);z-index:4}
+.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(52px,7vw,112px);height:auto;object-fit:contain;opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r,0deg));animation:idxTitleIn .52s cubic-bezier(.15,.9,.2,1) forwards}
+.roleIntroTitleImages img:nth-child(1),.roleSelectImageTitle img:nth-child(1){--r:-7deg;animation-delay:.05s}
+.roleIntroTitleImages img:nth-child(2),.roleSelectImageTitle img:nth-child(2){--r:3deg;animation-delay:.20s}
+.roleIntroTitleImages img:nth-child(3),.roleSelectImageTitle img:nth-child(3){--r:-5deg;animation-delay:.35s}
+.roleIntroTitleImages img:nth-child(4),.roleSelectImageTitle img:nth-child(4){--r:7deg;animation-delay:.50s}
+.roleIntroMessage{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);z-index:5;font-size:clamp(24px,3.5vw,54px);font-weight:1000;white-space:nowrap;text-shadow:0 0 24px rgba(255,0,128,.7)}
+.roleSelectStage.roleIntroTableOnly .roleIntroVisual{display:block}
+.roleSelectStage.roleIntroTableOnly .roleSelectHeader,.roleSelectStage.roleIntroTableOnly #roleCards,.roleSelectStage.roleIntroTableOnly #roleSelectStatus,.roleSelectStage.roleIntroTableOnly #roleWait{visibility:hidden}
+.roleSelectStage:not(.roleIntroTableOnly) .roleIntroVisual{display:none}
+.roleSelectImageTitle{gap:clamp(3px,.7vw,12px)}
+.roleSelectImageTitle img{opacity:1;animation:none;transform:rotate(var(--r,0deg))}
+.roleSelectTable img{width:100%;height:100%;object-fit:contain;display:block}
+@keyframes idxTitleIn{0%{opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r))}70%{opacity:1;transform:translateY(-3px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
+@media(max-width:600px){.roleIntroMessage{font-size:20px}.roleIntroTableImg{height:52vh}.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(42px,11vw,76px)}}
 </style>
-<style id="v202-wolf-header-size">
-/* v202: wolfHeaderTitle substantially smaller - placed inside document head */
-.wolfHeaderTitle span{
-  width:clamp(32px,6vw,50px)!important;
-  height:clamp(44px,8vw,68px)!important;
-  min-width:32px!important;
-  min-height:44px!important;
-  font-size:clamp(25px,5.5vw,42px)!important;
-  line-height:1!important;
-}
-.wolfHeaderTitle{
-  gap:clamp(1px,.35vw,4px)!important;
-  height:clamp(48px,8vw,76px)!important;
-}
-.wolfHeaderTitle span::before{content:none!important;display:none!important}
-/* v203: remove pink decorative dots from wolfHeaderTitle */
-.wolfHeaderTitle span::after{
-  display:none!important;
-  content:none!important;
-  background:none!important;
-}
-
-</style>
-
-<style id="v210-claw-scratch">
-</style>
-
-
-
-
-
-
-
-<style id="v213-title-refinement">
-/* v213: thin borders + strong distributed claw damage across the whole title */
-.wolfHeaderTitle span,
-.screenTitleCluster span{
-  border-width:2px!important;
-}
-
-.wolfHeaderTitle,
-.screenTitleCluster{
-  position:relative!important;
-  overflow:visible!important;
-}
-
-/* One claw layer for the entire title. It is NOT attached to individual letters. */
-.clawScratchGlobal{
-  position:absolute!important;
-  z-index:50!important;
-  inset:0!important;
-  display:block!important;
-  pointer-events:none!important;
-  overflow:visible!important;
-}
-
-/* Each b is one slash. Five natural claw clusters are distributed around the
-   title, mainly near upper/lower edges so the glyph centers stay readable. */
-.clawScratchGlobal b{
-  position:absolute!important;
-  display:block!important;
-  height:4px!important;
-  border-radius:999px!important;
-  background:linear-gradient(90deg,
-    rgba(255,65,166,.08) 0%,
-    #ff2d9d 18%,
-    #ff8bce 52%,
-    #d00070 100%)!important;
-  box-shadow:
-    0 0 4px rgba(255,0,140,.95),
-    0 0 10px rgba(255,0,140,.45)!important;
-  transform-origin:left center!important;
-}
-
-/* Cluster 1: upper-left, three long aggressive cuts */
-.clawScratchGlobal b:nth-child(1){left:3%;top:13%;width:18%;transform:rotate(-15deg)!important}
-.clawScratchGlobal b:nth-child(2){left:5%;top:20%;width:17%;transform:rotate(-15deg)!important}
-.clawScratchGlobal b:nth-child(3){left:7%;top:27%;width:15%;transform:rotate(-15deg)!important}
-
-/* Cluster 2: upper-middle, shorter cuts */
-.clawScratchGlobal b:nth-child(4){left:27%;top:9%;width:14%;transform:rotate(-13deg)!important}
-.clawScratchGlobal b:nth-child(5){left:29%;top:16%;width:13%;transform:rotate(-13deg)!important}
-.clawScratchGlobal b:nth-child(6){left:31%;top:23%;width:11%;transform:rotate(-13deg)!important}
-
-/* Cluster 3: upper-right */
-.clawScratchGlobal b:nth-child(7){left:63%;top:12%;width:17%;transform:rotate(-16deg)!important}
-.clawScratchGlobal b:nth-child(8){left:65%;top:19%;width:16%;transform:rotate(-16deg)!important}
-.clawScratchGlobal b:nth-child(9){left:67%;top:26%;width:14%;transform:rotate(-16deg)!important}
-
-/* Cluster 4: lower-left */
-.clawScratchGlobal b:nth-child(10){left:8%;top:68%;width:16%;transform:rotate(-14deg)!important}
-.clawScratchGlobal b:nth-child(11){left:10%;top:75%;width:15%;transform:rotate(-14deg)!important}
-.clawScratchGlobal b:nth-child(12){left:12%;top:82%;width:13%;transform:rotate(-14deg)!important}
-
-/* Cluster 5: lower-right, strongest */
-.clawScratchGlobal b:nth-child(13){left:70%;top:66%;width:21%;transform:rotate(-16deg)!important}
-.clawScratchGlobal b:nth-child(14){left:72%;top:74%;width:20%;transform:rotate(-16deg)!important}
-.clawScratchGlobal b:nth-child(15){left:74%;top:82%;width:18%;transform:rotate(-16deg)!important}
-</style>
-
-
-<style id="v214-wolf-header-image">
-.wolfHeaderTitle{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  height:clamp(58px,9vw,94px)!important;
-  gap:0!important;
-  overflow:visible!important;
-}
-.wolfHeaderTitle img{
-  display:block!important;
-  width:min(76vw,520px)!important;
-  height:auto!important;
-  max-height:clamp(54px,9vw,92px)!important;
-  object-fit:contain!important;
-  filter:drop-shadow(0 6px 12px rgba(255,0,120,.28))!important;
-}
-.wolfHeaderTitle .clawScratchGlobal{
-  display:none!important;
-}
-</style>
-
-
-<style id="v215-player-title">
-.wolfHeaderTitle{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  height:clamp(60px,10vw,100px)!important;
-  overflow:visible!important;
-}
-.wolfHeaderTitle img{
-  display:block!important;
-  width:min(88vw,620px)!important;
-  height:auto!important;
-  max-height:clamp(58px,10vw,105px)!important;
-  object-fit:contain!important;
-  filter:drop-shadow(0 7px 14px rgba(255,0,125,.32))!important;
-}
-.wolfHeaderTitle .clawScratchGlobal{
-  display:none!important;
-}
-</style>
-
-
-
-
-
-<style id="v217-same-generated-title">
-.wolfHeaderTitle,
-.screenTitleCluster{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:0!important;
-  overflow:visible!important;
-}
-.wolfHeaderTitle .wolfGameTitleImage{
-  display:block!important;
-  width:min(78vw,520px)!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-  object-fit:contain!important;
-  filter:drop-shadow(0 7px 14px rgba(255,0,125,.30))!important;
-}
-.screenTitleCluster{
-  position:absolute!important;
-  left:50%!important;
-  top:42%!important;
-  transform:translate(-50%,-50%)!important;
-  z-index:10!important;
-}
-.screenTitleCluster .wolfGameTitleImage{
-  display:block!important;
-  width:min(82vw,900px)!important;
-  height:auto!important;
-  max-width:900px!important;
-  max-height:42vh!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-  object-fit:contain!important;
-  filter:drop-shadow(0 14px 28px rgba(255,0,120,.40))!important;
-}
-.screenTitleCluster::before,
-.screenTitleCluster::after,
-.screenTitleCluster span::before,
-.screenTitleCluster span::after{
-  content:none!important;
-  display:none!important;
-  background:none!important;
-  box-shadow:none!important;
-  filter:none!important;
-}
-</style>
-
-
-<style id="v218-exact-uploaded-title">
-.wolfHeaderTitle,
-.screenTitleCluster{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:0!important;
-  overflow:visible!important;
-}
-.wolfHeaderTitle .wolfGameTitleImage{
-  display:block!important;
-  width:min(88vw,620px)!important;
-  height:auto!important;
-  max-height:110px!important;
-  object-fit:contain!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-  transform:none!important;
-}
-.screenTitleCluster{
-  position:absolute!important;
-  left:50%!important;
-  top:42%!important;
-  transform:translate(-50%,-50%)!important;
-  z-index:20!important;
-}
-.screenTitleCluster .wolfGameTitleImage{
-  display:block!important;
-  width:min(88vw,1100px)!important;
-  height:auto!important;
-  max-width:none!important;
-  max-height:48vh!important;
-  object-fit:contain!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-  transform:none!important;
-}
-.screenTitleCluster::before,
-.screenTitleCluster::after,
-.screenTitleCluster span::before,
-.screenTitleCluster span::after{
-  content:none!important;
-  display:none!important;
-  background:none!important;
-  box-shadow:none!important;
-  filter:none!important;
-}
-</style>
-
-
-<style id="v220-player-title">
-.wolfHeaderTitle .wolfGameTitleImage{
-  display:block!important;
-  width:min(88vw,620px)!important;
-  height:auto!important;
-  max-height:110px!important;
-  object-fit:contain!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-}
-</style>
-
-
-<style id="v223-title-images-player">
-/* v223: title artwork is image-based; CSS only controls layout/animation. */
-.imageTitleCluster{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:clamp(-8px,-.45vw,0px)!important;
-  position:relative!important;
-  width:min(96vw,720px)!important;
-  height:clamp(110px,25vw,260px)!important;
-  margin:0 auto!important;
-}
-.imageTitleCluster .titleCard{
-  display:block!important;
-  width:auto!important;
-  height:clamp(95px,20vw,215px)!important;
-  max-width:none!important;
-  object-fit:contain!important;
-  flex:0 0 auto!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  background:none!important;
-  box-shadow:none!important;
-  position:relative!important;
-  will-change:transform,opacity,filter!important;
-}
-.imageTitleCluster .titleCard1{transform:rotate(-6deg)!important}
-.imageTitleCluster .titleCard2{transform:rotate(3deg)!important}
-.imageTitleCluster .titleCard3{transform:rotate(-5deg)!important}
-.imageTitleCluster .titleCard4{transform:rotate(6deg)!important}
-
-.imageTitleCluster .titleCard{
-  opacity:0;
-  animation:v223CardIn .62s cubic-bezier(.12,.9,.18,1) forwards;
-}
-.imageTitleCluster .titleCard1{animation-delay:.08s}
-.imageTitleCluster .titleCard2{animation-delay:.27s}
-.imageTitleCluster .titleCard3{animation-delay:.46s}
-.imageTitleCluster .titleCard4{animation-delay:.65s}
-
-@keyframes v223CardIn{
-  0%{opacity:0;transform:translateY(45px) scale(.55) rotate(0deg);filter:blur(7px)}
-  62%{opacity:1;filter:blur(0) drop-shadow(0 0 18px rgba(255,0,130,.65))}
-  100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r));filter:drop-shadow(0 8px 14px rgba(255,0,130,.3))}
-}
-.imageTitleCluster .titleCard1{--r:-6deg}
-.imageTitleCluster .titleCard2{--r:3deg}
-.imageTitleCluster .titleCard3{--r:-5deg}
-.imageTitleCluster .titleCard4{--r:6deg}
-</style>
-
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <header class="wolfHeader">
-  <div class="wolfHeaderTitle" aria-label="늑대게임"><img class="wolfGameTitleImage" src="assets/wolf_game_title.png" alt="늑대게임"></div>
+  <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
 </header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
@@ -2098,8 +1578,8 @@ body{
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><h1>게임 입장</h1><p class="muted">이름을 입력하십시오. <b>관리자</b>를 입력하면 관리자 화면으로 입장합니다.</p>
-<input id="name" placeholder="성명" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">입장</button><div id="loginStatus"></div></div>
+<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>(흰색)을 모두 입력하여 로그인하여 주세요.</p>
+<input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
 <section id="lobby" class="screen">
@@ -2112,10 +1592,8 @@ body{
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
-
+<div id="actionDock" class="actionDock"></div>
 </section>
-
-<div id="actionDock" class="actionDock" aria-label="게임 행동 메뉴"></div>
 
 <section id="deathConfirm" class="screen">
 <div class="fullStage show"><div>
@@ -2219,11 +1697,17 @@ body{
 
 <section id="roleSelect" class="screen roleSelectStage">
 <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-<div class="roleSelectHeader"><div class="roleSelectTitle imageTitleCluster" aria-label="카드 선택"><img class="titleCard titleCard1" src="assets/card_selection_01_카.png" alt="카">
-<img class="titleCard titleCard2" src="assets/card_selection_02_드.png" alt="드">
-<img class="titleCard titleCard3" src="assets/card_selection_03_선.png" alt="선">
-<img class="titleCard titleCard4" src="assets/card_selection_04_택.png" alt="택"></div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요</div></div>
-<div class="roleSelectTable"></div>
+<div class="roleIntroVisual">
+  <img class="roleIntroTableImg" src="assets/table.png" alt="">
+  <div class="roleIntroTitleImages" aria-label="역할선정">
+    <img src="assets/role_selection_01_역.png" alt=""><img src="assets/role_selection_02_할.png" alt=""><img src="assets/role_selection_03_선.png" alt=""><img src="assets/role_selection_04_정.png" alt="">
+  </div>
+  <div class="roleIntroMessage">지금부터 양과 늑대를 정하겠습니다.</div>
+</div>
+<div class="roleSelectHeader"><div class="roleSelectTitle roleSelectImageTitle" aria-label="카드선택">
+  <img src="assets/card_selection_01_카.png" alt=""><img src="assets/card_selection_02_드.png" alt=""><img src="assets/card_selection_03_선.png" alt=""><img src="assets/card_selection_04_택.png" alt="">
+</div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요.</div></div>
+<div class="roleSelectTable"><img src="assets/table.png" alt=""></div>
 <div id="roleCards" class="roleSelectBoard"></div>
 <div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
 <div id="roleWait" class="roleSelectWait">카드를 선택하면 다른 행동을 할 수 없습니다. 모든 플레이어의 선택을 기다립니다.</div>
@@ -2267,10 +1751,7 @@ body{
 </section>
 
 <section id="gameCountdown" class="screen">
-<div class="gameStartPlayerStage">
-  <div class="wolfHeaderTitle gameStartPlayerTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
-  <div class="gameStartPlayerMessage">곧 게임이 시작됩니다.</div>
-</div>
+<div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
 </section><section id="victory" class="screen"></section>
 
 <section id="sabotage" class="screen">
@@ -2483,14 +1964,21 @@ function stopAllTimers(){
   stopCountdownTimer();
   stopRoleRevealTimer();
   stopSabotageUiWatcher();
+  if(adminGameStartEffectTimer){
+    clearTimeout(adminGameStartEffectTimer);
+    adminGameStartEffectTimer=null;
+  }
 }
 
 const SOUND_FILES={
- countdown5:"sounds/",
- countdown4:"sounds/",
- countdown3:"sounds/",
- countdown2:"sounds/",
- countdown1:"sounds/",
+
+
+ trialBgm:"sounds/trial-bgm.mp3",
+
+
+
+
+
  morning:"sounds/morning.mp3",
  login:"sounds/login.mp3",
  button:"sounds/button.mp3",
@@ -2501,12 +1989,14 @@ const SOUND_FILES={
  deadSheepFound:"sounds/body-found.mp3",
  death:"sounds/death.mp3",
  sabotage:"sounds/sabotage.mp3",
+ adminNotice:"sounds/admin-notice.mp3",
  nightAlert:"sounds/night-alert.mp3",
- nightBgm:"sounds/night_bgm.mp3"
+ nightBgm:"sounds/night-bgm.mp3"
 };
 const audio={};
 let soundUnlocked=false;
 let audioContext=null;
+let adminGameStartEffectTimer=null;
 function preloadSounds(){
  for(const [k,v] of Object.entries(SOUND_FILES)){
    const a=new Audio();
@@ -2549,7 +2039,6 @@ async function activateStageAudio(){
  }catch(e){console.warn("단계별 오디오 활성화 실패:",e);}
 }
 async function playSound(name,eventKey=""){
- if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
  await activateStageAudio();
  if(!soundEnabled||!soundUnlocked||!audio[name])return;
  const key=eventKey||name,now=Date.now();
@@ -2606,28 +2095,14 @@ function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disab
 async function showScreen(id){
  const target=el(id);
  if(!target)return;
-
- // The player header is an entry/lobby header only.
- const header=el("wolfHeaderTitle") || document.querySelector(".wolfHeaderTitle");
- const showHeader=(id==="login" || id==="lobby");
- document.body.classList.toggle("playerHeaderHidden",!showHeader);
- if(header){
-   header.setAttribute("aria-hidden",showHeader?"false":"true");
- }
-
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
  if(alreadyActive)return;
-
  document.querySelectorAll(".screen").forEach(x=>{
    x.classList.remove("active");
    x.style.display="none";
-   x.setAttribute("aria-hidden","true");
  });
  target.classList.add("active");
  target.style.display="block";
- target.setAttribute("aria-hidden","false");
-
- // Do not remove actionDock here. It is intentionally viewport-fixed.
  if(fadeBusy)return;
  fadeBusy=true;
  try{
@@ -2652,17 +2127,22 @@ async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdmin
 window.__serverClockOffsetMs = Number(window.__serverClockOffsetMs)||0;
 function gameNow(){ return Date.now() + (Number(window.__serverClockOffsetMs)||0); }
 function syncGameClock(g){
-  // 라운드 타이머는 모든 기기에서 동일한 round_started_at을 기준으로 계산합니다.
-  // updated_at을 매 조회마다 기준 시계로 삼으면 DB 갱신 시점에 따라 타이머가 흔들릴 수 있습니다.
-  if(!window.__gameClockOffsetInitialized){
-    const stamp=Date.parse(g?.round_started_at||g?.night_started_at||g?.investigation_started_at||"");
-    if(Number.isFinite(stamp)){
-      const measured=stamp-Date.now();
-      if(Math.abs(measured)<120000)window.__serverClockOffsetMs=measured;
-    }
-    window.__gameClockOffsetInitialized=true;
-  }
-  return g;
+ const candidates=[];
+ // updated_at is the DB write timestamp and is the best common clock reference.
+ if(g?.updated_at)candidates.push(g.updated_at);
+ if(g?.round_started_at)candidates.push(g.round_started_at);
+ if(String(g?.phase||"").toUpperCase()==="NIGHT"&&g?.night_started_at)candidates.push(g.night_started_at);
+ if(String(g?.phase||"").toUpperCase()==="INVESTIGATION"&&g?.investigation_started_at)candidates.push(g.investigation_started_at);
+ for(const value of candidates){
+   const stamp=Date.parse(value||"");
+   if(!Number.isFinite(stamp))continue;
+   const measured=stamp-Date.now();
+   if(Math.abs(measured)<120000){
+     window.__serverClockOffsetMs=measured;
+     break;
+   }
+ }
+ return g;
 }
 async function settings(){
  const r=await db.from("game_settings").select("*").eq("id",1).limit(1).maybeSingle();
@@ -2898,6 +2378,7 @@ function adminLogout(){
  localStorage.removeItem("wolf_game_admin_v7");
  playerId=null;
  stopAllTimers();
+ stopAllAdminBgm();
  showScreen("login");
  const nameEl=el("name");if(nameEl)nameEl.value="";
  const statusEl=el("loginStatus");if(statusEl)statusEl.innerHTML="";
@@ -2908,6 +2389,7 @@ function playerLogout(){
  localStorage.removeItem("wolf_game_player_v7");
  playerId=null;
  stopAllTimers();
+ stopAllAdminBgm();
  if(typeof stopAllAudio==="function")stopAllAudio();
  showScreen("login");
  const nameEl=el("name");if(nameEl)nameEl.value="";
@@ -3023,10 +2505,15 @@ async function route(){
 }
 
 async function renderLobby(p,g){
+ stopPlayerTrialBgm();
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
  el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
  el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
 }
+
+
+async function startAdminRoleSelectionBgm(){ return; }
+function stopRoleSelectionBgm(){ return; }
 
 
 let nightPreTimer=null;
@@ -3102,6 +2589,12 @@ async function renderNightPreAlert(g){
  await tick();
  nightPreTimer=setInterval(()=>tick().catch(e=>console.error("밤 준비 타이머:",e)),100);
 }
+function stopPlayerTrialBgm(){
+ try{
+   const a=audio.trialBgm;
+   if(a){a.pause();a.currentTime=0;}
+ }catch(_){}
+}
 async function renderPlayerTrialResult(data){
  await showScreen("playerTrialResult");
  const name=String(data.name||"");
@@ -3119,7 +2612,7 @@ async function renderRoleIntro(){
  const roleSelect=el("roleSelect");
  if(roleSelect)roleSelect.classList.add("roleIntroTableOnly");
  await showScreen("roleSelect");
- await new Promise(r=>setTimeout(r,3000));
+ await new Promise(r=>setTimeout(r,2500));
  if(roleSelect)roleSelect.classList.remove("roleIntroTableOnly");
  const g=await settings();
  if(g.phase==="ROLE_INTRO"){
@@ -3207,7 +2700,7 @@ async function renderRoleReveal(p,g){
  el("revealCards").innerHTML=
   '<div class="roleRevealStage '+stageClass+'" id="roleRevealStage">'+
    '<div class="revealCard">'+
-    '<div class="roleRevealFlip isBack" id="roleRevealFlip">'+
+    '<div class="roleRevealFlip isFront" id="roleRevealFlip">'+
      '<div class="roleRevealFace roleRevealBack">'+
        '<div style="font-size:clamp(24px,6vw,48px);font-weight:1000;color:#f1f1ed;letter-spacing:.18em;text-shadow:0 2px 8px #000">WOLF<br>GAME</div>'+
      '</div>'+
@@ -3227,10 +2720,8 @@ function toggleRoleReveal(){
  const flip=document.getElementById("roleRevealFlip");
  const btn=document.querySelector(".roleRevealFlipBtn");
  if(!flip)return;
- const showingBack=flip.classList.contains("isBack");
- flip.classList.toggle("isBack",!showingBack);
- flip.classList.toggle("isFront",showingBack);
- if(btn)btn.textContent=showingBack?"카드 뒷면 보기":"카드 뒤집기";
+ const back=flip.classList.toggle("isBack");
+ if(btn)btn.textContent=back?"앞면 보기":"카드 뒤집기";
 }
 async function startRoleSelection(){
  try{
@@ -3248,7 +2739,9 @@ async function startRoleSelection(){
    const r=await db.from("players").update({role:i<wolfCount?"WOLF":"SHEEP",card_selected:false,card_position:i}).eq("id",shuffled[i].id);
    if(r.error){toast("역할 카드 준비 실패: "+r.error.message);return;}
  }
+ stopAllAdminBgm();
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
+ await startAdminLoopBgm("roleSelectionBgm");
  toast("양과 늑대 선정 화면을 시작합니다.");
  await renderAdmin();
  }catch(e){console.error("startRoleSelection 오류:",e);toast("양과 늑대 선정 시작 실패: "+(e.message||String(e)));}
@@ -3298,40 +2791,28 @@ function tickMission(){
  }
 }
 function tickRoundTimer(){
- if(!roundTimer)return;
- const timerEl=el("roundTimer");
- if(!timerEl)return;
- const started=Number(window.__roundTimerStartedAt)||0;
- const duration=Number(window.__roundTimerDurationMs)||0;
- if(!started||!duration){timerEl.textContent="00:00";return;}
- const left=Math.max(0,started+duration-gameNow());
- timerEl.textContent=formatRoundTime(left);
- timerEl.classList.toggle("warn",left>0&&left<=60000);
- timerEl.classList.toggle("end",left<=0);
- if(left<=0){
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
   clearInterval(roundTimer);roundTimer=null;
   if(!window.__roundExpiredHandled){
-   window.__roundExpiredHandled=true;
-   transitionToNight().catch(e=>console.error("밤 전환 실패:",e));
+    window.__roundExpiredHandled=true;
+    transitionToNight().catch(e=>console.error("밤 전환 실패:",e));
   }
- }
+}
 }
 function startRoundTimer(g){
  const timerEl=el("roundTimer");
  if(!timerEl)return;
- const round=Number(g?.current_round)||0;
- const startedMs=Date.parse(g?.round_started_at||"");
+ const sameRound=window.__roundTimerRound===Number(g?.current_round)
+   && window.__roundTimerStartedAt
+   && window.__roundTimerDurationMs;
+ if(sameRound && roundTimer)return;
+ stopRoundTimer(); window.__roundExpiredHandled=false;
  const baseMinutes=Number(g?.round_duration_minutes);
  const penaltyMinutes=Math.max(0,Number(g?.round_time_penalty_total)||0);
  const minutes=Math.max(1,(Number.isFinite(baseMinutes)&&baseMinutes>0?baseMinutes:15)-penaltyMinutes);
  const duration=minutes*60*1000;
- if(round===window.__roundTimerRound && startedMs===Number(window.__roundTimerStartedAt) && duration===Number(window.__roundTimerDurationMs) && roundTimer){
-   tickRoundTimer();
-   return;
- }
- stopRoundTimer();
- window.__roundExpiredHandled=false;
- window.__roundTimerRound=round;
+ const startedMs=Date.parse(g?.round_started_at||"");
+ window.__roundTimerRound=Number(g?.current_round)||0;
  window.__roundTimerStartedAt=Number.isFinite(startedMs)?startedMs:gameNow();
  window.__roundTimerDurationMs=duration;
  tickRoundTimer();
@@ -3416,7 +2897,8 @@ async function renderNight(p,g){
 }
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
-   stopMissionTimer();
+  stopGameStartBgm();
+  stopMissionTimer();
   const p=await me(),g=await settings();
   window.__lastSettings=g;
 
@@ -3508,7 +2990,7 @@ function missionActionIcon(type){
 async function renderActionDock(g,p){
  const d=el("actionDock");
  if(!d)return;
- if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";d.classList.remove("expanded");d.style.display="none";return;} d.style.display="flex";
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";return;}
  const discovery=missionActionIcon("discovery");
  if(roleIsWolf(p.role)){
    const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
@@ -4150,21 +3632,13 @@ function closeDeathWarning(){
    '<p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
 }
 async function canDiscoverDeadSheep(g){
- // 사망확인 후 players.status=DEAD가 최종 확정 상태입니다.
- // wolf_attempts의 SUCCESS 여부는 보조 기록일 뿐이므로,
- // RPC 완료 상태 때문에 발견 버튼이 막히지 않도록 합니다.
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
-   .eq("game_round",Number(g.current_round))
-   .order("id",{ascending:false}).limit(20);
+   .eq("game_round",Number(g.current_round)).eq("status","SUCCESS")
+   .order("id",{ascending:false}).limit(1);
  if(r.error||!r.data?.length)return false;
-
- for(const attempt of r.data){
-   const victim=attempt?.victim_player_id;
-   if(!victim)continue;
-   const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
-   if(vr.data?.status==="DEAD")return true;
- }
- return false;
+ const victim=r.data[0].victim_player_id;
+ const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
+ return vr.data?.status==="DEAD";
 }
 async function openLocationChoice(){
  closeActionDock();
@@ -4258,15 +3732,11 @@ async function renderInvestigation(p,g){
 }
 async function getLatestDeadSheep(round){
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
-   .eq("game_round",round).order("id",{ascending:false}).limit(20);
+   .eq("game_round",round).eq("status","SUCCESS").order("id",{ascending:false}).limit(1);
  if(r.error||!r.data?.length)return null;
- for(const attempt of r.data){
-   const victim=attempt?.victim_player_id;
-   if(!victim)continue;
-   const p=await db.from("players").select("id,name,role,status").eq("id",victim).maybeSingle();
-   if(p.data?.status==="DEAD")return p.data;
- }
- return null;
+ const victim=r.data[0].victim_player_id;
+ const p=await db.from("players").select("id,name,role,status").eq("id",victim).maybeSingle();
+ return p.data||null;
 }
 
 async function renderTrial(p,g){
@@ -4415,13 +3885,14 @@ async function renderAdmin(){
  try{
   const g=await settings();
   if(g.phase==="TRIAL"){
-    
+    stopRoleSelectionBgm();stopGameStartBgm();await startAdminLoopBgm("trialBgm");
   }else if(g.phase==="ROLE_INTRO"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_REVEAL"){
-    
+    stopGameStartBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("roleSelectionBgm");
   }else if(g.phase==="COUNTDOWN"){
-    
+    stopRoleSelectionBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
   }else{
-     }
+    stopAllAdminBgm();
+  }
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
   await refreshTrialResultPlayers(p);
   const roundMissionLocations=(g.phase==="PLAY"||g.phase==="TRIAL"||g.phase==="NIGHT"||g.phase==="INVESTIGATION")
@@ -4485,6 +3956,7 @@ async function testNight(){
  await renderAdmin();
 }
 async function startGame(){
+ stopRoleSelectionBgm();
  try{
    const g=await settings();
    if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해야 합니다.");return;}
@@ -4510,6 +3982,11 @@ async function startGame(){
      round_time_penalty_total:0
    });
 
+   await startGameStartBgm();
+   clearTimeout(adminGameStartEffectTimer);
+   adminGameStartEffectTimer=setTimeout(
+     ()=>playSound("gameStart","game-start-admin-"+g.current_round),15000
+   );
 
    // 미션 생성은 게임 시작 후 처리합니다. 실패해도 게임 시작 자체는 유지하고
    // 플레이어 화면에서 구체적인 오류를 확인할 수 있도록 합니다.
@@ -4527,18 +4004,31 @@ async function startGame(){
    toast("게임 시작 실패: "+(e.message||e));
  }
 }
-async function renderGameCountdown(p,g){
- // 게임시작 안내에서 플레이어는 타이틀과 안내 문구만 표시합니다.
- // 카운트다운 숫자/게임 시작 연출/관련 사운드는 screen.html에서만 진행합니다.
- if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
- stopAllTimers();
- await showScreen("gameCountdown");
- const root=el("gameCountdown");
- if(!root)return;
- root.innerHTML='<div class="gameStartPlayerStage"><div class="wolfHeaderTitle gameStartPlayerTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div><div class="gameStartPlayerMessage">곧 게임이 시작됩니다.</div></div>';
+async function startGameStartBgm(){
+ if(localStorage.getItem("wolf_game_admin_v7")!=="1")return;
+ stopRoleSelectionBgm();
+ stopAdminBgm("trialBgm");
+ await startAdminLoopBgm("gameStartBgm");
+}
+function stopGameStartBgm(){
+ try{
+  const a=audio.gameStartBgm;
+  if(a){a.pause();a.currentTime=0;}
+ }catch(e){}
 }
 
+async function startAdminLoopBgm(){ return; }
+function stopAdminBgm(){ return; }
+function stopAllAdminBgm(){ return; }
+
+async function renderGameCountdown(p,g){
+ if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+ await showScreen("gameCountdown");
+ const root=el("gameCountdown");if(!root)return;
+ root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">곧 게임이 시작됩니다.</div></div></div>';
+}
 async function nextRound(){
+ clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
   const rr=await db.rpc("reset_round_mission_progress",{p_game_round:g.current_round});
@@ -4555,11 +4045,15 @@ async function startTrial(){
  if(["LOBBY","ROLE_INTRO","ROLE_SELECT","ROLE_REVEAL","COUNTDOWN"].includes(String(g.phase))){
    toast("게임이 아직 시작되지 않았습니다.");return;
  }
+ stopAllAdminBgm();
  await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
+ await startAdminLoopBgm("trialBgm");
  toast("재판 시작 알림을 전송했습니다.");
  await renderAdmin();
 }
 async function resetGame(){
+ clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;
+ stopAllAdminBgm();
  const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
    // 1) 게임 진행 데이터 초기화
@@ -5398,6 +4892,7 @@ function realtime(){
      return;
    }
    openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
+   if(n.notification_type==="ADMIN")playSound("adminNotice","admin-notice-"+n.id);
    // WOLF notifications intentionally have no sound.
  }).subscribe();
 }
@@ -5471,7 +4966,7 @@ window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=sav
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.skipToGame=skipToGame;window.testNight=testNight;window.nextRound=nextRound;window.startTrial=startTrial;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
 window.markReady=markReady;window.startRoleSelection=startRoleSelection;window.selectRoleCard=selectRoleCard;window.revealRolesIfReady=revealRolesIfReady;
-window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.confirmTrialResultBroadcast=confirmTrialResultBroadcast;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
+window.saveTiming=saveTiming;window.saveGameRules=saveGameRules;window.toggleNfc=toggleNfc;window.sendNotice=sendNotice;window.sendWolfNotice=sendWolfNotice;
 window.addLocation=addLocation;window.confirmRemoveLocation=confirmRemoveLocation;window.confirmRemovePlayer=confirmRemovePlayer;window.runPendingFunction=runPendingFunction;
 
 
@@ -6901,30 +6396,3 @@ function miniTrace(r){
 </script>
 </body>
 </html>
-
-<style id="v224-floating-action-dock">
-/* v224: action buttons are truly viewport-fixed, not children of #player. */
-#actionDock.actionDock{
-  position:fixed!important;
-  right:22px!important;
-  bottom:22px!important;
-  z-index:1500!important;
-  pointer-events:none!important;
-}
-#actionDock.actionDock > button{
-  pointer-events:auto!important;
-}
-@media(max-width:600px){
-  #actionDock.actionDock{right:14px!important;bottom:14px!important}
-}
-</style>
-
-<style id="v224-player-header-visibility">
-/* The global header exists in DOM for layout, but is visible only on
-   the entry/lobby screens. Gameplay screens do not inherit the title. */
-body.playerHeaderHidden .wolfHeaderTitle{
-  visibility:hidden!important;
-  opacity:0!important;
-  pointer-events:none!important;
-}
-</style>
