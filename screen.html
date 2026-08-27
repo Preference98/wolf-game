@@ -1231,74 +1231,38 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 }
 </style>
 
-<style id="spreadsheet-stage-fix">
-.roleIntroTableStage{background:#030303!important;overflow:hidden}
-.roleIntroTableImage{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:1}
-.roleIntroTableImage img{width:min(94vw,1280px);height:68vh;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 -18px 45px rgba(255,0,128,.22))}
-.roleIntroTitle{position:absolute;top:8%;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;justify-content:center;gap:clamp(3px,.7vw,12px)}
-.roleIntroTitle .titleCard,.roleHeader .imagePhaseTitle .titleCard{width:clamp(60px,7vw,120px);height:auto;object-fit:contain;opacity:0;transform:translateY(28px) scale(.82) rotate(var(--r,0deg));animation:spreadTitleIn .52s cubic-bezier(.15,.9,.2,1) forwards}
-.roleIntroTitle .titleCard1,.roleHeader .titleCard1{--r:-7deg;animation-delay:.05s}
-.roleIntroTitle .titleCard2,.roleHeader .titleCard2{--r:3deg;animation-delay:.20s}
-.roleIntroTitle .titleCard3,.roleHeader .titleCard3{--r:-5deg;animation-delay:.35s}
-.roleIntroTitle .titleCard4,.roleHeader .titleCard4{--r:7deg;animation-delay:.50s}
-.roleIntroText{position:absolute;z-index:6;left:50%;bottom:10%;transform:translateX(-50%);font-size:clamp(28px,4vw,64px);font-weight:1000;text-shadow:0 0 24px rgba(255,0,128,.7);white-space:nowrap}
-.roleStage .roleHeader{top:7%!important}
-.roleStage .roleSelectTable.imageTableOnly{position:absolute;left:50%;right:auto;top:34%;bottom:auto;width:min(94vw,1200px);height:57%;transform:translateX(-50%);border:0!important;background:transparent!important;box-shadow:none!important;z-index:1}
-.roleStage .roleSelectTable.imageTableOnly img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 -20px 45px rgba(255,0,128,.2))}
-.roleStage .cards{z-index:4}
-@keyframes spreadTitleIn{0%{opacity:0;transform:translateY(28px) scale(.82) rotate(var(--r))}70%{opacity:1;transform:translateY(-4px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
-@media(max-width:900px){
- .roleIntroTitle .titleCard,.roleHeader .imagePhaseTitle .titleCard{width:clamp(48px,11vw,82px)}
- .roleIntroText{font-size:clamp(20px,5vw,38px);bottom:8%}
- .roleIntroTableImage img{height:60vh}
-}
-</style>
+/* 준비완료 이후 대기화면 전용: wolf_game_title.png + 배경 + idle */
+#s-title .waitingScreenBackdrop{position:absolute;inset:-5%;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);transform:scale(1.06);animation:readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate;}
+#s-title .waitingScreenTitle{display:block!important;width:min(78vw,900px)!important;height:auto!important;position:absolute!important;left:50%!important;top:50%!important;opacity:0;transform:translate(-50%,-50%) scale(.62);filter:drop-shadow(0 0 28px rgba(255,0,130,.52))!important;animation:readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate!important;}
+@keyframes readyScreenTitleIn{0%{opacity:0;transform:translate(-50%,-50%) translateY(80px) scale(.62);filter:blur(10px) drop-shadow(0 0 0 rgba(255,0,130,0))}65%{opacity:1;transform:translate(-50%,-50%) translateY(-8px) scale(1.04);filter:blur(0) drop-shadow(0 0 34px rgba(255,0,130,.68))}100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:drop-shadow(0 0 26px rgba(255,0,130,.48))}}
+@keyframes readyScreenTitleIdle{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.018) translateY(-5px)}}
+@keyframes readyScreenBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
+
 </head>
 <body class="wolf-v181-screen">
 <div class="stage" id="stage">
   <div class="screen active" id="s-idle"></div>
 
   <div class="screen titleStage" id="s-title">
-    <div class="titleCssBackdrop"></div>
-    <div class="screenTitleCluster animated" aria-label="늑대게임">
-      <img class="titleCard titleCard1" src="assets/wolf_title_01.png" alt="">
-      <img class="titleCard titleCard2" src="assets/wolf_title_02.png" alt="">
-      <img class="titleCard titleCard3" src="assets/wolf_title_03.png" alt="">
-      <img class="titleCard titleCard4" src="assets/wolf_title_04.png" alt="">
-    </div>
-    <div class="screenTitleSub">REAL-WORLD SURVIVAL GAME</div>
+    <div class="waitingScreenBackdrop" aria-hidden="true"></div>
+    <img class="waitingScreenTitle" id="waitingScreenTitle" src="assets/wolf_game_title.png" alt="">
     <div id="screenAudioPool" hidden></div>
   </div>
 
-  <div class="screen roleIntroTableStage" id="s-roleIntro">
-    <div class="roleIntroTableImage"><img src="assets/table.png" alt=""></div>
-    <div class="roleIntroTitle imagePhaseTitle" aria-label="역할선정">
-      <img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="">
-      <img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="">
-      <img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="">
-      <img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt="">
-    </div>
-    <div class="roleIntroText">지금부터 양과 늑대를 정하겠습니다.</div>
-  </div>
-  <div class="screen roleStage" id="s-role">
-    <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-    <div class="roleHeader">
-      <div class="phaseTitle imagePhaseTitle" id="roleTitle" aria-label="카드선택">
-        <img class="titleCard titleCard1" src="assets/card_selection_01_카.png" alt="">
-        <img class="titleCard titleCard2" src="assets/card_selection_02_드.png" alt="">
-        <img class="titleCard titleCard3" src="assets/card_selection_03_선.png" alt="">
-        <img class="titleCard titleCard4" src="assets/card_selection_04_택.png" alt="">
-      </div>
-      <div class="phaseSub" id="roleSub">원하는 카드를 터치하세요.</div>
-    </div>
-    <div class="roleSelectTable imageTableOnly"><img src="assets/table.png" alt=""></div>
-    <div class="cards" id="cards"></div>
-  </div>
+  <div class="screen noticeFull roleIntroScreen" id="s-roleIntro"><div class="center"><div class="noticeMain">지금부터 역할을 정하겠습니다.</div></div></div>
+  <div class="screen roleStage" id="s-role"><div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div><div class="roleHeader"><div class="phaseTitle imagePhaseTitle" id="roleTitle" aria-label="역할 선정"><img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="">
+<img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="">
+<img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="">
+<img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt=""></div><div class="phaseSub" id="roleSub"></div></div><div class="roleSelectTable"></div><div class="cards" id="cards"></div></div>
   <div class="screen noticeFull" id="s-roleReveal">
-    <div class="center">
-      <div class="noticeMain">모두 자신의 역할을 확인하여 주십시오.</div>
-    </div>
+  <div class="center">
+    <div class="phaseTitle imagePhaseTitle" aria-label="역할 선정"><img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="">
+<img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="">
+<img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="">
+<img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt=""></div>
+    <div class="noticeMain">자신의 결과를 확인해 주세요.</div>
   </div>
+</div>
   <div class="screen noticeFull" id="s-startSoon"><div class="center"><div class="noticeMain">잠시 후 게임이 시작됩니다.</div><div class="noticeSmall">준비해 주세요.</div></div></div>
   <div class="screen" id="s-count"><div class="gameStartStage"><div id="gameStartContent"></div></div></div>
   <div class="screen noticeFull" id="s-nightPre"><div class="center">
@@ -1468,35 +1432,33 @@ async function getSettings(){const r=await db.from('game_settings').select('*').
 async function getPlayers(){const r=await db.from('players').select('id,name,role,status,card_selected,card_position').order('card_position');return r.data||[]}
 function setStatus(t){$('screenStatus').textContent=t}
 async function unlock(){
-  // "스크린 시작"은 screen.html 자체를 실행하는 버튼이며,
-  // 클릭 자체가 실패해서 화면이 잠겨버리지 않도록 화면 활성화를 먼저 완료합니다.
+  // 스크린 시작 버튼은 "스크린 활성화"만 담당합니다.
+  // 이전 게임의 game_settings / notification 상태를 시작 순간에 재생하지 않습니다.
   unlocked=true;
-  const unlockLayer=$('unlock');
-  if(unlockLayer) unlockLayer.style.display='none';
+  $('unlock').style.display='none';
+  show('s-idle');
+  lastPhase=null;
+  lastReady=false;
+  seqToken++;
   try{localStorage.setItem('wolf_screen_audio_unlocked','1')}catch(_){}
 
+  // 실제 사운드 권한 확보는 실패해도 스크린 활성화를 막지 않습니다.
+  try{await unlockScreenAudio();}catch(_){}
   try{
     const a=$('titleBgm');
-    a.src=AS+'title_bgm.mp3';
-    a.loop=false;
-    a.volume=.01;
-    // 실제 사용자 클릭 안에서 오디오 재생 권한만 확보합니다.
-    await a.play();
-    a.pause();
-    a.currentTime=0;
-    a.volume=.72;
-  }catch(e){
-    console.warn('스크린 오디오 권한 확보 실패(화면 실행은 계속):',e);
-  }
+    if(a){
+      a.src=AS+'title_bgm.mp3';
+      a.volume=.01;
+      await a.play();
+      a.pause();
+      a.currentTime=0;
+      a.volume=.72;
+    }
+  }catch(e){console.warn('스크린 오디오 권한 확보 실패:',e);}
 
-  try{
-    await handlePhase(await getSettings(),true);
-  }catch(e){
-    setStatus('SCREEN 연결 오류: '+(e?.message||e));
-    console.warn('스크린 초기 상태 확인 실패:',e);
-  }
+  // 현재 DB 상태는 다음 polling / realtime UPDATE에서 정상적으로 반영합니다.
 }
-async function titleSequence(){const token=++seqToken;show('s-title');stopAllScreenBgm();await playScreenSound('titleBgm','title-'+String(Date.now()),false,.72);await wait(3200);if(token!==seqToken)return;}
+async function titleSequence(){const token=++seqToken;show('s-title');stopAllScreenBgm();await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);await wait(3200);if(token!==seqToken)return;}
 async function playTitle2(){stopScreenSound('titleBgm');await playScreenSound('title2Bgm','title2',true,.48);}
 async function roleSelectSequence(){
  show('s-role');
@@ -1521,16 +1483,16 @@ async function countdownSequence(g){
  const content=$('gameStartContent');
  if(!content)return;
  const sequence=async()=>{
-   content.innerHTML='<div class="gameStartMessage">곧 게임이 시작됩니다.</div>';
-   await wait(2500);if(token!==seqToken)return;
+   content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
+   await wait(5000);if(token!==seqToken)return;
    for(let n=5;n>=1;n--){
      content.innerHTML='<div class="gameStartCount">'+n+'</div>';
      await playScreenEffect('sounds/countdown-'+n+'.mp3','screen-countdown-'+g.current_round+'-'+n).catch(()=>{});
-     await wait(1000);if(token!==seqToken)return;
+     await wait(2000);if(token!==seqToken)return;
    }
    content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
    await playScreenEffect('sounds/game-start.mp3','screen-game-start-'+g.current_round).catch(()=>{});
-   await wait(2000);if(token!==seqToken)return;
+   await wait(4000);if(token!==seqToken)return;
    const latest=await getSettings();
    if(String(latest.phase).toUpperCase()==='COUNTDOWN'){
      const startedAt=new Date().toISOString();
@@ -1686,21 +1648,19 @@ async function sabotageSequence(ev){
 }
 async function resultSequence(data){const token=++resultToken;show('s-result');const role=String(data.role||'').toUpperCase();await wait(4500);if(token!==resultToken)return;$('resultName').textContent=data.name||'';$('resultRole').textContent=role==='WOLF'?'늑대':'양';$('resultRole').className='resultRole '+(role==='WOLF'?'':'sheep');$('resultCaption').textContent='입니다.';await wait(6500);if(token!==resultToken)return;const g=await getSettings();if(String(g.phase).toUpperCase()==='TRIAL')show('s-trial');else if(String(g.phase).toUpperCase()==='PLAY')show('s-main')}
 function renderScreenVictory(winner){
- const kind=winner==="WOLF"?"wolf":"sheep";
- const title=winner==="WOLF"?"늑대가 승리했습니다.":"양이 승리하였습니다.";
- const root=$("s-result");if(!root)return;
+ const kind=winner==="WOLF"?"wolf":"sheep",title=winner==="WOLF"?"늑대가 승리했습니다.":"양이 승리했습니다.",root=$("s-result");if(!root)return;
  root.className="screen resultScene screenVictory "+kind;
- root.innerHTML='<div class="screenVictoryGlow"></div><div class="screenVictoryContent"><img class="screenVictoryImage" src="'+(winner==="WOLF"?"assets/wolf.png":"assets/sheep.png")+'" alt="'+(winner==="WOLF"?"늑대":"양")+'"><div class="screenVictoryTitle">'+title+'</div><div class="screenVictorySub">모두 그레이스홀로 모여주세요.</div></div>';
+ root.innerHTML='<div class="screenVictoryGlow"></div><div class="screenVictoryContent"><div class="screenVictoryImage">'+
+ (winner==="WOLF"?'<svg viewBox="0 0 300 300"><path d="M62 92 L98 28 L145 65 L155 65 L202 28 L238 92 L226 190 Q211 250 150 270 Q89 250 74 190 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M100 140 Q120 120 140 140 M160 140 Q180 120 200 140" fill="none" stroke="currentColor" stroke-width="11"/><path d="M132 175 Q150 188 168 175" fill="none" stroke="currentColor" stroke-width="11"/></svg>':'<svg viewBox="0 0 300 300"><path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/></svg>')+
+ '</div><div class="screenVictoryTitle">'+title+'</div></div>';
 }
 async function renderNextRoundPrepScreen(g){
  show('s-nextRoundPrep');
  const rows=(await db.from('players').select('id,name,role,status').order('created_at')).data||[];
- const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/);
- const until=m?Number(m[1]):Date.now()+6000;
- const publicWolf=!!(m&&m[3]==='PUBLIC_WOLF');
  const root=$('screenNextRoundFaces');
- if(root){root.innerHTML=rows.map(x=>{const dead=String(x.status||'').toUpperCase()!=='ALIVE';const role=String(x.role||'').toUpperCase();const src=(publicWolf&&role==='WOLF')?'assets/wolf.png':'assets/sheep.png';return '<div style="position:relative"><img class="'+(dead?'dead':'')+'" src="'+src+'" alt="">'+(dead?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;color:#ff3347;font-weight:1000">×</div>':'')+'</div>'}).join('');}
+ if(root){root.innerHTML=rows.map(x=>{const dead=String(x.status||'').toUpperCase()!=='ALIVE';const src=(publicWolf && String(x.role||'').toUpperCase()==='WOLF')?'assets/wolf.png':'assets/sheep.png';return '<div style="position:relative"><img class="'+(dead?'dead':'')+'" src="'+src+'" alt="">'+(dead?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;color:#ff3347;font-weight:1000">×</div>':'')+'</div>'}).join('');}
  const alive=rows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE').length; if($('screenNextRoundRemaining'))$('screenNextRoundRemaining').textContent=`남은 플레이어는 ${alive}명 입니다.`;
+ const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/); const until=m?Number(m[1]):Date.now()+6000; const publicWolf=!!(m&&m[3]==='PUBLIC_WOLF');
  if(window.__screenNextPrepTimer)clearTimeout(window.__screenNextPrepTimer);
  window.__screenNextPrepTimer=setTimeout(async()=>{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='NEXT_ROUND_PREP')return;const round=m?Number(m[2]):Number(latest.current_round||1);const next=round+1;await db.from('mission_completions').delete().eq('game_round',round);await db.from('wolf_attempts').delete().eq('game_round',round);await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','NEXT_ROUND_PREP');},Math.max(0,until-Date.now()));
 }
@@ -1733,7 +1693,7 @@ async function handlePhase(g,initial=false){
    }
    return;
  }
- if(phase==='ROLE_INTRO'){stopAllScreenBgm();await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);show('s-roleIntro');await wait(2500);return;}
+ if(phase==='ROLE_INTRO'){stopAllScreenBgm();await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);show('s-roleIntro');await wait(3000);return;}
  if(phase==='ROLE_SELECT'){await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);await roleSelectSequence();return;}
  if(phase==='ROLE_REVEAL'){await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);await roleRevealSequence();return;}
  if(phase==='COUNTDOWN'){stopScreenSound('roleSelectionBgm');await playScreenSound('gameStartBgm','game-start-bgm',true,.45);await countdownSequence(g);return;}
@@ -1793,19 +1753,30 @@ function startScreenTrialResultWatcher(){
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
 async function onNotification(n){if(!unlocked||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
 function subscribe(){db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>handlePhase(payload.new||{})).subscribe();db.channel('wolf-game-screen-notices-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>onNotification(payload.new||{})).subscribe();db.channel('wolf-game-screen-sabotage-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'sabotage_events'},payload=>sabotageSequence(payload.new||{})).subscribe();setInterval(async()=>{if(!unlocked)return;try{await handlePhase(await getSettings())}catch(e){}},1000)}
-$('unlockBtn').addEventListener('click',async()=>{await unlockScreenAudio();await unlock();startScreenTrialResultWatcher();});subscribe();
+$('unlockBtn').addEventListener('click',async()=>{
+  await unlock();
+  // 시작 버튼 이전에 쌓여 있던 재판 결과 알림은 새 스크린 시작 이벤트로 취급하지 않습니다.
+  try{
+    const r=await db.from('notifications').select('id').is('target_player',null).eq('notification_type','TRIAL_RESULT').order('id',{ascending:false}).limit(1);
+    screenTrialResultNotificationMinId=Number(r.data?.[0]?.id||0);
+  }catch(_){}
+  startScreenTrialResultWatcher();
+});
+subscribe();
 </script>
 </body>
 </html>
 
 <style id="v224-screen-visibility">
-/* v224: only the active screen may render. This prevents legacy/phase
-   title elements from leaking into the top of the screen. */
+/* v225: only the active screen may render. Inactive phase screens are
+   completely removed from layout so legacy title/image nodes cannot leak. */
 .screen:not(.active){
+  display:none!important;
   visibility:hidden!important;
   pointer-events:none!important;
 }
 .screen.active{
+  display:flex!important;
   visibility:visible!important;
   pointer-events:auto!important;
 }

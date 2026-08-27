@@ -1377,6 +1377,17 @@ body{
  text-shadow:0 2px 12px rgba(0,0,0,.8);
 }
 #lobby .card,#lobby .row,#lobby .pill,#lobby .notice,#lobby #roleText{display:none!important;}
+/* 준비완료 이후 대기화면 전용: 로그인 직후 대기화면은 기존 검정 화면 유지 */
+#lobby .lobbyReadyBackdrop,#lobby .lobbyReadyTitleWrap{display:none;}
+#lobby.readyWaiting{position:relative!important;overflow:hidden!important;background:#020203!important;}
+#lobby.readyWaiting .lobbyReadyBackdrop{display:block;position:absolute;inset:-5%;z-index:0;background:linear-gradient(rgba(0,0,0,.46),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);transform:scale(1.06);animation:lobbyReadyBgIdle 7s ease-in-out infinite alternate;}
+#lobby.readyWaiting .lobbyReadyTitleWrap{display:flex;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;pointer-events:none;}
+#lobby.readyWaiting .lobbyReadyTitle{width:min(78vw,900px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:lobbyReadyTitleIdle 4s ease-in-out infinite alternate;}
+#lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin-top:clamp(260px,34vh,420px);}
+#lobby.readyWaiting .lobbyLogoutBtn{position:relative;z-index:3;}
+@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
+@keyframes lobbyReadyTitleIdle{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.012)}}
+
 
 #login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
  font-family:var(--wolf-title-font)!important;
@@ -1617,6 +1628,8 @@ body{
 </section>
 
 <section id="lobby" class="screen">
+  <div class="lobbyReadyBackdrop" aria-hidden="true"></div>
+  <div class="lobbyReadyTitleWrap" aria-hidden="true"><img class="lobbyReadyTitle" src="assets/wolf_game_title.png" alt=""></div>
   <div class="lobbyWaitingMessage">
     <div>곧 게임이 시작됩니다.</div>
     <div>대기하여 주십시오.</div>
@@ -2550,6 +2563,8 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
+ // 로그인 직후 대기 단계와 준비완료 이후 대기 단계를 구분합니다.
+ el("lobby").classList.toggle("readyWaiting",!!g.ready);
  // 로그인 직후 대기 단계에서는 플레이어의 역할/관리자 공지 등을 노출하지 않습니다.
  showScreen("lobby");
  stopAllTimers();
