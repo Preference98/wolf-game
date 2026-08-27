@@ -1564,9 +1564,21 @@ body{
 .roleSelectTable img{width:100%;height:100%;object-fit:contain;display:block}
 @keyframes idxTitleIn{0%{opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r))}70%{opacity:1;transform:translateY(-3px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
 @media(max-width:600px){.roleIntroMessage{font-size:20px}.roleIntroTableImg{height:52vh}.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(42px,11vw,76px)}}
+
+/* v229: login screen is intentionally plain; no game title/background. */
+body.login-mode,
+body.login-mode .wrap{
+  background:#000!important;
+}
+body.login-mode .wolfHeader{
+  display:none!important;
+}
+body.login-mode #login{
+  background:#000!important;
+}
 </style>
 </head>
-<body class="wolf-v181">
+<body class="wolf-v181 login-mode">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <header class="wolfHeader">
   <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
@@ -1578,7 +1590,7 @@ body{
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>(흰색)을 모두 입력하여 로그인하여 주세요.</p>
+<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>을 모두 입력하여 로그인하여 주세요.</p>
 <input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
@@ -2094,6 +2106,9 @@ function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");cl
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
  const target=el(id);
+ document.body.classList.toggle("login-mode", id === "login");
+ const header= document.querySelector(".wolfHeader");
+ if(header) header.style.display = id === "login" ? "none" : "";
  if(!target)return;
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
  if(alreadyActive)return;

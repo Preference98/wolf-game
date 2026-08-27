@@ -1468,23 +1468,32 @@ async function getSettings(){const r=await db.from('game_settings').select('*').
 async function getPlayers(){const r=await db.from('players').select('id,name,role,status,card_selected,card_position').order('card_position');return r.data||[]}
 function setStatus(t){$('screenStatus').textContent=t}
 async function unlock(){
+  // "스크린 시작"은 screen.html 자체를 실행하는 버튼이며,
+  // 클릭 자체가 실패해서 화면이 잠겨버리지 않도록 화면 활성화를 먼저 완료합니다.
+  unlocked=true;
+  const unlockLayer=$('unlock');
+  if(unlockLayer) unlockLayer.style.display='none';
+  try{localStorage.setItem('wolf_screen_audio_unlocked','1')}catch(_){}
+
   try{
     const a=$('titleBgm');
     a.src=AS+'title_bgm.mp3';
     a.loop=false;
     a.volume=.01;
-    // 사용자의 실제 클릭 안에서 재생 권한을 확보합니다.
+    // 실제 사용자 클릭 안에서 오디오 재생 권한만 확보합니다.
     await a.play();
     a.pause();
     a.currentTime=0;
     a.volume=.72;
-    unlocked=true;
-    $('unlock').style.display='none';
-    try{localStorage.setItem('wolf_screen_audio_unlocked','1')}catch(_){}
+  }catch(e){
+    console.warn('스크린 오디오 권한 확보 실패(화면 실행은 계속):',e);
+  }
+
+  try{
     await handlePhase(await getSettings(),true);
   }catch(e){
-    $('unlockText').innerHTML='오디오 권한을 활성화하지 못했습니다.<br>브라우저의 소리 차단이 해제되어 있는지 확인한 뒤 다시 눌러주세요.';
-    console.warn(e);
+    setStatus('SCREEN 연결 오류: '+(e?.message||e));
+    console.warn('스크린 초기 상태 확인 실패:',e);
   }
 }
 async function titleSequence(){const token=++seqToken;show('s-title');stopAllScreenBgm();await playScreenSound('titleBgm','title-'+String(Date.now()),false,.72);await wait(3200);if(token!==seqToken)return;}
