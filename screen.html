@@ -174,7 +174,7 @@
 /* v174: player/screen shared visual system */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
 body{font-family:"Noto Sans KR",Arial,sans-serif}
-.titleStage{background:#3b2632!important}
+.titleStage{background:#000!important;overflow:hidden!important}
 .titleBackdrop{inset:0!important;background:linear-gradient(180deg,rgba(255,0,130,.20),rgba(30,0,20,.15) 42%,rgba(0,0,0,.35)),radial-gradient(circle at 50% 45%,rgba(255,0,135,.22),transparent 28%)!important;filter:none!important}
 .titleArtwork{opacity:.48!important;filter:blur(1.5px) brightness(.72) saturate(.8)!important;background-position:center!important;transform:scale(1.12)!important;animation:artDriftUnified 8s ease-in-out infinite alternate!important}
 @keyframes artDriftUnified{to{transform:scale(1.18) translate3d(-.5%,.4%,0)}}
@@ -1231,13 +1231,16 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 }
 </style>
 
-/* 준비완료 이후 대기화면 전용: wolf_game_title.png + 배경 + idle */
-#s-title .waitingScreenBackdrop{position:absolute;inset:-5%;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);transform:scale(1.06);animation:readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate;}
-#s-title .waitingScreenTitle{display:block!important;width:min(78vw,900px)!important;height:auto!important;position:absolute!important;left:50%!important;top:50%!important;opacity:0;transform:translate(-50%,-50%) scale(.62);filter:drop-shadow(0 0 28px rgba(255,0,130,.52))!important;animation:readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate!important;}
-@keyframes readyScreenTitleIn{0%{opacity:0;transform:translate(-50%,-50%) translateY(80px) scale(.62);filter:blur(10px) drop-shadow(0 0 0 rgba(255,0,130,0))}65%{opacity:1;transform:translate(-50%,-50%) translateY(-8px) scale(1.04);filter:blur(0) drop-shadow(0 0 34px rgba(255,0,130,.68))}100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:drop-shadow(0 0 26px rgba(255,0,130,.48))}}
+<style>
+/* 준비완료 이후 대기화면: wolf_game_title.png + 배경 + idle */
+#s-title{background:#000!important;overflow:hidden!important;position:absolute!important;inset:0!important;}
+#s-title .waitingScreenBackdrop{position:absolute!important;inset:-5%!important;z-index:0!important;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat!important;filter:saturate(.82) contrast(1.06) brightness(.72)!important;transform:scale(1.06);animation:readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate!important;}
+#s-title .waitingScreenTitle{display:block!important;visibility:visible!important;position:absolute!important;z-index:2!important;width:min(78vw,900px)!important;height:auto!important;max-width:none!important;left:50%!important;top:50%!important;margin:0!important;opacity:0;transform:translate(-50%,-50%) scale(.62);filter:drop-shadow(0 0 28px rgba(255,0,130,.52))!important;animation:readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate!important;}
+@keyframes readyScreenTitleIn{0%{opacity:0;transform:translate(-50%,-50%) translateY(80px) scale(.62)}65%{opacity:1;transform:translate(-50%,-50%) translateY(-8px) scale(1.04)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes readyScreenTitleIdle{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.018) translateY(-5px)}}
 @keyframes readyScreenBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
 
+</style>
 </head>
 <body class="wolf-v181-screen">
 <div class="stage" id="stage">
@@ -1341,6 +1344,9 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const AS="assets/";
 const $=id=>document.getElementById(id);
 let unlocked=false,lastPhase=null,lastReady=false,seqToken=0,trialIntroToken=0,resultToken=0,seenNotificationIds=new Set(),screenRoundTimerHandle=null,screenInvestigationTimer=null,screenNightPreTimer=null,screenNightTimerHandle=null,screenSabotageTimer=null,trialFlowRound=null,trialFlowRunning=false;
+let screenStartupLockUntil=0;
+let screenStartupBaseline=null;
+let screenStartupLive=false;
 function show(id){
   document.querySelectorAll('.screen').forEach(x=>{
     x.classList.remove('active');
@@ -1435,12 +1441,40 @@ async function unlock(){
   // 스크린 시작 버튼은 "스크린 활성화"만 담당합니다.
   // 이전 게임의 game_settings / notification 상태를 시작 순간에 재생하지 않습니다.
   unlocked=true;
+  // 시작 직후 Supabase에 이미 큐에 남아 있는 UPDATE/INSERT 이벤트가
+  // 새 이벤트처럼 처리되지 않도록 짧은 startup 보호 구간을 둡니다.
+  screenStartupLockUntil=Date.now()+1800;
   $('unlock').style.display='none';
   show('s-idle');
   lastPhase=null;
   lastReady=false;
   seqToken++;
   try{localStorage.setItem('wolf_screen_audio_unlocked','1')}catch(_){}
+
+  // 스크린 시작 순간의 기존 DB 상태를 "새 이벤트"로 처리하지 않습니다.
+  // 특히 이전 게임이 TRIAL/FINISHED 상태인 경우 시작 버튼만 눌렀는데
+  // 재판 시작/결과 화면으로 튀는 것을 막기 위해 현재 상태를 기준점으로 잡습니다.
+  try{
+    const current=await getSettings();
+    lastPhase=String(current.phase||'LOBBY').toUpperCase();
+    lastReady=!!current.ready;
+    window.__lastScreenNotice=String(current.notice||'');
+    window.__screenLatestSettings=current;
+    screenStartupBaseline={
+      updated_at:String(current.updated_at||''),
+      phase:String(current.phase||'LOBBY').toUpperCase(),
+      ready:!!current.ready,
+      notice:String(current.notice||''),
+      current_round:Number(current.current_round||0),
+      started:!!current.started
+    };
+    screenStartupLive=false;
+  }catch(e){
+    // DB 조회에 실패하면 기존 기본값을 유지하고 다음 이벤트에서 복구합니다.
+    lastPhase='LOBBY';
+    lastReady=false;
+    window.__lastScreenNotice='';
+  }
 
   // 실제 사운드 권한 확보는 실패해도 스크린 활성화를 막지 않습니다.
   try{await unlockScreenAudio();}catch(_){}
@@ -1456,18 +1490,18 @@ async function unlock(){
     }
   }catch(e){console.warn('스크린 오디오 권한 확보 실패:',e);}
 
-  // 현재 DB 상태는 다음 polling / realtime UPDATE에서 정상적으로 반영합니다.
+  // 이후 game_settings의 "새로운 UPDATE"만 다음 단계로 처리합니다.
 }
 async function titleSequence(){
  const token=++seqToken;
  const title=$('waitingScreenTitle');
  const bg=document.querySelector('#s-title .waitingScreenBackdrop');
- // 준비완료 때마다 타이틀 등장 애니메이션을 처음부터 다시 시작합니다.
- if(title){title.style.animation='none';void title.offsetWidth;title.style.animation='';}
- if(bg){bg.style.animation='none';void bg.offsetWidth;bg.style.animation='';}
+ // 화면을 먼저 표시합니다. BGM 파일이 없거나 재생에 실패해도 타이틀 연출은 중단되지 않습니다.
  show('s-title');
+ if(title){title.style.animation='none';void title.offsetWidth;title.style.animation='readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate';}
+ if(bg){bg.style.animation='none';void bg.offsetWidth;bg.style.animation='readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate';}
  stopAllScreenBgm();
- await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);
+ try{await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);}catch(_){}
  await wait(3200);
  if(token!==seqToken)return;
 }
@@ -1763,8 +1797,61 @@ function startScreenTrialResultWatcher(){
 }
 
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
-async function onNotification(n){if(!unlocked||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
-function subscribe(){db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>handlePhase(payload.new||{})).subscribe();db.channel('wolf-game-screen-notices-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>onNotification(payload.new||{})).subscribe();db.channel('wolf-game-screen-sabotage-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'sabotage_events'},payload=>sabotageSequence(payload.new||{})).subscribe();setInterval(async()=>{if(!unlocked)return;try{await handlePhase(await getSettings())}catch(e){}},1000)}
+async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
+function subscribe(){
+  db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>{
+    const next=payload.new||{};
+    // 스크린 시작 시점에 이미 DB에 존재하던 상태/지연된 realtime payload는
+    // 절대로 새 단계로 취급하지 않습니다. 반드시 시작 이후의 새로운 UPDATE여야 합니다.
+    if(!unlocked)return;
+    if(!screenStartupLive){
+      const base=screenStartupBaseline||{};
+      const nextUpdated=String(next.updated_at||'');
+      const baseUpdated=String(base.updated_at||'');
+      const hasNewTimestamp=!!nextUpdated && !!baseUpdated && nextUpdated!==baseUpdated && Date.parse(nextUpdated)>=Date.parse(baseUpdated);
+      const changed=String(next.phase||'LOBBY').toUpperCase()!==String(base.phase||'LOBBY').toUpperCase() ||
+                    !!next.ready!==!!base.ready ||
+                    String(next.notice||'')!==String(base.notice||'') ||
+                    Number(next.current_round||0)!==Number(base.current_round||0) ||
+                    !!next.started!==!!base.started;
+      if(Date.now()<screenStartupLockUntil)return;
+      if(!hasNewTimestamp && !changed)return;
+      screenStartupLive=true;
+      screenStartupLockUntil=0;
+    }
+    handlePhase(next);
+  }).subscribe();
+  db.channel('wolf-game-screen-notices-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>{
+    if(Date.now()<screenStartupLockUntil)return;
+    onNotification(payload.new||{});
+  }).subscribe();
+  db.channel('wolf-game-screen-sabotage-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'sabotage_events'},payload=>{
+    if(Date.now()<screenStartupLockUntil)return;
+    sabotageSequence(payload.new||{});
+  }).subscribe();
+  setInterval(async()=>{
+    if(!unlocked)return;
+    try{
+      const current=await getSettings();
+      // 보호 구간 중에는 DB의 현재 상태가 시작 시점 snapshot과 달라졌을 때만
+      // 실제 새 단계로 인정합니다. 오래된 realtime payload는 처리하지 않습니다.
+      if(!screenStartupLive){
+        if(Date.now()<screenStartupLockUntil)return;
+        const base=screenStartupBaseline||{};
+        const phase=String(current.phase||'LOBBY').toUpperCase();
+        const changed=phase!==String(base.phase||'LOBBY').toUpperCase() ||
+                      !!current.ready!==!!base.ready ||
+                      String(current.notice||'')!==String(base.notice||'') ||
+                      Number(current.current_round||0)!==Number(base.current_round||0) ||
+                      !!current.started!==!!base.started;
+        if(!changed)return;
+        screenStartupLive=true;
+        screenStartupLockUntil=0;
+      }
+      await handlePhase(current);
+    }catch(e){}
+  },1000);
+}
 $('unlockBtn').addEventListener('click',async()=>{
   await unlock();
   // 시작 버튼 이전에 쌓여 있던 재판 결과 알림은 새 스크린 시작 이벤트로 취급하지 않습니다.
@@ -1779,23 +1866,3 @@ subscribe();
 </body>
 </html>
 
-<style id="v224-screen-visibility">
-/* v225: only the active screen may render. Inactive phase screens are
-   completely removed from layout so legacy title/image nodes cannot leak. */
-.screen:not(.active){
-  display:none!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
-}
-.screen.active{
-  display:flex!important;
-  visibility:visible!important;
-  pointer-events:auto!important;
-}
-</style>
-
-<style id="v225-screen-next-round">
-#s-nextRoundPrep .nextRoundFaces{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;max-width:1000px;margin:30px auto}
-#s-nextRoundPrep .nextRoundFaces img{width:clamp(80px,9vw,125px);height:clamp(80px,9vw,125px);object-fit:contain}
-#s-nextRoundPrep .nextRoundFaces .dead{filter:grayscale(1) brightness(.55)}
-</style>
