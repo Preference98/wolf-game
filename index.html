@@ -112,6 +112,10 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 @media(max-width:600px){.roleSelectBoard{gap:9px}.playingCard .cardInner{border-width:5px;padding:8px}.playingCard:before{inset:9px}.roleRevealStage .revealCard{width:82vw;height:78vh}}
 
 
+/* v226: 게임시작 안내 - 플레이어는 타이틀+안내문만 표시 */
+.gameStartPlayerStage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(28px,5vw,54px);text-align:center;padding:30px;box-sizing:border-box;background:#000;}
+.gameStartPlayerTitle{margin:0!important;}
+.gameStartPlayerMessage{font-family:"Noto Sans KR",Arial,sans-serif;font-size:clamp(24px,4.5vw,52px);font-weight:900;color:#fff;letter-spacing:-1px;text-shadow:0 0 24px rgba(176,0,18,.75);}
 /* GAME START COUNTDOWN v17 */
 .gameStartStage{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#250006 0,#000 68%);text-align:center}
 .gameStartMessage{font-family:Cinzel,serif;font-size:clamp(28px,6vw,64px);font-weight:900;letter-spacing:2px;text-shadow:0 0 30px #b00012;animation:startMessageIn .8s ease-out both}
@@ -1347,7 +1351,7 @@ body{
  radial-gradient(circle at 82% 30%,rgba(255,0,120,.9) 0 3px,transparent 4px),
  radial-gradient(circle at 68% 88%,rgba(255,45,135,.85) 0 2px,transparent 3px);
 }
-#login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory,#nextRoundPrep{
+#login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory{
  background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
  color:#eee!important;
 }
@@ -2263,14 +2267,11 @@ body{
 </section>
 
 <section id="gameCountdown" class="screen">
-<div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
-</section><section id="victory" class="screen"></section><section id="nextRoundPrep" class="screen">
-<div class="fullStage show nextRoundPrepStage"><div>
-<h1>라운드 종료</h1><div id="nextRoundFaces" class="nextRoundFaces"></div>
-<p id="nextRoundRemaining" class="noticeMain" style="font-size:clamp(24px,5vw,52px)"></p>
-</div></div>
-</section>
-
+<div class="gameStartPlayerStage">
+  <div class="wolfHeaderTitle gameStartPlayerTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
+  <div class="gameStartPlayerMessage">곧 게임이 시작됩니다.</div>
+</div>
+</section><section id="victory" class="screen"></section>
 
 <section id="sabotage" class="screen">
 <button class="secondary" onclick="closeSabotageScreen()">← 취소</button>
@@ -2485,14 +2486,11 @@ function stopAllTimers(){
 }
 
 const SOUND_FILES={
- roleSelectionBgm:"sounds/role-selection-bgm.mp3",
- gameStartBgm:"sounds/game-start-bgm.mp3",
- trialBgm:"sounds/trial-bgm.mp3",
- countdown5:"sounds/countdown-5.mp3",
- countdown4:"sounds/countdown-4.mp3",
- countdown3:"sounds/countdown-3.mp3",
- countdown2:"sounds/countdown-2.mp3",
- countdown1:"sounds/countdown-1.mp3",
+ countdown5:"sounds/",
+ countdown4:"sounds/",
+ countdown3:"sounds/",
+ countdown2:"sounds/",
+ countdown1:"sounds/",
  morning:"sounds/morning.mp3",
  login:"sounds/login.mp3",
  button:"sounds/button.mp3",
@@ -2503,9 +2501,8 @@ const SOUND_FILES={
  deadSheepFound:"sounds/body-found.mp3",
  death:"sounds/death.mp3",
  sabotage:"sounds/sabotage.mp3",
- adminNotice:"sounds/admin-notice.mp3",
  nightAlert:"sounds/night-alert.mp3",
- nightBgm:"sounds/night-bgm.mp3"
+ nightBgm:"sounds/night_bgm.mp3"
 };
 const audio={};
 let soundUnlocked=false;
@@ -2551,9 +2548,8 @@ async function activateStageAudio(){
   soundUnlocked=true;
  }catch(e){console.warn("단계별 오디오 활성화 실패:",e);}
 }
-function isAdminSession(){return localStorage.getItem("wolf_game_admin_v7")==="1";}
 async function playSound(name,eventKey=""){
- if(isAdminSession())return;
+ if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
  await activateStageAudio();
  if(!soundEnabled||!soundUnlocked||!audio[name])return;
  const key=eventKey||name,now=Date.now();
@@ -2902,7 +2898,6 @@ function adminLogout(){
  localStorage.removeItem("wolf_game_admin_v7");
  playerId=null;
  stopAllTimers();
- 
  showScreen("login");
  const nameEl=el("name");if(nameEl)nameEl.value="";
  const statusEl=el("loginStatus");if(statusEl)statusEl.innerHTML="";
@@ -2913,7 +2908,6 @@ function playerLogout(){
  localStorage.removeItem("wolf_game_player_v7");
  playerId=null;
  stopAllTimers();
- 
  if(typeof stopAllAudio==="function")stopAllAudio();
  showScreen("login");
  const nameEl=el("name");if(nameEl)nameEl.value="";
@@ -2954,10 +2948,6 @@ async function routeCore(){
   if(soundUnlocked)soundEnabled=true;
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
-  const g=await settings();
-  if(String(g.phase||"").toUpperCase()==="NEXT_ROUND_PREP"){
-    await renderNextRoundPrep(p,g);return;
-  }
   if(p.status!=="ALIVE"){
    if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
      stopAllTimers();
@@ -2970,10 +2960,9 @@ async function routeCore(){
    return;
   }
   localStorage.removeItem("wolf_game_death_lock_v1");
+  const g=await settings();
 
   switch(String(g.phase||"LOBBY").toUpperCase()){
-   case "NEXT_ROUND_PREP":
-     await renderNextRoundPrep(p,g);return;
    case "LOBBY":
      stopAllTimers();await renderLobby(p,g);return;
    case "ROLE_INTRO":
@@ -3033,39 +3022,11 @@ async function route(){
  }
 }
 
-async function renderNextRoundPrep(p,g){
- stopAllTimers(); await showScreen("nextRoundPrep");
- const rows=(await db.from("players").select("id,name,role,status").order("created_at")).data||[];
- const faces=el("nextRoundFaces"), rem=el("nextRoundRemaining");
- if(faces){faces.innerHTML=rows.map(x=>{
-   const isWolf=publicWolf && String(x.role||"").toUpperCase()==="WOLF"; const dead=String(x.status||"").toUpperCase()!=="ALIVE";
-   const src=isWolf?"assets/wolf.png":"assets/sheep.png";
-   return '<div style="position:relative"><img class="nextRoundFace '+(dead?'dead':'')+'" src="'+src+'" alt="">'+(dead?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:90px;color:#ff3347;font-weight:1000">×</div>':'')+'</div>';
- }).join("");}
- if(rem){const alive=rows.filter(x=>String(x.status||"").toUpperCase()==="ALIVE").length;rem.textContent=`남은 플레이어는 ${alive}명 입니다.`;}
- const m=String(g.notice||"").match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/);
- const until=m?Number(m[1]):Date.now()+6000;
- const round=m?Number(m[2]):Number(g.current_round||1);
- const publicWolf=m&&m[3]==="PUBLIC_WOLF";
- if(window.__nextRoundPrepTimer)clearTimeout(window.__nextRoundPrepTimer);
- window.__nextRoundPrepTimer=setTimeout(async()=>{
-   const latest=await settings().catch(()=>null); if(!latest||String(latest.phase).toUpperCase()!=="NEXT_ROUND_PREP")return;
-   const next=round+1;
-   await db.from("mission_completions").delete().eq("game_round",round);
-   await db.from("wolf_attempts").delete().eq("game_round",round);
-   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
-   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
- },Math.max(0,until-Date.now()));
-}
 async function renderLobby(p,g){
- stopPlayerTrialBgm();
  el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
  el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
  el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
 }
-
-
-
 
 
 let nightPreTimer=null;
@@ -3140,12 +3101,6 @@ async function renderNightPreAlert(g){
  };
  await tick();
  nightPreTimer=setInterval(()=>tick().catch(e=>console.error("밤 준비 타이머:",e)),100);
-}
-function stopPlayerTrialBgm(){
- try{
-   const a=audio.trialBgm;
-   if(a){a.pause();a.currentTime=0;}
- }catch(_){}
 }
 async function renderPlayerTrialResult(data){
  await showScreen("playerTrialResult");
@@ -3293,9 +3248,7 @@ async function startRoleSelection(){
    const r=await db.from("players").update({role:i<wolfCount?"WOLF":"SHEEP",card_selected:false,card_position:i}).eq("id",shuffled[i].id);
    if(r.error){toast("역할 카드 준비 실패: "+r.error.message);return;}
  }
- 
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
- 
  toast("양과 늑대 선정 화면을 시작합니다.");
  await renderAdmin();
  }catch(e){console.error("startRoleSelection 오류:",e);toast("양과 늑대 선정 시작 실패: "+(e.message||String(e)));}
@@ -3463,8 +3416,7 @@ async function renderNight(p,g){
 }
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
-  
-  stopMissionTimer();
+   stopMissionTimer();
   const p=await me(),g=await settings();
   window.__lastSettings=g;
 
@@ -4462,6 +4414,14 @@ async function refreshMissionLocations(){
 async function renderAdmin(){
  try{
   const g=await settings();
+  if(g.phase==="TRIAL"){
+    
+  }else if(g.phase==="ROLE_INTRO"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_REVEAL"){
+    
+  }else if(g.phase==="COUNTDOWN"){
+    
+  }else{
+     }
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
   await refreshTrialResultPlayers(p);
   const roundMissionLocations=(g.phase==="PLAY"||g.phase==="TRIAL"||g.phase==="NIGHT"||g.phase==="INVESTIGATION")
@@ -4525,7 +4485,6 @@ async function testNight(){
  await renderAdmin();
 }
 async function startGame(){
- 
  try{
    const g=await settings();
    if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해야 합니다.");return;}
@@ -4551,8 +4510,6 @@ async function startGame(){
      round_time_penalty_total:0
    });
 
-   
-
 
    // 미션 생성은 게임 시작 후 처리합니다. 실패해도 게임 시작 자체는 유지하고
    // 플레이어 화면에서 구체적인 오류를 확인할 수 있도록 합니다.
@@ -4570,52 +4527,26 @@ async function startGame(){
    toast("게임 시작 실패: "+(e.message||e));
  }
 }
-
-
-
-
 async function renderGameCountdown(p,g){
- if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
- if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
+ // 게임시작 안내에서 플레이어는 타이틀과 안내 문구만 표시합니다.
+ // 카운트다운 숫자/게임 시작 연출/관련 사운드는 screen.html에서만 진행합니다.
+ if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
+ stopAllTimers();
  await showScreen("gameCountdown");
  const root=el("gameCountdown");
- root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
- const content=el("gameStartContent");
- if(!content)return;
- if(countdownTimer)clearInterval(countdownTimer);
- const sequence=async()=>{
-   content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
-   await new Promise(r=>setTimeout(r,5000));
-   for(let n=5;n>=1;n--){
-     content.innerHTML='<div class="gameStartCount">'+n+'</div>';
-     await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n+"-"+Date.now());
-     await new Promise(r=>setTimeout(r,2000));
-   }
-   content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
-   await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
-   await new Promise(r=>setTimeout(r,4000));
-   const latest=await settings();
-   if(latest.phase==="COUNTDOWN"){
-     // 카운트다운이 끝난 이 시점부터 실제 라운드 시간이 시작됩니다.
-     const startedAt=new Date().toISOString();
-     await set({phase:"PLAY",notice:"게임이 시작되었습니다.",round_started_at:startedAt});
-   }
-   countdownTimer=null;
- };
- countdownTimer={running:true};
- sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
+ if(!root)return;
+ root.innerHTML='<div class="gameStartPlayerStage"><div class="wolfHeaderTitle gameStartPlayerTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div><div class="gameStartPlayerMessage">곧 게임이 시작됩니다.</div></div>';
 }
 
 async function nextRound(){
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
  try{
-  if(String(g.phase).toUpperCase()!=="TRIAL"){toast("재판 결과 공개 후에만 다음 라운드를 시작할 수 있습니다.");return;}
-  const until=Date.now()+6000;
-  let publicWolf="";
-  const rr=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_RESULT').order('id',{ascending:false}).limit(1).maybeSingle();
-  try{const d=JSON.parse(rr.data?.message||'{}');if(Number(d.round||0)===Number(g.current_round||0)&&String(d.role||'').toUpperCase()==='WOLF')publicWolf='PUBLIC_WOLF';}catch(_){ }
-  await set({phase:"NEXT_ROUND_PREP",notice:`NEXT_ROUND_PREP|${until}|${Number(g.current_round||1)}|${publicWolf}`,started:false});
-  toast("다음 라운드 준비 화면을 시작했습니다.");
+  const rr=await db.rpc("reset_round_mission_progress",{p_game_round:g.current_round});
+  if(rr.error)throw new Error("미션 진행상태 라운드 초기화 실패: "+rr.error.message);
+  const next=g.current_round+1;
+  await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
+  await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
+  toast("다음 라운드 대기 상태입니다.");
   await renderAdmin();
  }catch(e){toast("다음 라운드 처리 실패: "+e.message);}finally{done();}
 }
@@ -4624,15 +4555,11 @@ async function startTrial(){
  if(["LOBBY","ROLE_INTRO","ROLE_SELECT","ROLE_REVEAL","COUNTDOWN"].includes(String(g.phase))){
    toast("게임이 아직 시작되지 않았습니다.");return;
  }
- 
  await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
- 
  toast("재판 시작 알림을 전송했습니다.");
  await renderAdmin();
 }
 async function resetGame(){
- 
- 
  const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
    // 1) 게임 진행 데이터 초기화
@@ -4969,13 +4896,6 @@ async function confirmTrialResultBroadcast(){
    toast('재판 결과 전송 실패: '+ins.error.message);
    return;
  }
- // 재판 결과 공개 대상은 양/늑대 여부와 관계없이 정체 공개와 동시에 탈락 처리합니다.
- const eliminated=await db.from('players').update({status:'DEAD'}).eq('id',p.id);
- if(eliminated.error){
-   toast('재판 결과 공개는 전송됐지만 탈락 처리에 실패했습니다: '+eliminated.error.message);
-   return;
- }
- // 늑대임이 공개된 경우에만 다음 라운드 준비 화면에서 늑대로 표시할 수 있도록 공개 표식을 기록합니다.
  // 관리자도 전송 직후 화면 상태를 명확하게 확인할 수 있도록 기록합니다.
  if(el('trialResultStatus')){
    el('trialResultStatus').textContent='전송 완료 · '+(p.name||'플레이어')+' · '+(role==='WOLF'?'늑대':'양')+' · 플레이어/스크린 표시 대기';
@@ -5027,7 +4947,7 @@ async function removePlayer(id,name){
  }
 }
 async function renderVictory(winner){
- stopAllTimers();
+ stopAllTimers();stopRoleSelectionBgm();
  const kind=winner==="WOLF"?"wolf":"sheep";
  const title=winner==="WOLF"?"늑대가 승리했습니다.":"양이 승리했습니다.";
  const color=winner==="WOLF"?"#ff3347":"#58f39a";
@@ -5478,7 +5398,6 @@ function realtime(){
      return;
    }
    openOverlay(n.notification_type==="WOLF"?"🐺":"🔔",n.notification_type==="WOLF"?"늑대 전용 알림":"관리자 알림",n.message||"");
-   if(n.notification_type==="ADMIN")playSound("adminNotice","admin-notice-"+n.id);
    // WOLF notifications intentionally have no sound.
  }).subscribe();
 }
@@ -7008,13 +6927,4 @@ body.playerHeaderHidden .wolfHeaderTitle{
   opacity:0!important;
   pointer-events:none!important;
 }
-</style>
-
-<style id="v225-next-round-prep">
-.nextRoundPrepStage{background:radial-gradient(circle at 50% 38%,#26000c,#020204 72%)!important;text-align:center}
-.nextRoundPrepStage h1{font-size:clamp(42px,8vw,96px);margin:0 0 30px;color:#fff;text-shadow:0 0 30px #ff1590}
-.nextRoundFaces{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;max-width:900px;margin:0 auto 28px}
-.nextRoundFace{width:clamp(82px,10vw,130px);height:clamp(82px,10vw,130px);object-fit:contain;position:relative;filter:drop-shadow(0 0 12px rgba(255,0,120,.35))}
-.nextRoundFace.dead{filter:grayscale(1) brightness(.65) drop-shadow(0 0 8px rgba(255,0,60,.3))}
-.nextRoundFace.dead:after{content:"";position:absolute;inset:0}
 </style>
