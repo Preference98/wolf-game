@@ -1344,6 +1344,28 @@ body{
  border:1px solid rgba(145,0,22,.45)!important;
  box-shadow:inset 0 0 35px #000,0 18px 50px rgba(0,0,0,.8)!important;
 }
+
+/* 로그인 후 대기화면: 제목/카드/배경 장식을 제거하고 안내문만 표시 */
+#lobby{
+ background:#000!important;
+}
+#lobby .lobbyWaitingMessage{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:10px;
+ width:100%;
+ min-height:100%;
+ color:#fff;
+ font-size:clamp(24px,3.2vw,44px);
+ line-height:1.45;
+ font-weight:900;
+ text-align:center;
+ text-shadow:0 2px 12px rgba(0,0,0,.8);
+}
+#lobby .card,#lobby .row,#lobby .pill,#lobby .notice,#lobby #roleText{display:none!important;}
+
 #login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
  font-family:var(--wolf-title-font)!important;
  text-shadow:3px 4px 0 #30040a,0 0 22px rgba(180,0,30,.6)!important;
@@ -1564,21 +1586,9 @@ body{
 .roleSelectTable img{width:100%;height:100%;object-fit:contain;display:block}
 @keyframes idxTitleIn{0%{opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r))}70%{opacity:1;transform:translateY(-3px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
 @media(max-width:600px){.roleIntroMessage{font-size:20px}.roleIntroTableImg{height:52vh}.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(42px,11vw,76px)}}
-
-/* v229: login screen is intentionally plain; no game title/background. */
-body.login-mode,
-body.login-mode .wrap{
-  background:#000!important;
-}
-body.login-mode .wolfHeader{
-  display:none!important;
-}
-body.login-mode #login{
-  background:#000!important;
-}
 </style>
 </head>
-<body class="wolf-v181 login-mode">
+<body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <header class="wolfHeader">
   <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
@@ -1590,12 +1600,15 @@ body.login-mode #login{
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>을 모두 입력하여 로그인하여 주세요.</p>
+<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>(흰색)을 모두 입력하여 로그인하여 주세요.</p>
 <input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
 <section id="lobby" class="screen">
-<div class="card"><div class="row"><h1 style="flex:1">대기실</h1><span class="pill" id="role"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
+  <div class="lobbyWaitingMessage">
+    <div>곧 게임이 시작됩니다.</div>
+    <div>대기하여 주십시오.</div>
+  </div>
 </section>
 
 <section id="player" class="screen">
@@ -2106,9 +2119,6 @@ function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");cl
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
  const target=el(id);
- document.body.classList.toggle("login-mode", id === "login");
- const header= document.querySelector(".wolfHeader");
- if(header) header.style.display = id === "login" ? "none" : "";
  if(!target)return;
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
  if(alreadyActive)return;
@@ -2521,9 +2531,9 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
- el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
- el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
- el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
+ // 로그인 직후 대기 단계에서는 플레이어의 역할/관리자 공지 등을 노출하지 않습니다.
+ showScreen("lobby");
+ stopAllTimers();
 }
 
 
