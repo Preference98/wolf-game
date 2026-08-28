@@ -3545,6 +3545,31 @@ function openRoleSelectionConfirm(){
   });
 }
 
+window.openRoleSelectionConfirm = function(){
+  try{
+    const gPromise=settings();
+    gPromise.then(g=>{
+      if(String(g.phase)!=="LOBBY"){toast("현재 상태에서는 역할 선정을 시작할 수 없습니다.");return;}
+      if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해 주세요.");return;}
+      openOverlay("⚠️","역할 선정","역할 선정을 시작하시겠습니까?","",
+        '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button style="flex:1" onclick="closeOverlay();window.startRoleSelection()">확인</button></div>');
+    }).catch(e=>{console.error(e);toast("역할 선정 상태 확인 실패: "+(e.message||e));});
+  }catch(e){console.error(e);toast("역할 선정 상태 확인 실패: "+(e.message||e));}
+};
+
+window.startRoleSelection = async function(){
+ try{
+   const g=await settings();
+   if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해 주세요.");return;}
+   if(String(g.phase)!=="LOBBY"){toast("현재 상태에서는 역할 선정을 시작할 수 없습니다.");return;}
+   stopAllAdminBgm();
+   try{if(typeof stopAllAudio==="function")stopAllAudio();}catch(e){}
+   await set({phase:"ROLE_SELECT",started:false,roles_selected:false,notice:"역할 선정 중"});
+   await renderAdmin();
+   await startAdminLoopBgm("roleSelectionBgm");
+ }catch(e){console.error("역할 선정 시작 실패:",e);toast("역할 선정 시작 실패: "+(e.message||e));}
+};
+
 async function startRoleSelection(){
  try{
    const g=await settings();
