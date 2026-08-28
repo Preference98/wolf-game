@@ -1765,42 +1765,23 @@ window.stopPrepBgm=window.stopPrepBgm||function(){};
 window.playRoleSelectBgm=window.playRoleSelectBgm||function(){};
 </script>
 
-<style id="role-select-sequence-player">
 
-#roleSelect.trulyUnifiedRoleSelect{
-  opacity:1;
-  transition:opacity 2.5s ease!important;
+<style id="role-select-title-player">
+#roleSelect.trulyUnifiedRoleSelect{opacity:1!important;transition:none!important}
+#roleSelect .trulyRoleTable img{width:min(96vw,1380px)!important;height:70vh!important;object-fit:contain!important}
+#roleSelect .trulyRoleCards{opacity:0!important;pointer-events:none!important}
+#roleSelect.roleSceneDistribute .trulyRoleCards,
+#roleSelect.roleSceneReady .trulyRoleCards{opacity:1!important}
+#roleSelect .playerCardSelectionTitle{
+  position:absolute!important;left:50%!important;top:10%!important;transform:translateX(-50%)!important;
+  z-index:8!important;display:flex!important;gap:0!important;opacity:0!important;pointer-events:none!important;
 }
-#roleSelect.trulyUnifiedRoleSelect.roleSceneFadeOut{
-  opacity:0!important;
-}
-#roleSelect.trulyUnifiedRoleSelect.roleSceneFadeIn{
-  opacity:1!important;
-}
-#roleSelect .trulyRoleTable{
-  opacity:1!important;
-}
-#roleSelect .trulyRoleNotice{
-  opacity:0;
-  transition:opacity .35s ease;
-}
-#roleSelect.roleSceneCards .trulyRoleNotice{
-  opacity:1;
-}
-#roleSelect .trulyRoleCards{
-  opacity:0;
-  pointer-events:none;
-}
-#roleSelect.roleSceneCardsActive .trulyRoleCards{
-  opacity:1;
-  pointer-events:none;
-}
-#roleSelect.roleSceneReady .trulyRoleCards{
-  pointer-events:auto;
-}
-
-</style>
-</head>
+#roleSelect.roleSceneCardTitle .playerCardSelectionTitle,
+#roleSelect.roleSceneDistribute .playerCardSelectionTitle{opacity:1!important}
+#roleSelect .playerCardSelectionTitle img{width:clamp(50px,6vw,100px)!important;height:auto!important;object-fit:contain!important;
+  opacity:0;transform:translateY(-18px) scale(.75);animation:roleLetterIn .48s cubic-bezier(.2,.9,.2,1) var(--letter-delay) forwards!important}
+@keyframes roleLetterIn{to{opacity:1;transform:translateY(0) scale(1)}}
+</style></head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <header class="wolfHeader">
@@ -1936,6 +1917,8 @@ window.playRoleSelectBgm=window.playRoleSelectBgm||function(){};
   <div class="trulyRoleTable"><img src="assets/table.png" alt=""></div>
   <div class="trulyRoleNotice" id="trulyRoleNotice"></div>
   <div class="trulyRoleCards" id="trulyRoleCards"></div>
+<div class="screenImageTitle playerCardSelectionTitle" id="playerCardSelectionTitle" aria-hidden="true"></div>
+
 </section>
 
 <section id="roleReveal" class="screen Screen">
@@ -2875,62 +2858,46 @@ function roleSceneState(players){
 
 async function renderCleanCardSelect(p,g){
   await showScreen("roleSelect");
-
   const r=await db.from("players").select("*").order("card_position");
   if(r.error){toast(r.error.message||"플레이어 정보를 불러오지 못했습니다.");return;}
   const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==="ALIVE");
-
-  const root=el("roleSelect");
-  const table=root?.querySelector(".trulyRoleTable");
-  const notice=el("trulyRoleNotice");
-  const cards=el("trulyRoleCards");
-  if(!root||!table||!notice||!cards)return;
+  const root=el("roleSelect"), notice=el("trulyRoleNotice"), cards=el("trulyRoleCards");
+  if(!root||!notice||!cards)return;
 
   const key=players.map(x=>String(x.id)).sort().join("|");
-
   if(window.__roleSceneKey!==key){
     window.__roleSceneKey=key;
-    window.__roleSceneState="FADE";
-    window.__roleSceneStartedAt=Date.now();
-    if(window.__roleSceneTimer)clearTimeout(window.__roleSceneTimer);
+    window.__roleSceneState="TABLE";
+    window.__roleSceneTimer&&clearTimeout(window.__roleSceneTimer);
 
-    root.classList.remove("roleSceneFadeIn","roleSceneCards","roleSceneReady");
-    root.classList.add("roleSceneFadeOut");
+    notice.textContent="";
+    root.classList.remove("roleSceneCardTitle","roleSceneDistribute","roleSceneReady");
 
+    // 테이블은 즉시 등장하고 2초간 유지한다. 페이드 인/아웃은 사용하지 않는다.
     window.__roleSceneTimer=setTimeout(()=>{
-      root.classList.remove("roleSceneFadeOut");
-      root.classList.add("roleSceneFadeIn");
-      window.__roleSceneState="TABLE";
-
+      window.__roleSceneState="CARD_TITLE";
+      root.classList.add("roleSceneCardTitle");
+      renderCleanCardSelect(p,g);
       window.__roleSceneTimer=setTimeout(()=>{
-        // Player receives the same continuous scene. The screen-only title
-        // is not rendered here; the player sees the table until card title stage.
-        window.__roleSceneState="CARD_TITLE";
-        notice.textContent="카드선택";
-        root.classList.add("roleSceneCards");
+        window.__roleSceneState="DISTRIBUTING";
+        root.classList.add("roleSceneDistribute");
+        renderCleanCardSelect(p,g);
         window.__roleSceneTimer=setTimeout(()=>{
-          window.__roleSceneState="DISTRIBUTING";
-          root.classList.add("roleSceneCardsActive");
-          window.__roleSceneTimer=setTimeout(()=>{
-            window.__roleSceneState="SELECTING";
-            root.classList.add("roleSceneReady");
-            route();
-          }, Math.max(1200, players.length*380+250));
-        },900);
-      },3000);
-    },2500);
+          window.__roleSceneState="SELECTING";
+          root.classList.add("roleSceneReady");
+          renderCleanCardSelect(p,g);
+        },Math.max(1200,players.length*380+250));
+      },1800);
+    },2000);
   }
 
-  const state=window.__roleSceneState||"FADE";
-
-  if(state==="TABLE" || state==="FADE"){
-    notice.textContent="";
-  }else if(state==="CARD_TITLE" || state==="DISTRIBUTING"){
-    notice.textContent="카드선택";
-  }else if(state==="SELECTING"){
+  const state=window.__roleSceneState||"TABLE";
+  if(state==="SELECTING"){
     notice.textContent=p.card_selected===true
       ?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요."
       :"원하는 카드를 터치하세요.";
+  }else{
+    notice.textContent="";
   }
 
   const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}`).join("|")+":"+state;
@@ -2946,7 +2913,6 @@ async function renderCleanCardSelect(p,g){
     card.dataset.position=String(i);
     card.innerHTML='<img src="assets/card_back.png" alt="역할 카드">';
     card.style.setProperty("--fly-delay",(i*.38)+"s");
-
     const mine=String(x.id)===String(p.id);
     const selected=mine && p.card_selected===true;
     card.classList.toggle("isSelected",selected);
