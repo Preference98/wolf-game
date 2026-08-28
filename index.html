@@ -1215,6 +1215,37 @@ window.enterRoleSelectionScreen=function(){
 };
 </script>
 
+<style id="role-selection-actual-screen">
+/* ROLE_SELECT must be a real screen, not a background-only mutation. */
+#roleSelect.roleSelectionActualScreen{
+  position:fixed!important;
+  inset:0!important;
+  z-index:9999!important;
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+  background:#050505 url("assets/table.png") center center / cover no-repeat!important;
+}
+</style>
+
+
+
+
+<script id="role-selection-screen-helper">
+window.showRoleSelectionScreen = function () {
+  document.querySelectorAll(".screen").forEach(function (el) {
+    el.classList.remove("active");
+    el.style.display = "none";
+  });
+  var s = document.getElementById("roleSelect");
+  if (!s) throw new Error("roleSelect 화면이 없습니다.");
+  s.classList.add("active", "roleSelectionActualScreen", "roleSelectionTableBackground");
+  s.style.display = "flex";
+  s.style.visibility = "visible";
+  s.style.opacity = "1";
+};
+</script>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
