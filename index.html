@@ -2505,17 +2505,9 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
- // 로그인 후 대기화면은 안내문과 로그아웃 버튼만 사용합니다.
- // 이전 버전의 role/roleText/lobbyNotice 요소가 제거되어도 오류가 나지 않도록
- // 존재하는 요소만 갱신합니다.
- const roleEl=el("role");
- const roleTextEl=el("roleText");
- const lobbyNoticeEl=el("lobbyNotice");
- if(roleEl) roleEl.textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
- if(roleTextEl) roleTextEl.innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
- if(lobbyNoticeEl) lobbyNoticeEl.textContent=g.notice||"게임 시작을 기다리고 있습니다.";
- showScreen("lobby");
- stopAllTimers();
+ el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
+ el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
+ el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
 }
 
 
