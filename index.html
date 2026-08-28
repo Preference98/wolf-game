@@ -963,9 +963,6 @@ body.noWolfChrome .wrap{
   background:#020203!important;
   background-image:none!important;
 }
-body.noWolfChrome .wolfHeader{
-  display:none!important;
-}
 
 /* v189: unified dark horror system */
 @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Dokdo&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -980,41 +977,6 @@ body{
 }
 .wrap{
  background:linear-gradient(rgba(0,0,0,.54),rgba(0,0,0,.76)),var(--wolf-bg) center/cover fixed!important;
-}
-.wolfHeader{
- background:rgba(0,0,0,.74)!important;
- border-bottom:1px solid rgba(145,0,22,.46)!important;
- backdrop-filter:blur(4px);
-}
-.wolfHeaderTitle{
- position:relative;display:flex;justify-content:center;align-items:center;gap:clamp(2px,.7vw,9px);
- height:clamp(64px,10vw,105px);
-}
-.wolfHeaderTitle span{
- position:relative;display:inline-block;
- font-family:var(--wolf-rough-font)!important;
- font-size:clamp(48px,9vw,92px)!important;
- line-height:.85!important;font-weight:900!important;
- color:#e9e2e5!important;
- text-shadow:3px 4px 0 #26030a,-2px -1px 0 rgba(255,255,255,.12),0 0 15px rgba(170,0,25,.5)!important;
- transform:rotate(var(--r)) skewX(-5deg);
-}
-.wolfHeaderTitle span:nth-child(1){--r:-7deg;color:#b61a2b!important}
-.wolfHeaderTitle span:nth-child(2){--r:3deg}
-.wolfHeaderTitle span:nth-child(3){--r:-4deg;color:#c83a45!important}
-.wolfHeaderTitle span:nth-child(4){--r:7deg}
-.wolfHeaderTitle span:before{
- content:"";position:absolute;left:-14%;top:48%;width:125%;height:5px;
- background:linear-gradient(90deg,transparent,#7c0013 15%,#d51c2d 42%,transparent 72%,#62000e);
- transform:rotate(-9deg) skewX(-25deg);filter:blur(.35px);opacity:.85;pointer-events:none;
-}
-.wolfHeaderTitle span:after{
- content:"";position:absolute;left:12%;top:-4%;width:70%;height:110%;
- background:
- radial-gradient(ellipse at 20% 18%,rgba(155,0,20,.9) 0 4px,transparent 5px),
- radial-gradient(ellipse at 66% 46%,rgba(190,0,30,.75) 0 3px,transparent 4px),
- radial-gradient(ellipse at 78% 84%,rgba(115,0,16,.8) 0 5px,transparent 6px);
- pointer-events:none;
 }
 #login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory{
  background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
@@ -1088,10 +1050,6 @@ body{
  68%{opacity:1;transform:translate3d(0,-12px,0) rotate(1deg) scale(1.04);filter:none}
  100%{opacity:1;transform:translate3d(0,0,0) rotate(0) scale(1)}
 }
-.wolfHeaderTitle span:nth-child(1){color:#b9142c!important}.wolfHeaderTitle span:nth-child(2){color:#f0e7ea!important}
-.wolfHeaderTitle span:nth-child(3){color:#c9283a!important}.wolfHeaderTitle span:nth-child(4){color:#eee2e6!important}
-.wolfHeaderTitle span:before{background:linear-gradient(90deg,transparent,#69000c 15%,#d21d31 38%,transparent 58%,#79000e 82%,transparent)!important;height:7px!important}
-.wolfHeaderTitle span:after{background:radial-gradient(ellipse at 20% 18%,rgba(170,0,20,.95) 0 4px,transparent 5px),radial-gradient(ellipse at 67% 47%,rgba(215,0,30,.8) 0 3px,transparent 4px),radial-gradient(ellipse at 80% 82%,rgba(120,0,15,.9) 0 5px,transparent 6px)!important}
 #trial .trialTitleCluster,#trial .trialDead{display:none!important}
 
 /* v192: player main screen must visibly use trial_bg */
@@ -1127,12 +1085,6 @@ body{
   color:#eee!important;
   box-shadow:0 0 22px rgba(180,0,30,.38)!important;
   font-family:var(--wolf-title-font)!important;
-}
-
-
-/* v192: exact shared main title treatment */
-.wolfHeaderTitle span{
-  font-family:var(--wolf-rough-font)!important;
 }
 #player .playerStatusTitle{
   font-family:var(--wolf-rough-font)!important;
@@ -1208,30 +1160,13 @@ body{
 }
 </style>
 <style id="role-selection-actual-screen">
-#roleSelect.roleSelectionTableBackground{
-  min-height:100vh!important;
-  width:100%!important;
-  background:#050505 url("assets/table.png") center center / cover no-repeat!important;
-  overflow:hidden!important;
-  position:relative!important;
-}
-#roleSelect .roleSelectionTableOverlay{
-  position:absolute!important;
-  inset:0!important;
-  background:rgba(0,0,0,.10);
-  pointer-events:none;
-}
-</style>
-</head>
+#roleSelect.roleSelectionTableBackground{min-height:100vh!important;width:100%!important;background:#050505 url("assets/table.png") center/cover no-repeat!important;overflow:hidden!important;position:relative!important}
+#roleSelect .roleSelectionTableOverlay{position:absolute!important;inset:0;background:rgba(0,0,0,.10);pointer-events:none}
+</style></head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
-<header class="wolfHeader">
-  <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
-</header>
 <main>
-<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
-  <div class="roleSelectionTableOverlay" aria-hidden="true"></div>
-</section>
+<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정"><div class="roleSelectionTableOverlay" aria-hidden="true"></div></section>
 
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1745,7 +1680,7 @@ document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:tru
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
 window.addEventListener("focus",()=>activateStageAudio());
 
-/* v-login-lobby-chrome: login/lobby have no wolfHeader and no image background. */
+/* v-login-lobby-chrome: login/lobby have no  and no image background. */
 function syncLoginLobbyChrome(id){
   const hideChrome = id === "login" || id === "lobby";
   document.body.classList.toggle("noWolfChrome", hideChrome);
@@ -3583,29 +3518,15 @@ window.startRoleSelection = async function(){
 
 async function startRoleSelection(){
  try{
-   const g=await settings();
-   if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해 주세요.");return;}
-   if(String(g.phase)!=="LOBBY"){toast("현재 상태에서는 역할 선정을 시작할 수 없습니다.");return;}
-
-   stopAllAdminBgm();
-   try{if(typeof stopAllAudio==="function")stopAllAudio();}catch(e){}
-
-   await set({
-     phase:"ROLE_SELECT",
-     started:false,
-     roles_selected:false,
-     notice:"역할 선정 중"
-   });
-
-   // 관리자 화면을 먼저 ROLE_SELECT 상태로 갱신합니다.
-   await renderAdmin();
-
-   // 상태 전환이 성공한 뒤 역할선정 BGM을 재생합니다.
-   await startAdminLoopBgm("roleSelectionBgm");
- }catch(e){
-   console.error("역할 선정 시작 실패:",e);
-   toast("역할 선정 시작 실패: "+(e.message||e));
- }
+  const g=await settings();
+  if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해 주세요.");return;}
+  if(String(g.phase)!=="LOBBY"){toast("현재 상태에서는 역할 선정을 시작할 수 없습니다.");return;}
+  try{if(typeof stopAllAdminBgm==="function")stopAllAdminBgm();}catch(e){}
+  try{if(typeof stopAllAudio==="function")stopAllAudio();}catch(e){}
+  await set({phase:"ROLE_SELECT",started:false,roles_selected:false,notice:"역할 선정 중"});
+  await showScreen("roleSelect");
+  try{await startAdminLoopBgm("roleSelectionBgm");}catch(e){console.warn("역할선정 BGM 재생 실패:",e);}
+ }catch(e){console.error("역할 선정 시작 실패:",e);toast("역할 선정 시작 실패: "+(e.message||e));}
 }
 
 async function startGame(){
