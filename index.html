@@ -1640,6 +1640,87 @@ body{
 #roleIntro .roleIntroTableOnly{position:absolute!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#000!important;opacity:1!important;}
 #roleIntro .roleIntroTableOnly img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;}
 </style>
+
+<style id="role-rebuild-v2">
+/* 역할선정→카드선택: 같은 테이블 위에서 이어지는 하나의 장면 */
+#roleSelect.cleanCardSelectScreen{
+  position:fixed!important;inset:0!important;background:#000!important;overflow:hidden!important;
+}
+#roleSelect .cleanCardSelectBackdrop{position:absolute!important;inset:0!important;background:#000!important;z-index:0!important}
+#roleSelect .cleanRoleSelectTable{
+  position:absolute!important;left:50%!important;bottom:2%!important;
+  width:min(88vw,1140px)!important;height:58vh!important;
+  transform:translateX(-50%)!important;object-fit:contain!important;
+  z-index:1!important;display:block!important;filter:drop-shadow(0 -18px 45px rgba(255,0,128,.18))!important;
+}
+#roleSelect .cleanCardSelectHeader{
+  position:absolute!important;top:7%!important;left:50%!important;transform:translateX(-50%)!important;
+  z-index:5!important;text-align:center!important;pointer-events:none!important;
+}
+#roleSelect .cleanImageTitle{display:flex!important;justify-content:center!important;gap:clamp(2px,.5vw,8px)!important}
+#roleSelect .cleanImageTitle img{width:clamp(42px,5.5vw,86px)!important;height:auto!important}
+#roleSelect #cleanCardSelectNotice{margin:10px 0 0!important;font-size:clamp(18px,2.5vw,34px)!important;font-weight:1000!important;text-shadow:0 0 18px rgba(255,0,128,.55)!important}
+#roleSelect .cleanCardBoard{
+  position:absolute!important;left:50%!important;top:35%!important;
+  transform:translateX(-50%)!important;width:min(820px,76vw)!important;
+  height:50vh!important;z-index:4!important;
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(0,1fr)!important;gap:clamp(6px,1vw,12px)!important;
+  align-items:center!important;justify-items:center!important;
+}
+#roleSelect .cleanChoiceCard{
+  width:min(100%,125px)!important;aspect-ratio:2/3!important;
+  opacity:0!important;transform:translateY(-75vh) rotate(var(--fly-r,-8deg)) scale(.72)!important;
+  animation:roleCardsFlyToTable .58s cubic-bezier(.12,.88,.18,1) var(--fly-delay,0s) forwards!important;
+  filter:drop-shadow(0 12px 20px rgba(0,0,0,.75))!important;
+}
+#roleSelect .cleanChoiceCard:nth-child(1){--fly-r:-10deg;--fly-delay:.02s}
+#roleSelect .cleanChoiceCard:nth-child(2){--fly-r:6deg;--fly-delay:.10s}
+#roleSelect .cleanChoiceCard:nth-child(3){--fly-r:-4deg;--fly-delay:.18s}
+#roleSelect .cleanChoiceCard:nth-child(4){--fly-r:8deg;--fly-delay:.26s}
+#roleSelect .cleanChoiceCard:nth-child(5){--fly-r:-7deg;--fly-delay:.34s}
+#roleSelect .cleanChoiceCard:nth-child(6){--fly-r:5deg;--fly-delay:.42s}
+#roleSelect .cleanChoiceCard img{width:100%!important;height:100%!important;object-fit:contain!important}
+@keyframes roleCardsFlyToTable{
+  0%{opacity:0;transform:translateY(-75vh) rotate(var(--fly-r)) scale(.72)}
+  18%{opacity:1}
+  70%{transform:translateY(8px) rotate(var(--fly-r)) scale(1.03)}
+  100%{opacity:1;transform:translateY(0) rotate(var(--fly-r)) scale(1)}
+}
+/* 선택 후: 내가 선택한 카드만 선명, 나머지는 반투명 */
+#roleSelect .cleanChoiceCard.isOtherAfterSelection{opacity:.28!important;filter:grayscale(.15) drop-shadow(0 8px 15px rgba(0,0,0,.55))!important}
+#roleSelect .cleanChoiceCard.isMineSelected{opacity:1!important;transform:translateY(-8px) scale(1.05)!important;filter:drop-shadow(0 0 24px rgba(255,255,255,.38))!important;animation:none!important}
+/* 역할공개 */
+#roleReveal.cleanRoleRevealScreen{position:fixed!important;inset:0!important;background:#000!important;overflow:hidden!important;z-index:900!important}
+#roleReveal .cleanRoleRevealStage{position:absolute!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#000!important}
+#roleReveal .cleanRoleRevealDim{position:absolute!important;inset:0!important;background:rgba(0,0,0,.32)!important;opacity:0!important;pointer-events:none!important;transition:opacity .25s ease!important;z-index:1!important}
+#roleReveal .cleanRoleRevealAnnouncement{
+  position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+  z-index:5!important;color:#fff!important;font-size:clamp(28px,5vw,68px)!important;font-weight:1000!important;
+  text-align:center!important;white-space:nowrap!important;text-shadow:0 0 26px rgba(255,0,128,.7)!important;
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+}
+#roleReveal .cleanRoleCard{
+  width:min(68vw,420px)!important;height:min(70vh,560px)!important;
+  max-height:560px!important;perspective:1400px!important;z-index:2!important;
+}
+#roleReveal .cleanRoleFlipButton{
+  position:fixed!important;right:clamp(18px,4vw,56px)!important;bottom:clamp(18px,4vh,44px)!important;
+  z-index:10!important;margin:0!important;min-width:140px!important;padding:14px 24px!important;
+  border:1px solid #aaa!important;border-radius:999px!important;background:rgba(20,20,20,.86)!important;
+  color:#fff!important;font-size:clamp(17px,2vw,24px)!important;font-weight:1000!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.6)!important;backdrop-filter:blur(6px)!important;
+}
+#roleReveal .cleanRoleFlipButton:disabled{opacity:.35!important;cursor:default!important}
+#roleReveal .cleanRoleCardFace img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
+@media(max-width:600px){
+  #roleSelect .cleanRoleSelectTable{height:54vh!important;width:92vw!important}
+  #roleSelect .cleanCardBoard{width:90vw!important;top:37%!important;height:44vh!important;gap:4px!important}
+  #roleSelect .cleanChoiceCard{width:min(100%,100px)!important}
+  #roleReveal .cleanRoleCard{width:78vw!important;height:min(67vh,520px)!important}
+}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -1778,6 +1859,7 @@ body{
 
 <section id="roleSelect" class="screen cleanCardSelectScreen">
   <div class="cleanCardSelectBackdrop"></div>
+  <img class="cleanRoleSelectTable" src="assets/table.png" alt="">
   <div class="cleanCardSelectHeader">
     <div class="cleanImageTitle" aria-label="카드선택">
       <img src="assets/card_selection_01_카.png" alt="">
@@ -1792,6 +1874,8 @@ body{
 
 <section id="roleReveal" class="screen cleanRoleRevealScreen">
   <div class="cleanRoleRevealStage">
+    <div class="cleanRoleRevealDim" id="cleanRoleRevealDim"></div>
+    <div class="cleanRoleRevealAnnouncement" id="cleanRoleRevealAnnouncement"></div>
     <div class="cleanRoleCard" id="cleanRoleCard">
       <div class="cleanRoleCardInner" id="cleanRoleCardInner">
         <div class="cleanRoleCardFace cleanRoleCardBack"><img src="assets/card_back.png" alt="카드 뒷면"></div>
@@ -2719,16 +2803,29 @@ async function renderCleanCardSelect(p,g){
   const notice=el("cleanCardSelectNotice");
   if(notice)notice.textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.":"원하는 카드를 터치하세요.";
   const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}:${x.card_position}`).join("|");
-  if(window.__cleanCardSignature===signature && board.children.length===players.length)return;
+  if(window.__cleanCardSignature===signature && board.children.length===players.length){
+    board.querySelectorAll(".cleanChoiceCard").forEach((btn)=>{
+      const mine=String(btn.dataset.playerId)===String(p.id);
+      const mineSelected=mine && p.card_selected===true;
+      btn.classList.toggle("isMineSelected",mineSelected);
+      btn.classList.toggle("isOtherAfterSelection",chosen && !mineSelected);
+    });
+    return;
+  }
   window.__cleanCardSignature=signature;
   board.innerHTML="";
   players.forEach((x,i)=>{
     const btn=document.createElement("button");
     btn.type="button";
-    btn.className="cleanChoiceCard"+(x.card_selected?" isChosen":"");
-    btn.disabled=chosen || !!x.card_selected;
+    btn.className="cleanChoiceCard";
     btn.dataset.position=String(i);
+    btn.dataset.playerId=String(x.id);
     btn.innerHTML='<img src="assets/card_back.png" alt="선택 카드">';
+    const mine=String(x.id)===String(p.id);
+    const mineSelected=mine && p.card_selected===true;
+    btn.classList.toggle("isMineSelected",mineSelected);
+    btn.classList.toggle("isOtherAfterSelection",chosen && !mineSelected);
+    btn.disabled=chosen || !!x.card_selected;
     btn.onclick=()=>selectCleanCard(i);
     board.appendChild(btn);
   });
@@ -2751,24 +2848,68 @@ async function selectCleanCard(position){
     const alive=all.filter(x=>String(x.status).toUpperCase()==="ALIVE");
     if(alive.length && alive.every(x=>x.card_selected===true)){
       const latest=await settings();
-      if(String(latest.phase).toUpperCase()==="ROLE_SELECT")
-        await db.from("game_settings").update({phase:"ROLE_REVEAL",notice:"모든 플레이어가 카드를 선택했습니다."}).eq("id",1).eq("phase","ROLE_SELECT");
+      if(String(latest.phase).toUpperCase()==="ROLE_SELECT"){
+        await db.from("game_settings").update({phase:"ROLE_REVEAL",notice:"모두 자신의 역할을 확인하여 주십시오."}).eq("id",1).eq("phase","ROLE_SELECT");
+      }
     }
   }catch(e){console.error("selectCleanCard 오류:",e);toast(e.message||String(e));}
   finally{cleanCardSelecting=false;}
 }
 
+let roleRevealShownOnce=false;
 async function renderCleanRoleReveal(p,g){
   await showScreen("roleReveal");
   const front=el("cleanRoleCardFront");
   const inner=el("cleanRoleCardInner");
   const btn=el("cleanRoleFlipButton");
-  if(!front||!inner)return;
+  const announcement=el("cleanRoleRevealAnnouncement");
+  const dim=el("cleanRoleRevealDim");
+  if(!front||!inner||!btn)return;
+
   const isWolf=String(p.role||"").toUpperCase()==="WOLF";
+  const roleName=isWolf?"늑대":"양";
   const src=isWolf?"assets/wolf_role_card.png":"assets/sheep_role_card.png";
-  front.innerHTML='<img src="'+src+'" alt="'+(isWolf?"늑대":"양")+' 역할 카드">';
+  front.innerHTML='<img src="'+src+'" alt="'+roleName+' 역할 카드">';
+
   inner.classList.remove("isFront");
-  if(btn){btn.textContent="뒤집기";btn.onclick=()=>{const on=inner.classList.toggle("isFront");btn.textContent=on?"뒷면 보기":"뒤집기";};}
+  btn.textContent="뒤집기";
+  btn.disabled=false;
+  if(dim)dim.style.opacity="0";
+  if(announcement){
+    announcement.textContent="";
+    announcement.style.opacity="0";
+    announcement.style.visibility="hidden";
+  }
+
+  const flip=()=>{
+    const on=inner.classList.toggle("isFront");
+    if(on){
+      btn.disabled=true;
+      if(dim)dim.style.opacity="1";
+      if(announcement){
+        announcement.textContent="당신은 "+roleName+"입니다";
+        announcement.style.opacity="1";
+        announcement.style.visibility="visible";
+      }
+      setTimeout(()=>{
+        if(!inner.classList.contains("isFront"))return;
+        btn.disabled=false;
+        if(dim)dim.style.opacity="0";
+        if(announcement){
+          announcement.style.opacity="0";
+          announcement.style.visibility="hidden";
+        }
+      },2500);
+    }else{
+      btn.disabled=false;
+      if(dim)dim.style.opacity="0";
+      if(announcement){
+        announcement.style.opacity="0";
+        announcement.style.visibility="hidden";
+      }
+    }
+  };
+  btn.onclick=flip;
 }
 
 async function startRoleSelection(){
