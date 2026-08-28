@@ -1617,6 +1617,7 @@ function stopAllTimers(){
 const SOUND_FILES={
 
 
+ roleSelectionBgm:"sounds/role-selection-bgm.mp3",
  trialBgm:"sounds/trial-bgm.mp3",
 
 
@@ -3450,11 +3451,14 @@ async function refreshMissionLocations(){
 async function renderAdmin(){
  try{
   const g=await settings();
-  if(g.phase==="TRIAL"){
-    stopGameStartBgm();await startAdminLoopBgm("trialBgm");}else if(g.phase==="ROLE_REVEAL"){
-    stopGameStartBgm();stopAdminBgm("trialBgm");
+  if(g.phase==="ROLE_SELECT"){
+    stopGameStartBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("roleSelectionBgm");
+  }else if(g.phase==="TRIAL"){
+    stopGameStartBgm();stopAdminBgm("roleSelectionBgm");await startAdminLoopBgm("trialBgm");
+  }else if(g.phase==="ROLE_REVEAL"){
+    stopGameStartBgm();stopAdminBgm("roleSelectionBgm");stopAdminBgm("trialBgm");
   }else if(g.phase==="COUNTDOWN"){
-    stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
+    stopAdminBgm("roleSelectionBgm");stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
   }else{
     stopAllAdminBgm();
   }
@@ -3610,9 +3614,29 @@ function stopGameStartBgm(){
  }catch(e){}
 }
 
-async function startAdminLoopBgm(){ return; }
-function stopAdminBgm(){ return; }
-function stopAllAdminBgm(){ return; }
+async function startAdminLoopBgm(key){
+  if(localStorage.getItem("wolf_game_admin_v7")!=="1")return;
+  const a=audio[key];
+  if(!a)return;
+  try{
+    Object.keys(audio).forEach(k=>{
+      if(k!==key && (k.endsWith("Bgm") || k==="roleSelectionBgm" || k==="trialBgm" || k==="nightBgm" || k==="gameStartBgm")){
+        try{audio[k].pause();audio[k].currentTime=0;}catch(e){}
+      }
+    });
+    a.loop=true;
+    a.currentTime=0;
+    a.volume=.45;
+    const p=a.play();
+    if(p)await p;
+  }catch(e){console.warn("관리자 BGM 재생 실패:",key,e);}
+}
+function stopAdminBgm(key){
+  try{const a=audio[key];if(a){a.pause();a.currentTime=0;}}catch(e){}
+}
+function stopAllAdminBgm(){
+  ["roleSelectionBgm","trialBgm","nightBgm","gameStartBgm"].forEach(k=>stopAdminBgm(k));
+}
 
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
