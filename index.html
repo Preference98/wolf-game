@@ -1207,45 +1207,21 @@ body{
   pointer-events:none;
 }
 </style>
-
-<script id="role-selection-first-step-js">
-window.enterRoleSelectionScreen=function(){
-  const s=document.getElementById("roleSelect");
-  if(s)s.classList.add("active");
-};
-</script>
-
 <style id="role-selection-actual-screen">
-/* ROLE_SELECT must be a real screen, not a background-only mutation. */
-#roleSelect.roleSelectionActualScreen{
-  position:fixed!important;
-  inset:0!important;
-  z-index:9999!important;
-  display:flex!important;
-  visibility:visible!important;
-  opacity:1!important;
+#roleSelect.roleSelectionTableBackground{
+  min-height:100vh!important;
+  width:100%!important;
   background:#050505 url("assets/table.png") center center / cover no-repeat!important;
+  overflow:hidden!important;
+  position:relative!important;
+}
+#roleSelect .roleSelectionTableOverlay{
+  position:absolute!important;
+  inset:0!important;
+  background:rgba(0,0,0,.10);
+  pointer-events:none;
 }
 </style>
-
-
-
-
-<script id="role-selection-screen-helper">
-window.showRoleSelectionScreen = function () {
-  document.querySelectorAll(".screen").forEach(function (el) {
-    el.classList.remove("active");
-    el.style.display = "none";
-  });
-  var s = document.getElementById("roleSelect");
-  if (!s) throw new Error("roleSelect 화면이 없습니다.");
-  s.classList.add("active", "roleSelectionActualScreen", "roleSelectionTableBackground");
-  s.style.display = "flex";
-  s.style.visibility = "visible";
-  s.style.opacity = "1";
-};
-</script>
-
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -1253,6 +1229,10 @@ window.showRoleSelectionScreen = function () {
   <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
 </header>
 <main>
+<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
+  <div class="roleSelectionTableOverlay" aria-hidden="true"></div>
+</section>
+
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
   <div id="bootFallbackText" style="margin-top:8px;color:#aaa;font-size:13px"></div>
@@ -2129,7 +2109,7 @@ async function routeCore(){
   switch(String(g.phase||"LOBBY").toUpperCase()){
    case "ROLE_SELECT":
      stopAllTimers();
-     enterRoleSelectionScreen();
+     await showScreen("roleSelect");
      return;
 
    case "LOBBY":
@@ -6087,10 +6067,5 @@ function miniTrace(r){
   };
 }
 </script>
-
-<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
-  <div class="roleSelectionTableOverlay" aria-hidden="true"></div>
-</section>
-
 </body>
 </html>
