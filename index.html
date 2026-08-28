@@ -1295,11 +1295,153 @@ main > .screen{
 }
 </style>
 
+
+<style id="player-card-selection-intro">
+/* 카드선택은 별도 screen 전환이 아니라 roleSelect 위에서 이어지는 연출 */
+#roleSelect .playerCardSelectionTitle{
+  position:absolute;
+  z-index:50;
+  left:50%;
+  top:9%;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(3px,.45vw,9px);
+  width:min(92vw,720px);
+  pointer-events:none;
+  opacity:0;
+  visibility:hidden;
+}
+
+#roleSelect .playerCardSelectionTitle img{
+  display:block;
+  width:clamp(42px,7vw,92px);
+  height:auto;
+  max-width:none;
+  opacity:0;
+  transform:translateY(55px) scale(.55) rotate(0deg);
+  filter:blur(7px);
+  will-change:transform,opacity,filter;
+}
+
+#roleSelect .playerCardSelectionTitle.active{
+  opacity:1;
+  visibility:visible;
+}
+
+#roleSelect .playerCardSelectionTitle.active img{
+  animation:playerCardSelectionLetterIn .62s cubic-bezier(.12,.9,.18,1) forwards;
+}
+
+#roleSelect .playerCardSelectionTitle.active img:nth-child(1){animation-delay:.08s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(2){animation-delay:.43s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(3){animation-delay:.78s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(4){animation-delay:1.13s}
+
+@keyframes playerCardSelectionLetterIn{
+  0%{opacity:0;transform:translateY(55px) scale(.55) rotate(-3deg);filter:blur(7px)}
+  58%{opacity:1;transform:translateY(-8px) scale(1.06) rotate(0);filter:blur(0)}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(0);filter:blur(0)}
+}
+
+/* 애니메이션 완료 후에도 카드선택 제목은 계속 표시 */
+#roleSelect .playerCardSelectionTitle.active img{
+  animation-fill-mode:forwards;
+}
+
+/* 제목 아래 안내문구: 카드선택 글자 애니메이션 종료 후 2초 뒤 등장 */
+#roleSelect .playerCardSelectionInstruction{
+  position:absolute;
+  z-index:50;
+  left:50%;
+  top:calc(9% + clamp(55px,8vw,105px));
+  transform:translateX(-50%) translateY(12px);
+  width:min(90vw,760px);
+  text-align:center;
+  font-size:clamp(18px,2.7vw,38px);
+  line-height:1.3;
+  font-weight:800;
+  color:#fff;
+  text-shadow:0 2px 10px rgba(0,0,0,.8);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+#roleSelect .playerCardSelectionInstruction.active{
+  visibility:visible;
+  animation:playerCardSelectionInstructionIn .55s ease forwards;
+}
+
+@keyframes playerCardSelectionInstructionIn{
+  from{opacity:0;transform:translateX(-50%) translateY(12px);filter:blur(5px)}
+  to{opacity:1;transform:translateX(-50%) translateY(0);filter:blur(0)}
+}
+
+@media(max-width:600px){
+  #roleSelect .playerCardSelectionTitle{top:7%}
+  #roleSelect .playerCardSelectionInstruction{
+    top:calc(7% + clamp(48px,12vw,78px));
+    width:94vw;
+  }
+}
+</style>
+
+
+<script id="player-card-selection-intro-js">
+let playerCardSelectionIntroTimer=null;
+let playerCardSelectionInstructionTimer=null;
+
+function resetPlayerCardSelectionIntro(){
+  clearTimeout(playerCardSelectionIntroTimer);
+  clearTimeout(playerCardSelectionInstructionTimer);
+  const title=document.getElementById("playerCardSelectionTitle");
+  const instruction=document.getElementById("playerCardSelectionInstruction");
+  if(title){
+    title.classList.remove("active");
+    title.querySelectorAll("img").forEach(img=>{
+      img.style.animation="none";
+      img.offsetHeight;
+      img.style.animation="";
+    });
+  }
+  if(instruction) instruction.classList.remove("active");
+}
+
+function startPlayerCardSelectionIntro(){
+  resetPlayerCardSelectionIntro();
+
+  const title=document.getElementById("playerCardSelectionTitle");
+  const instruction=document.getElementById("playerCardSelectionInstruction");
+  if(!title || !instruction)return;
+
+  // '지금부터...' 문구가 사라진 직후 호출.
+  title.classList.add("active");
+
+  // 마지막 글자 등장 시작 1.13s + 애니메이션 0.62s = 약 1.75s.
+  // 그 뒤 2초를 기다린 후 안내문구를 표시.
+  playerCardSelectionInstructionTimer=setTimeout(()=>{
+    instruction.classList.add("active");
+  },3750);
+}
+</script>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
-<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정"><div class="roleSelectionTableOverlay" aria-hidden="true"></div></section>
+<section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
+<div id="playerCardSelectionTitle" class="playerCardSelectionTitle" aria-label="카드선택">
+  <img src="assets/card_selection_01_카.png" alt="카">
+  <img src="assets/card_selection_02_드.png" alt="드">
+  <img src="assets/card_selection_03_선.png" alt="선">
+  <img src="assets/card_selection_04_택.png" alt="택">
+</div>
+<div id="playerCardSelectionInstruction" class="playerCardSelectionInstruction">
+  원하는 카드를 터치하세요.
+</div>
+<div class="roleSelectionTableOverlay" aria-hidden="true"></div></section>
 
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -3653,6 +3795,7 @@ window.startRoleSelection = async function(){
     });
 
     await showScreen("roleSelect");
+    setTimeout(startPlayerCardSelectionIntro, 5000);
 
     // 역할선정 화면으로 전환한 뒤 역할선정 BGM만 재생합니다.
     await activateStageAudio();
