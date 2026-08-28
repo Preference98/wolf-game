@@ -1758,6 +1758,58 @@ body{
 @keyframes trulyRoleFly{0%{opacity:0;transform:translateY(-75vh) rotate(var(--r)) scale(.72)}18%{opacity:1}70%{transform:translateY(8px) rotate(var(--r)) scale(1.03)}100%{opacity:1;transform:translateY(0) rotate(var(--r)) scale(1)}}
 #roleSelect .trulyRoleCard:nth-child(1){--r:-10deg}#roleSelect .trulyRoleCard:nth-child(2){--r:6deg}#roleSelect .trulyRoleCard:nth-child(3){--r:-4deg}#roleSelect .trulyRoleCard:nth-child(4){--r:8deg}#roleSelect .trulyRoleCard:nth-child(5){--r:-7deg}#roleSelect .trulyRoleCard:nth-child(6){--r:5deg}
 </style>
+
+<script id="role-select-audio-override">
+window.playRoleSelectBgm=window.playRoleSelectBgm||function(){
+  try{
+    const a=window.__roleSelectBgm||(window.__roleSelectBgm=new Audio("sounds/role-select-bgm.mp3"));
+    a.loop=true;
+    const p=a.play(); if(p&&p.catch)p.catch(()=>{});
+  }catch(e){}
+};
+window.stopPrepBgm=window.stopPrepBgm||function(){
+  try{
+    const a=window.__prepBgm;
+    if(a){a.pause();a.currentTime=0;}
+  }catch(e){}
+};
+</script>
+
+<style id="role-select-sequence-player">
+
+#roleSelect.trulyUnifiedRoleSelect{
+  opacity:1;
+  transition:opacity 2.5s ease!important;
+}
+#roleSelect.trulyUnifiedRoleSelect.roleSceneFadeOut{
+  opacity:0!important;
+}
+#roleSelect.trulyUnifiedRoleSelect.roleSceneFadeIn{
+  opacity:1!important;
+}
+#roleSelect .trulyRoleTable{
+  opacity:1!important;
+}
+#roleSelect .trulyRoleNotice{
+  opacity:0;
+  transition:opacity .35s ease;
+}
+#roleSelect.roleSceneCards .trulyRoleNotice{
+  opacity:1;
+}
+#roleSelect .trulyRoleCards{
+  opacity:0;
+  pointer-events:none;
+}
+#roleSelect.roleSceneCardsActive .trulyRoleCards{
+  opacity:1;
+  pointer-events:none;
+}
+#roleSelect.roleSceneReady .trulyRoleCards{
+  pointer-events:auto;
+}
+
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2832,31 +2884,86 @@ function roleSceneState(players){
 }
 
 async function renderCleanCardSelect(p,g){
-  await showScreen('roleSelect');
-  const r=await db.from('players').select('*').order('card_position');
-  if(r.error){toast(r.error.message||'플레이어 정보를 불러오지 못했습니다.');return;}
-  const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==='ALIVE');
-  const state=roleSceneState(players);
-  const board=el('trulyRoleCards'), notice=el('trulyRoleNotice');
-  if(!board)return;
-  board.classList.toggle('sceneCardsVisible',state==='CARDS');
-  if(notice){
-    notice.textContent=state==='MESSAGE'?'지금부터 양과 늑대를 정하겠습니다.':(state==='CARDS'?(p.card_selected===true?'카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.':'카드를 선택하세요.'):'');
-    notice.classList.toggle('sceneNoticeVisible',state==='MESSAGE');
+  await showScreen("roleSelect");
+
+  const r=await db.from("players").select("*").order("card_position");
+  if(r.error){toast(r.error.message||"플레이어 정보를 불러오지 못했습니다.");return;}
+  const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==="ALIVE");
+
+  const root=el("roleSelect");
+  const table=root?.querySelector(".trulyRoleTable");
+  const notice=el("trulyRoleNotice");
+  const cards=el("trulyRoleCards");
+  if(!root||!table||!notice||!cards)return;
+
+  const key=players.map(x=>String(x.id)).sort().join("|");
+
+  if(window.__roleSceneKey!==key){
+    window.__roleSceneKey=key;
+    window.__roleSceneState="FADE";
+    window.__roleSceneStartedAt=Date.now();
+    if(window.__roleSceneTimer)clearTimeout(window.__roleSceneTimer);
+
+    root.classList.remove("roleSceneFadeIn","roleSceneCards","roleSceneReady");
+    root.classList.add("roleSceneFadeOut");
+
+    window.__roleSceneTimer=setTimeout(()=>{
+      root.classList.remove("roleSceneFadeOut");
+      root.classList.add("roleSceneFadeIn");
+      window.__roleSceneState="TABLE";
+
+      window.__roleSceneTimer=setTimeout(()=>{
+        // Player receives the same continuous scene. The screen-only title
+        // is not rendered here; the player sees the table until card title stage.
+        window.__roleSceneState="CARD_TITLE";
+        notice.textContent="카드선택";
+        root.classList.add("roleSceneCards");
+        window.__roleSceneTimer=setTimeout(()=>{
+          window.__roleSceneState="DISTRIBUTING";
+          root.classList.add("roleSceneCardsActive");
+          window.__roleSceneTimer=setTimeout(()=>{
+            window.__roleSceneState="SELECTING";
+            root.classList.add("roleSceneReady");
+            route();
+          }, Math.max(1200, players.length*380+250));
+        },900);
+      },3000);
+    },2500);
   }
-  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}`).join('|')+':'+state;
-  if(window.__roleSceneRenderSignature===signature&&board.children.length===players.length)return;
-  window.__roleSceneRenderSignature=signature;
-  board.innerHTML='';
+
+  const state=window.__roleSceneState||"FADE";
+
+  if(state==="TABLE" || state==="FADE"){
+    notice.textContent="";
+  }else if(state==="CARD_TITLE" || state==="DISTRIBUTING"){
+    notice.textContent="카드선택";
+  }else if(state==="SELECTING"){
+    notice.textContent=p.card_selected===true
+      ?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요."
+      :"원하는 카드를 터치하세요.";
+  }
+
+  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}`).join("|")+":"+state;
+  if(window.__roleSceneSignature===signature && cards.children.length===players.length)return;
+  window.__roleSceneSignature=signature;
+  cards.innerHTML="";
+
   players.forEach((x,i)=>{
-    const card=document.createElement('button'); card.type='button'; card.className='trulyRoleCard';
-    card.dataset.playerId=String(x.id); card.dataset.position=String(i);
+    const card=document.createElement("button");
+    card.type="button";
+    card.className="trulyRoleCard";
+    card.dataset.playerId=String(x.id);
+    card.dataset.position=String(i);
     card.innerHTML='<img src="assets/card_back.png" alt="역할 카드">';
-    card.style.setProperty('--fly-delay',(i*.10)+'s');
-    const mine=String(x.id)===String(p.id), selected=mine&&p.card_selected===true;
-    card.classList.toggle('isSelected',selected); card.classList.toggle('isDimmed',p.card_selected===true&&!selected);
-    card.disabled=state!=='CARDS'||p.card_selected===true||!!x.card_selected;
-    card.onclick=()=>selectCleanCard(i); board.appendChild(card);
+    card.style.setProperty("--fly-delay",(i*.38)+"s");
+
+    const mine=String(x.id)===String(p.id);
+    const selected=mine && p.card_selected===true;
+    card.classList.toggle("isSelected",selected);
+    card.classList.toggle("isDimmed",p.card_selected===true&&!selected);
+    card.disabled=state!=="SELECTING" || p.card_selected===true || !!x.card_selected;
+    card.onclick=()=>selectCleanCard(i);
+    cards.appendChild(card);
   });
 }
 
