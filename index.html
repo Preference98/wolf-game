@@ -2505,9 +2505,22 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
- el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
- el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
- el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
+ // 로그인 직후 대기화면은 역할/공지 DOM을 의도적으로 숨기거나 제거한 상태입니다.
+ // 해당 요소가 존재하는 구버전/다른 화면에서만 갱신하고, 없으면 건너뜁니다.
+ const role=el("role");
+ const roleText=el("roleText");
+ const lobbyNotice=el("lobbyNotice");
+ if(role){
+   role.textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
+ }
+ if(roleText){
+   roleText.innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
+ }
+ if(lobbyNotice){
+   lobbyNotice.textContent=g.notice||"게임 시작을 기다리고 있습니다.";
+ }
+ showScreen("lobby");
+ stopAllTimers();
 }
 
 
