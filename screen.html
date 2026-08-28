@@ -174,7 +174,7 @@
 /* v174: player/screen shared visual system */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
 body{font-family:"Noto Sans KR",Arial,sans-serif}
-.titleStage{background:#000!important;overflow:hidden!important}
+.titleStage{background:#3b2632!important}
 .titleBackdrop{inset:0!important;background:linear-gradient(180deg,rgba(255,0,130,.20),rgba(30,0,20,.15) 42%,rgba(0,0,0,.35)),radial-gradient(circle at 50% 45%,rgba(255,0,135,.22),transparent 28%)!important;filter:none!important}
 .titleArtwork{opacity:.48!important;filter:blur(1.5px) brightness(.72) saturate(.8)!important;background-position:center!important;transform:scale(1.12)!important;animation:artDriftUnified 8s ease-in-out infinite alternate!important}
 @keyframes artDriftUnified{to{transform:scale(1.18) translate3d(-.5%,.4%,0)}}
@@ -861,376 +861,33 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
   text-shadow:3px 4px 0 #26030a,-2px -1px 0 rgba(255,255,255,.12),0 0 15px rgba(170,0,25,.5)!important;
 }
 
+
+/* ROLE INTRO v1: spreadsheet flow — table image, title animation, emphasis text */
+#s-roleIntro.roleIntroScreen{position:absolute!important;inset:0!important;overflow:hidden!important;background:#000!important}
+#s-roleIntro .roleIntroCurtain{position:absolute;inset:0;background:#000;z-index:5;opacity:1;pointer-events:none}
+#s-roleIntro .roleIntroTableImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;opacity:0;transform:scale(1.025)}
+#s-roleIntro .roleIntroTitle{display:flex!important;align-items:center;justify-content:center;position:absolute;left:50%;top:18%;z-index:3;transform:translateX(-50%);opacity:0;gap:clamp(2px,.4vw,9px);white-space:nowrap}
+#s-roleIntro .roleIntroTitle .titleCard{display:block!important;opacity:0;transform:translateY(50px) scale(.78) rotate(var(--r,0deg));animation:none!important}
+#s-roleIntro .roleIntroEmphasis{position:absolute;left:50%;top:66%;z-index:3;width:90%;transform:translate(-50%,20px);opacity:0;text-align:center;font-family:var(--wolf-screen-title)!important;font-size:clamp(28px,5vw,72px);font-weight:1000;color:#fff;text-shadow:4px 5px 0 #2b040a,0 0 24px rgba(255,0,128,.7);white-space:nowrap}
+#s-roleIntro.roleIntroRun .roleIntroCurtain{animation:roleIntroCurtainOut .65s ease 2.5s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTableImage{animation:roleIntroTableIn .9s cubic-bezier(.18,.82,.2,1) 2.5s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTitle{animation:roleIntroTitleWrap .2s ease 3.35s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTitle .titleCard:nth-child(1){--r:-6deg;animation:roleIntroLetterIn .42s cubic-bezier(.12,.9,.18,1) 3.35s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTitle .titleCard:nth-child(2){--r:4deg;animation:roleIntroLetterIn .42s cubic-bezier(.12,.9,.18,1) 3.52s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTitle .titleCard:nth-child(3){--r:-4deg;animation:roleIntroLetterIn .42s cubic-bezier(.12,.9,.18,1) 3.69s forwards}
+#s-roleIntro.roleIntroRun .roleIntroTitle .titleCard:nth-child(4){--r:6deg;animation:roleIntroLetterIn .42s cubic-bezier(.12,.9,.18,1) 3.86s forwards}
+#s-roleIntro.roleIntroRun .roleIntroEmphasis{animation:roleIntroEmphasisIn .65s cubic-bezier(.18,.82,.2,1) 4.55s forwards}
+@keyframes roleIntroCurtainOut{from{opacity:1}to{opacity:0}}
+@keyframes roleIntroTableIn{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
+@keyframes roleIntroTitleWrap{from{opacity:0}to{opacity:1}}
+@keyframes roleIntroLetterIn{0%{opacity:0;transform:translateY(50px) scale(.78) rotate(var(--r))}65%{opacity:1;transform:translateY(-5px) scale(1.05) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
+@keyframes roleIntroEmphasisIn{from{opacity:0;transform:translate(-50%,20px) scale(.96);filter:blur(5px)}to{opacity:1;transform:translate(-50%,0) scale(1);filter:none}}
 </style>
 
-
-
-
-
-
-
-
-
-
-
-
-
-<style id="v215-screen-title-reference">
-/* Reference-matched screen title: rough neon-magenta game-card artwork. */
-.screenTitleCluster{
-  position:relative!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:clamp(5px,1vw,15px)!important;
-  overflow:visible!important;
-  filter:drop-shadow(0 10px 20px rgba(255,0,120,.38))!important;
-}
-
-.screenTitleCluster span{
-  position:relative!important;
-  overflow:visible!important;
-  border:2px solid #ff2d9b!important;
-  border-radius:1px!important;
-  box-shadow:
-    0 0 14px rgba(255,0,120,.58),
-    7px 10px 0 rgba(12,0,8,.9),
-    inset 0 0 25px rgba(255,0,110,.13)!important;
-  text-shadow:4px 5px 0 rgba(0,0,0,.75)!important;
-}
-
-/* alternating dark / white boards */
-.screenTitleCluster span:nth-child(1){
-  background:
-    radial-gradient(circle at 20% 80%,rgba(255,0,120,.85) 0 7px,transparent 8px),
-    linear-gradient(155deg,#dc006d 0%,#68002f 46%,#110006 100%)!important;
-  color:#fff!important;
-  transform:rotate(-6deg)!important;
-}
-.screenTitleCluster span:nth-child(2){
-  background:
-    radial-gradient(circle at 83% 16%,rgba(255,0,120,.72) 0 6px,transparent 7px),
-    linear-gradient(155deg,#fff 0%,#f1edf1 62%,#c9c2ca 100%)!important;
-  color:#050505!important;
-  transform:rotate(3deg)!important;
-}
-.screenTitleCluster span:nth-child(3){
-  background:
-    radial-gradient(circle at 18% 25%,rgba(255,0,120,.78) 0 5px,transparent 6px),
-    linear-gradient(145deg,#9d004d 0%,#430020 50%,#0b0005 100%)!important;
-  color:#fff!important;
-  transform:rotate(-5deg)!important;
-}
-.screenTitleCluster span:nth-child(4){
-  background:
-    radial-gradient(circle at 84% 74%,rgba(255,0,120,.82) 0 7px,transparent 8px),
-    linear-gradient(155deg,#faf8fa 0%,#e9e4e9 64%,#c7c0c8 100%)!important;
-  color:#050505!important;
-  transform:rotate(7deg)!important;
-}
-
-/* Torn corners + pink paint splashes on each individual board. */
-.screenTitleCluster span::before{
-  content:""!important;
-  position:absolute!important;
-  z-index:5!important;
-  inset:-3px!important;
-  pointer-events:none!important;
-  background:
-    radial-gradient(circle at 5% 10%,#ff0080 0 4px,transparent 5px),
-    radial-gradient(circle at 95% 86%,#ff0080 0 5px,transparent 6px),
-    radial-gradient(circle at 72% 8%,rgba(255,0,128,.8) 0 3px,transparent 4px),
-    linear-gradient(132deg,transparent 0 14%,rgba(255,0,128,.82) 15% 17%,transparent 18% 100%),
-    linear-gradient(132deg,transparent 0 82%,rgba(255,0,128,.65) 83% 85%,transparent 86% 100%)!important;
-  opacity:.95!important;
-  mix-blend-mode:screen!important;
-}
-
-/* Hard black damaged edge cuts, inspired by the reference's torn card edges. */
-.screenTitleCluster span::after{
-  content:""!important;
-  position:absolute!important;
-  z-index:6!important;
-  inset:0!important;
-  pointer-events:none!important;
-  background:
-    linear-gradient(145deg,transparent 0 7%,rgba(0,0,0,.82) 7.5% 9%,transparent 9.5%),
-    linear-gradient(145deg,transparent 0 90%,rgba(0,0,0,.8) 90.5% 92%,transparent 92.5%),
-    linear-gradient(25deg,transparent 0 46%,rgba(0,0,0,.55) 46.5% 48%,transparent 48.5%)!important;
-  opacity:.8!important;
-}
-
-/* One strong, distributed claw-scratch layer across the entire title.
-   No per-letter scratches and no single center-crossing bar. */
-.screenTitleCluster{
-  --scratch:
-    linear-gradient(108deg,transparent 0 8%,#ff2b9e 9% 10.2%,transparent 11% 100%),
-    linear-gradient(108deg,transparent 0 35%,#ff2b9e 36% 37.2%,transparent 38% 100%),
-    linear-gradient(108deg,transparent 0 64%,#ff2b9e 65% 66.2%,transparent 67% 100%),
-    linear-gradient(108deg,transparent 0 82%,#ff2b9e 83% 84.2%,transparent 85% 100%);
-}
-.screenTitleCluster::after{
-  content:""!important;
-  position:absolute!important;
-  z-index:30!important;
-  left:2%!important;
-  right:2%!important;
-  top:28%!important;
-  height:46%!important;
-  pointer-events:none!important;
-  background:var(--scratch)!important;
-  filter:drop-shadow(0 0 4px #ff008c)!important;
-  transform:rotate(-6deg)!important;
-  opacity:.95!important;
-}
-
-/* Make the screen title a little larger and more poster-like. */
-.screenTitleCluster span{
-  width:clamp(68px,12vw,132px)!important;
-  height:clamp(82px,15vw,160px)!important;
-}
+<style>
+/* ROLE INTRO IMAGE TITLE PATCH 2026-08-28-025401 */
+#s-roleIntro .roleIntroTitle .titleCard{width:clamp(80px,12vw,170px)!important;height:auto!important;object-fit:contain!important;position:relative!important;pointer-events:none!important;filter:drop-shadow(0 0 22px rgba(255,0,130,.55))!important}
 </style>
-
-
-
-
-
-<style id="v220-image-card-title">
-/* Artwork is supplied by four PNGs. CSS is used only for layout/animation. */
-.screenTitleCluster{
-  position:absolute!important;
-  left:50%!important;
-  top:42%!important;
-  transform:translate(-50%,-50%)!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:clamp(-12px,-.7vw,-4px)!important;
-  width:min(96vw,1900px)!important;
-  height:min(42vh,560px)!important;
-  z-index:20!important;
-  white-space:nowrap!important;
-  overflow:visible!important;
-}
-
-.screenTitleCluster .titleCard{
-  display:block!important;
-  flex:0 0 auto!important;
-  width:auto!important;
-  height:clamp(115px,24vw,300px)!important;
-  max-width:none!important;
-  object-fit:contain!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  box-shadow:none!important;
-  background:none!important;
-  font-size:0!important;
-  line-height:0!important;
-  transform-origin:center center!important;
-  will-change:transform,opacity,filter!important;
-}
-
-/* Preserve the supplied artwork's original composition/rotation. */
-.screenTitleCluster .titleCard1{ transform:rotate(-7deg)!important; }
-.screenTitleCluster .titleCard2{ transform:rotate(3deg)!important; }
-.screenTitleCluster .titleCard3{ transform:rotate(-5deg)!important; }
-.screenTitleCluster .titleCard4{ transform:rotate(7deg)!important; }
-
-/* Role/title introduction: four cards appear one after another. */
-.screenTitleCluster.animated .titleCard{
-  opacity:0;
-  animation: wolfImageCardIn .72s cubic-bezier(.12,.9,.18,1) forwards!important;
-}
-.screenTitleCluster.animated .titleCard1{ animation-delay:.05s!important; }
-.screenTitleCluster.animated .titleCard2{ animation-delay:.22s!important; }
-.screenTitleCluster.animated .titleCard3{ animation-delay:.39s!important; }
-.screenTitleCluster.animated .titleCard4{ animation-delay:.56s!important; }
-
-@keyframes wolfImageCardIn{
-  0%{
-    opacity:0;
-    transform:translateY(70px) scale(.52) rotate(0deg);
-    filter:blur(8px) drop-shadow(0 0 0 rgba(255,0,128,0));
-  }
-  65%{
-    opacity:1;
-    filter:blur(0) drop-shadow(0 0 24px rgba(255,0,128,.72));
-  }
-  100%{
-    opacity:1;
-    transform:translateY(0) scale(1) rotate(var(--card-rotation,0deg));
-    filter:drop-shadow(0 10px 18px rgba(255,0,128,.34));
-  }
-}
-
-.screenTitleCluster.animated .titleCard1{ --card-rotation:-7deg; }
-.screenTitleCluster.animated .titleCard2{ --card-rotation:3deg; }
-.screenTitleCluster.animated .titleCard3{ --card-rotation:-5deg; }
-.screenTitleCluster.animated .titleCard4{ --card-rotation:7deg; }
-
-/* Main-game title: retain a subtle whole-title float, without changing artwork. */
-.screenTitleCluster.static{
-  animation:wolfImageTitleFloat 4s ease-in-out infinite alternate!important;
-}
-@keyframes wolfImageTitleFloat{
-  from{ transform:translate(-50%,-50%) scale(1); }
-  to{ transform:translate(-50%,-50%) scale(1.012); }
-}
-
-/* Never let legacy span pseudo-elements or old card CSS paint over the PNGs. */
-.screenTitleCluster::before,
-.screenTitleCluster::after,
-.screenTitleCluster span,
-.screenTitleCluster span::before,
-.screenTitleCluster span::after{
-  content:none!important;
-  display:none!important;
-  background:none!important;
-  box-shadow:none!important;
-  border:0!important;
-}
-</style>
-
-
-<style id="v223-title-images-screen">
-/* v223: phase titles use the newly created PNG cards.
-   CSS is only layout/animation; the artwork itself is in assets/. */
-
-.imagePhaseTitle,
-.trialStartImageTitle{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:clamp(-10px,-.55vw,0px)!important;
-  white-space:nowrap!important;
-  position:relative!important;
-}
-
-.imagePhaseTitle .titleCard,
-.trialStartImageTitle .titleCard{
-  display:block!important;
-  width:auto!important;
-  height:clamp(78px,10vw,170px)!important;
-  max-width:none!important;
-  object-fit:contain!important;
-  flex:0 0 auto!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  background:none!important;
-  box-shadow:none!important;
-  will-change:transform,opacity,filter!important;
-}
-
-.imagePhaseTitle .titleCard1,
-.trialStartImageTitle .titleCard1{transform:rotate(-6deg)!important}
-.imagePhaseTitle .titleCard2,
-.trialStartImageTitle .titleCard2{transform:rotate(3deg)!important}
-.imagePhaseTitle .titleCard3,
-.trialStartImageTitle .titleCard3{transform:rotate(-5deg)!important}
-.imagePhaseTitle .titleCard4,
-.trialStartImageTitle .titleCard4{transform:rotate(6deg)!important}
-
-/* Role-selection title: same sequential card entrance as screenTitleCluster. */
-.imagePhaseTitle .titleCard{
-  opacity:0;
-  animation:v223PhaseCardIn .62s cubic-bezier(.12,.9,.18,1) forwards!important;
-}
-.imagePhaseTitle .titleCard1{animation-delay:.08s!important}
-.imagePhaseTitle .titleCard2{animation-delay:.27s!important}
-.imagePhaseTitle .titleCard3{animation-delay:.46s!important}
-.imagePhaseTitle .titleCard4{animation-delay:.65s!important}
-
-@keyframes v223PhaseCardIn{
-  0%{opacity:0;transform:translateY(48px) scale(.55) rotate(0deg);filter:blur(7px)}
-  62%{opacity:1;filter:blur(0) drop-shadow(0 0 20px rgba(255,0,130,.68))}
-  100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r));filter:drop-shadow(0 9px 16px rgba(255,0,130,.3))}
-}
-.imagePhaseTitle .titleCard1{--r:-6deg}
-.imagePhaseTitle .titleCard2{--r:3deg}
-.imagePhaseTitle .titleCard3{--r:-5deg}
-.imagePhaseTitle .titleCard4{--r:6deg}
-
-/* Trial-start announcement screen. */
-.trialIntroImageStage{
-  position:relative!important;
-  overflow:hidden!important;
-  display:flex!important;
-  flex-direction:column!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:clamp(18px,3vh,36px)!important;
-  background:#020202!important;
-}
-.trialStartImageTitle{
-  width:min(94vw,1050px)!important;
-  height:clamp(110px,18vw,230px)!important;
-}
-.trialStartImageTitle .titleCard{
-  height:clamp(90px,14vw,190px)!important;
-  opacity:0;
-  animation:v223TrialStartIn .62s cubic-bezier(.12,.9,.18,1) forwards!important;
-}
-.trialStartImageTitle .titleCard1{animation-delay:.08s!important}
-.trialStartImageTitle .titleCard2{animation-delay:.28s!important}
-.trialStartImageTitle .titleCard3{animation-delay:.48s!important}
-.trialStartImageTitle .titleCard4{animation-delay:.68s!important}
-
-@keyframes v223TrialStartIn{
-  0%{opacity:0;transform:translateY(52px) scale(.52) rotate(0deg);filter:blur(8px)}
-  62%{opacity:1;filter:blur(0) drop-shadow(0 0 24px rgba(255,0,130,.75))}
-  100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r));filter:drop-shadow(0 10px 20px rgba(255,0,130,.35))}
-}
-.trialStartImageTitle .titleCard1{--r:-6deg}
-.trialStartImageTitle .titleCard2{--r:3deg}
-.trialStartImageTitle .titleCard3{--r:-5deg}
-.trialStartImageTitle .titleCard4{--r:6deg}
-
-.trialIntroImageStage .trialIntroSimple{
-  position:relative!important;
-  margin:0!important;
-}
-</style>
-
-
-<style id="image-title-final-override">
-/* FINAL: title systems use the supplied per-character image assets.
-   Do not render the legacy CSS-letter title layer or its decorative pseudo-elements. */
-.screenTitleCluster span,
-.imagePhaseTitle span,
-.trialStartImageTitle span {
-  display:none !important;
-}
-.screenTitleCluster .titleCard,
-.imagePhaseTitle .titleCard,
-.trialStartImageTitle .titleCard {
-  display:block !important;
-  position:relative !important;
-  opacity:1 !important;
-  visibility:visible !important;
-  pointer-events:none !important;
-}
-.screenTitleCluster .titleCard::before,
-.screenTitleCluster .titleCard::after,
-.imagePhaseTitle .titleCard::before,
-.imagePhaseTitle .titleCard::after,
-.trialStartImageTitle .titleCard::before,
-.trialStartImageTitle .titleCard::after {
-  content:none !important;
-  display:none !important;
-}
-.screenTitleCluster::before,
-.screenTitleCluster::after,
-.imagePhaseTitle::before,
-.imagePhaseTitle::after,
-.trialStartImageTitle::before,
-.trialStartImageTitle::after {
-  content:none !important;
-  display:none !important;
-}
-</style>
-
 <style>
 /* 준비완료 이후 대기화면: wolf_game_title.png + 배경 + idle */
 #s-title{background:#000!important;overflow:hidden!important;position:absolute!important;inset:0!important;}
@@ -1240,6 +897,120 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 @keyframes readyScreenTitleIdle{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.018) translateY(-5px)}}
 @keyframes readyScreenBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
 
+/* FIX: 재판 시작 타이틀은 active 상태에서만 존재해야 합니다.
+   기존 .trialIntroImageStage{display:flex!important}가 .screen의 display:none을 덮어써
+   스크린 시작 직후에도 재판 타이틀/문구가 항상 보이는 것이 원인이었습니다. */
+.screen.trialIntroImageStage{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+.screen.trialIntroImageStage.active{display:flex!important;visibility:visible!important;pointer-events:auto!important;}
+
+</style>
+<style id="ready-title-image-animation-fix">
+/* 준비완료 이후 스크린 타이틀
+   참고 영상처럼 각 글자를 독립된 카드로 배치하고,
+   각 카드가 서로 다른 방향에서 순차적으로 튀어나온 뒤 독립적으로 idle 합니다. */
+#s-title .waitingScreenTitleImageCluster{
+  position:absolute!important;
+  left:0!important; top:0!important; width:100%!important; height:100%!important;
+  transform:none!important; z-index:2!important;
+  display:block!important; opacity:1!important; visibility:visible!important;
+  pointer-events:none!important; filter:none!important;
+}
+
+/* 영상의 완성된 타이틀 위치를 기준으로 4장을 겹치지 않게 배치 */
+#s-title .waitingTitleCard{
+  display:block!important; position:absolute!important; flex:none!important;
+  width:auto!important; height:auto!important; max-width:none!important; max-height:none!important;
+  object-fit:contain!important; opacity:0!important; visibility:visible!important;
+  margin:0!important; filter:drop-shadow(0 0 20px rgba(255,0,130,.42))!important;
+  transform-origin:center center!important;
+  animation:none!important;
+  will-change:transform,opacity,filter!important;
+}
+
+/* 각 글자의 최종 위치 */
+#s-title .waitingTitleCard1{
+  left:clamp(14%,calc(50% - 320px),27%)!important;
+  top:clamp(8%,calc(50% - 145px),24%)!important;
+  width:clamp(145px,19vw,300px)!important;
+}
+#s-title .waitingTitleCard2{
+  left:calc(clamp(26%,calc(50% - 235px),38%) + 18px)!important;
+  top:clamp(12%,calc(50% - 125px),28%)!important;
+  width:clamp(115px,15vw,235px)!important;
+}
+#s-title .waitingTitleCard3{
+  left:clamp(41%,calc(50% - 30px),51%)!important;
+  top:clamp(15%,calc(50% - 100px),31%)!important;
+  width:clamp(110px,14.5vw,225px)!important;
+}
+#s-title .waitingTitleCard4{
+  left:clamp(58%,calc(50% + 140px),66%)!important;
+  top:clamp(10%,calc(50% - 130px),26%)!important;
+  width:clamp(135px,17vw,270px)!important;
+}
+
+/* 영상처럼 글자마다 들어오는 방향과 회전을 다르게 */
+#s-title .waitingTitleCard1.is-entering{
+  animation:readyWaitingTitle01In .34s cubic-bezier(.16,.86,.18,1) forwards!important;
+}
+#s-title .waitingTitleCard2.is-entering{
+  animation:readyWaitingTitle02In .30s cubic-bezier(.16,.86,.18,1) forwards!important;
+}
+#s-title .waitingTitleCard3.is-entering{
+  animation:readyWaitingTitle03In .28s cubic-bezier(.16,.86,.18,1) forwards!important;
+}
+#s-title .waitingTitleCard4.is-entering{
+  animation:readyWaitingTitle04In .32s cubic-bezier(.16,.86,.18,1) forwards!important;
+}
+
+@keyframes readyWaitingTitle01In{
+  0%{opacity:0;transform:translate3d(-145px,-95px,0) scale(.58) rotate(-12deg);filter:brightness(1.45) drop-shadow(0 0 34px rgba(255,0,130,.72))}
+  55%{opacity:1;transform:translate3d(14px,8px,0) scale(1.08) rotate(2deg);filter:brightness(1.2) drop-shadow(0 0 24px rgba(255,0,130,.58))}
+  78%{opacity:1;transform:translate3d(-4px,-3px,0) scale(.98) rotate(-.8deg)}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0deg);filter:brightness(1) drop-shadow(0 0 20px rgba(255,0,130,.42))}
+}
+@keyframes readyWaitingTitle02In{
+  0%{opacity:0;transform:translate3d(0,-125px,0) scale(.55) rotate(7deg);filter:brightness(1.5) drop-shadow(0 0 34px rgba(255,0,130,.72))}
+  55%{opacity:1;transform:translate3d(-5px,11px,0) scale(1.08) rotate(-1.5deg)}
+  80%{opacity:1;transform:translate3d(3px,-3px,0) scale(.98) rotate(.5deg)}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0deg);filter:brightness(1) drop-shadow(0 0 20px rgba(255,0,130,.42))}
+}
+@keyframes readyWaitingTitle03In{
+  0%{opacity:0;transform:translate3d(105px,-105px,0) scale(.55) rotate(12deg);filter:brightness(1.5) drop-shadow(0 0 34px rgba(255,0,130,.72))}
+  55%{opacity:1;transform:translate3d(-10px,9px,0) scale(1.1) rotate(-2deg)}
+  80%{opacity:1;transform:translate3d(4px,-3px,0) scale(.98) rotate(.7deg)}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0deg);filter:brightness(1) drop-shadow(0 0 20px rgba(255,0,130,.42))}
+}
+@keyframes readyWaitingTitle04In{
+  0%{opacity:0;transform:translate3d(145px,-75px,0) scale(.58) rotate(10deg);filter:brightness(1.5) drop-shadow(0 0 34px rgba(255,0,130,.72))}
+  55%{opacity:1;transform:translate3d(-12px,8px,0) scale(1.08) rotate(-2deg)}
+  80%{opacity:1;transform:translate3d(4px,-3px,0) scale(.98) rotate(.6deg)}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0deg);filter:brightness(1) drop-shadow(0 0 20px rgba(255,0,130,.42))}
+}
+
+/* 등장 완료 후에도 각 글자가 따로 미세하게 움직임 */
+#s-title .waitingTitleCard.is-idle{
+  opacity:1!important;
+  animation:readyWaitingTitleIdle 3.6s ease-in-out infinite alternate!important;
+}
+#s-title .waitingTitleCard1.is-idle{animation-delay:0s!important}
+#s-title .waitingTitleCard2.is-idle{animation-delay:-.45s!important}
+#s-title .waitingTitleCard3.is-idle{animation-delay:-.9s!important}
+#s-title .waitingTitleCard4.is-idle{animation-delay:-1.35s!important}
+
+@keyframes readyWaitingTitleIdle{
+  0%{transform:translate3d(0,0,0) rotate(-.15deg) scale(1);filter:drop-shadow(0 0 18px rgba(255,0,130,.38))}
+  50%{transform:translate3d(0,-3px,0) rotate(.12deg) scale(1.012);filter:drop-shadow(0 0 24px rgba(255,0,130,.48))}
+  100%{transform:translate3d(0,2px,0) rotate(.18deg) scale(1.018);filter:drop-shadow(0 0 20px rgba(255,0,130,.42))}
+}
+
+/* 모바일/좁은 스크린에서도 타이틀이 겹치지 않도록 전체 크기를 함께 축소 */
+@media (max-width:900px){
+  #s-title .waitingTitleCard1{left:12%!important;top:24%!important;width:27vw!important}
+  #s-title .waitingTitleCard2{left:calc(31% + 18px)!important;top:27%!important;width:22vw!important}
+  #s-title .waitingTitleCard3{left:48%!important;top:29%!important;width:21vw!important}
+  #s-title .waitingTitleCard4{left:68%!important;top:25%!important;width:25vw!important}
+}
 </style>
 </head>
 <body class="wolf-v181-screen">
@@ -1248,21 +1019,26 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 
   <div class="screen titleStage" id="s-title">
     <div class="waitingScreenBackdrop" aria-hidden="true"></div>
-    <img class="waitingScreenTitle" id="waitingScreenTitle" src="assets/wolf_game_title.png" alt="">
+    <div class="waitingScreenTitleImageCluster" id="waitingScreenTitle" aria-label="늑대게임">
+      <img class="waitingTitleCard waitingTitleCard1" src="assets/wolf_title_01.png" alt="늑">
+      <img class="waitingTitleCard waitingTitleCard2" src="assets/wolf_title_02.png" alt="대">
+      <img class="waitingTitleCard waitingTitleCard3" src="assets/wolf_title_03.png" alt="게">
+      <img class="waitingTitleCard waitingTitleCard4" src="assets/wolf_title_04.png" alt="임">
+    </div>
     <div id="screenAudioPool" hidden></div>
   </div>
 
-  <div class="screen noticeFull roleIntroScreen" id="s-roleIntro"><div class="center"><div class="noticeMain">지금부터 역할을 정하겠습니다.</div></div></div>
-  <div class="screen roleStage" id="s-role"><div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div><div class="roleHeader"><div class="phaseTitle imagePhaseTitle" id="roleTitle" aria-label="역할 선정"><img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="">
-<img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="">
-<img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="">
-<img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt=""></div><div class="phaseSub" id="roleSub"></div></div><div class="roleSelectTable"></div><div class="cards" id="cards"></div></div>
+  <div class="screen roleIntroScreen" id="s-roleIntro">
+ <div class="roleIntroCurtain"></div>
+ <img class="roleIntroTableImage" src="assets/table.png" alt="테이블">
+ <div class="roleIntroTitle titleCluster imagePhaseTitle" aria-label="역할선정"><img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="역"><img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="할"><img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="선"><img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt="정"></div>
+ <div class="roleIntroEmphasis">지금부터 양과 늑대를 정하겠습니다.</div>
+ <audio id="roleSelectionBgm" preload="auto" src="sounds/role-selection-bgm.mp3"></audio>
+</div>
+  <div class="screen roleStage" id="s-role"><div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div><div class="roleHeader"><div class="phaseTitle titleCluster" id="roleTitle"><span>역</span><span>할</span><span>선</span><span>정</span></div><div class="phaseSub" id="roleSub"></div></div><div class="roleSelectTable"></div><div class="cards" id="cards"></div></div>
   <div class="screen noticeFull" id="s-roleReveal">
   <div class="center">
-    <div class="phaseTitle imagePhaseTitle" aria-label="역할 선정"><img class="titleCard titleCard1" src="assets/role_selection_01_역.png" alt="">
-<img class="titleCard titleCard2" src="assets/role_selection_02_할.png" alt="">
-<img class="titleCard titleCard3" src="assets/role_selection_03_선.png" alt="">
-<img class="titleCard titleCard4" src="assets/role_selection_04_정.png" alt=""></div>
+    <div class="phaseTitle titleCluster" aria-label="역할 선정"><span>역</span><span>할</span><span>선</span><span>정</span></div>
     <div class="noticeMain">자신의 결과를 확인해 주세요.</div>
   </div>
 </div>
@@ -1276,12 +1052,7 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
   <div class="screen noticeFull" id="s-night"><div class="center"><div class="noticeMain">밤이 되었습니다.</div><div class="noticeSmall">남은 시간</div><div class="count" id="screenNightTimer">00:30</div></div></div>
   <div class="screen title2Stage" id="s-main">
     <div class="titleCssBackdrop static"></div>
-    <div class="screenTitleCluster static" aria-label="늑대게임">
-      <img class="titleCard titleCard1" src="assets/wolf_title_01.png" alt="">
-      <img class="titleCard titleCard2" src="assets/wolf_title_02.png" alt="">
-      <img class="titleCard titleCard3" src="assets/wolf_title_03.png" alt="">
-      <img class="titleCard titleCard4" src="assets/wolf_title_04.png" alt="">
-    </div>
+    <div class="screenTitleCluster static" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
     <div class="roundLiveTimer" id="screenRoundTimer">00:00</div>
   </div>
 
@@ -1305,14 +1076,8 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
     </div>
   </div>
 </div>
-  
-<div class="screen trialIntroImageStage" id="s-trialIntro">
-  <div class="trialStartImageTitle" aria-label="재판 시작"><img class="titleCard titleCard1" src="assets/trial_start_01_재.png" alt="">
-<img class="titleCard titleCard2" src="assets/trial_start_02_판.png" alt="">
-<img class="titleCard titleCard3" src="assets/trial_start_03_시.png" alt="">
-<img class="titleCard titleCard4" src="assets/trial_start_04_작.png" alt=""></div>
-  <div class="trialIntroSimple">곧 늑대 재판이 시작됩니다.</div>
-</div>
+  <div class="screen trialIntro" id="s-trialIntro">
+    <div class="trialIntroSimple">곧 늑대 재판이 시작됩니다.</div>
   </div>
   <div class="screen trialCountdownStage" id="s-trialCountdown">
     <div class="trialCountdownNumber" id="screenTrialCountdown">5</div>
@@ -1331,8 +1096,7 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
     </div>
   </div>
 
-  <div class="screen noticeFull" id="s-nextRoundPrep"><div class="center"><div class="noticeMain">라운드 종료</div><div id="screenNextRoundFaces" class="nextRoundFaces"></div><div id="screenNextRoundRemaining" class="noticeSmall"></div></div></div>
-  <div class="screen resultScene" id="s-result"><img class="resultBg" src="assets/trial_bg.jpg" alt=""><div class="resultTint"></div><div class="resultQuestion">여러분이 <em>처형</em>한 사람의 정체는...</div><div class="roleCards"><div class="roleCard wolf"><img src="assets/wolf.png" alt=""></div><div class="roleCard maybe">일까?</div><div class="roleCard sheep"><img src="assets/sheep.png" alt=""></div><div class="roleCard question">일까?</div></div><div class="resultReveal"><div class="center"><div class="resultName" id="resultName"></div><div class="resultRole" id="resultRole">?</div><div class="resultCaption" id="resultCaption"></div></div></div></div>
+  <div class="screen resultScene" id="s-result"><img class="resultBg" src="assets/trial_bg.jpg" alt=""><div class="resultTint"></div><div class="resultQuestion">여러분이 <em>처형</em>한 사람의 정체는...</div><div class="roleCards"><div class="roleCard wolf">늑대</div><div class="roleCard maybe">일까?</div><div class="roleCard sheep">양</div><div class="roleCard question">일까?</div></div><div class="resultReveal"><div class="center"><div class="resultName" id="resultName"></div><div class="resultRole" id="resultRole">?</div><div class="resultCaption" id="resultCaption"></div></div></div></div>
 
   <div class="screenStatus" id="screenStatus">SCREEN v188</div>
 </div>
@@ -1344,23 +1108,12 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const AS="assets/";
 const $=id=>document.getElementById(id);
 let unlocked=false,lastPhase=null,lastReady=false,seqToken=0,trialIntroToken=0,resultToken=0,seenNotificationIds=new Set(),screenRoundTimerHandle=null,screenInvestigationTimer=null,screenNightPreTimer=null,screenNightTimerHandle=null,screenSabotageTimer=null,trialFlowRound=null,trialFlowRunning=false;
-let screenStartupLockUntil=0;
-let screenStartupBaseline=null;
-let screenStartupLive=false;
-function show(id){
-  document.querySelectorAll('.screen').forEach(x=>{
-    x.classList.remove('active');
-    x.setAttribute('aria-hidden','true');
-  });
-  const target=$(id);
-  if(target){
-    target.classList.add('active');
-    target.setAttribute('aria-hidden','false');
-  }
-}
+function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id)?.classList.add('active')}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 function safeText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function stopScreenNightBgm(){stopScreenSound("nightBgm");}
+function stopScreenNightBgm(){
+ try{const a=$('nightBgm');if(a){a.pause();a.currentTime=0;}}catch(_){}
+}
 async function renderScreenNight(g){
  const started=Date.parse(g.night_started_at||"");
  if(!Number.isFinite(started))return;
@@ -1370,7 +1123,7 @@ async function renderScreenNight(g){
  if(window.__screenNightKey===key)return;
  window.__screenNightKey=key;
  show('s-night');
- stopScreenSound('titleBgm');
+ stopAudio($('titleBgm'));
  await playNightBgm();
  const timerEl=$('screenNightTimer');
  const tick=async()=>{
@@ -1389,17 +1142,7 @@ async function renderScreenNight(g){
  await tick();
  if(screenNow()<endAt)screenNightTimerHandle=setInterval(()=>tick().catch(()=>{}),250);
 }
-const SCREEN_SOUND_FILES={"titleBgm":"sounds/title_bgm.mp3","title2Bgm":"sounds/title2_bgm.mp3","roleSelectionBgm":"sounds/role-selection-bgm.mp3","gameStartBgm":"sounds/game-start-bgm.mp3","trialBgm":"sounds/trial-bgm.mp3","nightBgm":"sounds/night-bgm.mp3","login":"sounds/login.mp3","button":"sounds/button.mp3","countdown5":"sounds/countdown-5.mp3","countdown4":"sounds/countdown-4.mp3","countdown3":"sounds/countdown-3.mp3","countdown2":"sounds/countdown-2.mp3","countdown1":"sounds/countdown-1.mp3","gameStart":"sounds/game-start.mp3","trialStart":"sounds/trial-start.mp3","sheepWin":"sounds/sheep-win.mp3","wolfWin":"sounds/wolf-win.mp3","deadSheepFound":"sounds/body-found.mp3","death":"sounds/death.mp3","sabotage":"sounds/sabotage.mp3","adminNotice":"sounds/admin-notice.mp3","nightAlert":"sounds/night-alert.mp3","morning":"sounds/morning.mp3"};
-const screenAudio={};
-let screenAudioUnlocked=false,screenLastSoundKey="",screenLastSoundAt=0;
-function preloadScreenSounds(){for(const [k,src] of Object.entries(SCREEN_SOUND_FILES)){const a=new Audio();a.preload="auto";a.src=src;screenAudio[k]=a;}}
-async function unlockScreenAudio(){if(screenAudioUnlocked)return;screenAudioUnlocked=true;try{const AC=window.AudioContext||window.webkitAudioContext;window.__screenAudioContext=window.__screenAudioContext||new AC();if(window.__screenAudioContext.state==='suspended')await window.__screenAudioContext.resume();}catch(_){} }
-async function playScreenSound(name,key="",loop=false,volume=.6){await unlockScreenAudio();const a=screenAudio[name];if(!a)return;const now=Date.now();if(key&&key===screenLastSoundKey&&now-screenLastSoundAt<1200)return;screenLastSoundKey=key||name;screenLastSoundAt=now;try{a.loop=loop;a.volume=volume;a.pause();a.currentTime=0;await a.play();}catch(_){} }
-function stopScreenSound(name){try{const a=screenAudio[name];if(a){a.pause();a.currentTime=0;a.loop=false;}}catch(_){}}
-function stopAllScreenBgm(){['titleBgm','title2Bgm','roleSelectionBgm','gameStartBgm','trialBgm','nightBgm'].forEach(stopScreenSound);}
-preloadScreenSounds();
-
-async function playNightBgm(){await playScreenSound("nightBgm","night-bgm",true,.45)}
+async function playNightBgm(){const a=$('nightBgm');try{a.loop=true;a.volume=.45;await a.play()}catch(e){}}
 async function playAudio(a,src,loop=false,volume=.6){try{if(!a.src||!a.src.endsWith(src))a.src=src;a.loop=loop;a.volume=volume;await a.play();return true}catch(e){return false}}
 const screenEffects={};
 let lastScreenEffectKey="",lastScreenEffectAt=0;
@@ -1505,19 +1248,76 @@ async function unlock(){
 }
 async function titleSequence(){
  const token=++seqToken;
- const title=$('waitingScreenTitle');
+ const cluster=$('waitingScreenTitle');
  const bg=document.querySelector('#s-title .waitingScreenBackdrop');
- // 화면을 먼저 표시합니다. BGM 파일이 없거나 재생에 실패해도 타이틀 연출은 중단되지 않습니다.
  show('s-title');
- if(title){title.style.animation='none';void title.offsetWidth;title.style.animation='readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate';}
- if(bg){bg.style.animation='none';void bg.offsetWidth;bg.style.animation='readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate';}
+ const cards=cluster ? Array.from(cluster.querySelectorAll('.waitingTitleCard')) : [];
+
+ // 영상과 같은 "한 글자씩" 연출을 위해 모든 카드를 완전히 초기화합니다.
+ cards.forEach(el=>{
+   el.classList.remove('is-entering','is-idle');
+   el.style.animation='none';
+   el.style.opacity='0';
+ });
+ void document.body.offsetWidth;
+
+ // 배경은 타이틀과 동시에 시작하고, 등장 이후에도 계속 idle 합니다.
+ if(bg){
+   bg.style.animation='none';
+   void bg.offsetWidth;
+   bg.style.animation='readyScreenBgIdle 7s ease-in-out 0s infinite alternate';
+ }
+
  stopAllScreenBgm();
- try{await playScreenSound('titleBgm','title-'+String(Date.now()),true,.72);}catch(_){}
- await wait(3200);
+ try{playScreenSound('titleBgm','title-'+String(Date.now()),true,.72).catch(()=>{});}catch(_){}
+
+ /*
+   참고 영상의 핵심 타이밍:
+   - 첫 글자가 먼저 크게 들어옴
+   - 다음 글자들이 짧은 간격으로 겹치며 들어옴
+   - 약 1.8~2초에 네 글자가 완성됨
+   - 이후에는 각 글자가 독립적으로 미세하게 움직임
+ */
+ // 각 글자는 이전 글자의 착지가 끝난 뒤에만 시작합니다.
+ // 따라서 네 글자가 동시에 등장하거나 서로 겹쳐 들어오는 일이 없습니다.
+ for(let i=0;i<cards.length;i++){
+   if(token!==seqToken)return;
+   const card=cards[i];
+   card.classList.remove('is-idle','is-entering');
+   void card.offsetWidth;
+   card.classList.add('is-entering');
+
+   // 효과음은 첫 글자 '늑'이 등장하는 순간에만 한 번 재생합니다.
+   // await하지 않아 애니메이션 시작과 동시에 효과음 재생을 시도합니다.
+   if(i===0){
+     try{playScreenEffect('sounds/countdown.mp3',`title-wallhit-first-${Date.now()}`).catch(()=>{});}catch(_){}
+   }
+
+   await new Promise(resolve=>{
+     let done=false;
+     const finish=()=>{
+       if(done)return;
+       done=true;
+       card.removeEventListener('animationend',finish);
+       resolve();
+     };
+     card.addEventListener('animationend',finish,{once:true});
+     // 애니메이션 이벤트가 브라우저에서 누락될 경우를 위한 안전장치
+     setTimeout(finish,390);
+   });
+   if(token!==seqToken)return;
+
+   card.classList.remove('is-entering');
+   card.classList.add('is-idle');
+   await wait(10);
+ }
+
  if(token!==seqToken)return;
 }
-async function playTitle2(){stopScreenSound('titleBgm');await playScreenSound('title2Bgm','title2',true,.48);}
+
 async function roleSelectSequence(){
+ const bgm=$('roleSelectionBgm');
+ if(bgm){try{bgm.pause();bgm.currentTime=0;}catch(e){}}
  show('s-role');
  const players=await getPlayers(),board=$('cards');if(!board)return;
  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}:${x.card_position}`).join('|');
@@ -1663,8 +1463,12 @@ async function screenNightWarning(g){
  if(screenNightPreTimer)clearInterval(screenNightPreTimer);
  screenNightPreTimer=setInterval(()=>tick().catch(()=>{}),100);
 }
-async function playTrialBgm(){await playScreenSound("trialBgm","trial-bgm",true,.45)}
-function stopTrialBgm(){stopScreenSound("trialBgm")}
+async function playTrialBgm(){
+ const a=$('trialBgm');
+ if(!a)return;
+ try{a.loop=true;a.volume=.45;await a.play();}catch(_){}
+}
+function stopTrialBgm(){try{const a=$('trialBgm');if(a){a.pause();a.currentTime=0;}}catch(_){}}
 async function renderTrialScene(g){show('s-trial');}
 async function sabotageSequence(ev){
  const token=++seqToken;
@@ -1711,16 +1515,6 @@ function renderScreenVictory(winner){
  (winner==="WOLF"?'<svg viewBox="0 0 300 300"><path d="M62 92 L98 28 L145 65 L155 65 L202 28 L238 92 L226 190 Q211 250 150 270 Q89 250 74 190 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M100 140 Q120 120 140 140 M160 140 Q180 120 200 140" fill="none" stroke="currentColor" stroke-width="11"/><path d="M132 175 Q150 188 168 175" fill="none" stroke="currentColor" stroke-width="11"/></svg>':'<svg viewBox="0 0 300 300"><path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/></svg>')+
  '</div><div class="screenVictoryTitle">'+title+'</div></div>';
 }
-async function renderNextRoundPrepScreen(g){
- show('s-nextRoundPrep');
- const rows=(await db.from('players').select('id,name,role,status').order('created_at')).data||[];
- const root=$('screenNextRoundFaces');
- if(root){root.innerHTML=rows.map(x=>{const dead=String(x.status||'').toUpperCase()!=='ALIVE';const src=(publicWolf && String(x.role||'').toUpperCase()==='WOLF')?'assets/wolf.png':'assets/sheep.png';return '<div style="position:relative"><img class="'+(dead?'dead':'')+'" src="'+src+'" alt="">'+(dead?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;color:#ff3347;font-weight:1000">×</div>':'')+'</div>'}).join('');}
- const alive=rows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE').length; if($('screenNextRoundRemaining'))$('screenNextRoundRemaining').textContent=`남은 플레이어는 ${alive}명 입니다.`;
- const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/); const until=m?Number(m[1]):Date.now()+6000; const publicWolf=!!(m&&m[3]==='PUBLIC_WOLF');
- if(window.__screenNextPrepTimer)clearTimeout(window.__screenNextPrepTimer);
- window.__screenNextPrepTimer=setTimeout(async()=>{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='NEXT_ROUND_PREP')return;const round=m?Number(m[2]):Number(latest.current_round||1);const next=round+1;await db.from('mission_completions').delete().eq('game_round',round);await db.from('wolf_attempts').delete().eq('game_round',round);await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','NEXT_ROUND_PREP');},Math.max(0,until-Date.now()));
-}
 async function handlePhase(g,initial=false){
  if(!unlocked)return;
  window.__screenLatestSettings=g;
@@ -1738,33 +1532,32 @@ async function handlePhase(g,initial=false){
  const prev=lastPhase,prevReady=lastReady;
  lastPhase=phase;lastReady=!!g.ready;seqToken++;
 
- if(phase==='NEXT_ROUND_PREP'){await renderNextRoundPrepScreen(g);return;}
  if(phase==='LOBBY'){
-   stopAllScreenBgm();
+   stopTrialBgm();
    // 승리 화면에서 다음 라운드/초기화가 오면 반드시 결과 화면을 벗어납니다.
    if(g.ready&&!prevReady){
      await titleSequence();
    }else{
      show('s-idle');
-     stopScreenSound('titleBgm');
+     stopAudio($('titleBgm'));
    }
    return;
  }
- if(phase==='ROLE_INTRO'){stopAllScreenBgm();await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);show('s-roleIntro');await wait(3000);return;}
- if(phase==='ROLE_SELECT'){await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);await roleSelectSequence();return;}
- if(phase==='ROLE_REVEAL'){await playScreenSound('roleSelectionBgm','role-selection-bgm',true,.45);await roleRevealSequence();return;}
- if(phase==='COUNTDOWN'){stopScreenSound('roleSelectionBgm');await playScreenSound('gameStartBgm','game-start-bgm',true,.45);await countdownSequence(g);return;}
+ if(phase==='ROLE_INTRO'){await roleIntroSequence();return;}
+ if(phase==='ROLE_SELECT'){await roleSelectSequence();return;}
+ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
+ if(phase==='COUNTDOWN'){stopTrialBgm();await countdownSequence(g);return;}
  if(phase==='PLAY'){
-   stopScreenSound('gameStartBgm');stopScreenSound('trialBgm');
+   stopTrialBgm();
    if(String(g.notice||'').startsWith('NIGHT_WARNING|')){await screenNightWarning(g);return;}
    window.__screenNightWarningKey=null;
    show('s-main');updateScreenRoundTimer(g);await playTitle2();return;
  }
  if(phase==='NIGHT'){await renderScreenNight(g);return;}
- if(phase==='INVESTIGATION'){stopAllScreenBgm();await playScreenEffect('sounds/body-found.mp3','screen-investigation-'+String(g.current_round)).catch(()=>{});await investigationSequence(g);return;}
- if(phase==='TRIAL'){stopScreenSound('roleSelectionBgm');stopScreenSound('gameStartBgm');await playTrialBgm();await trialIntroSequence(g);return;}
+ if(phase==='INVESTIGATION'){await investigationSequence(g);return;}
+ if(phase==='TRIAL'){await trialIntroSequence(g);return;}
  if(phase==='FINISHED'){
-   stopAllScreenBgm();
+   stopTrialBgm();
    const winner=String(g.winner||'').toUpperCase();
    if(winner==='WOLF'||winner==='SHEEP'){
      renderScreenVictory(winner);
@@ -1808,79 +1601,9 @@ function startScreenTrialResultWatcher(){
 }
 
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
-async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
-function subscribe(){
-  db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>{
-    const next=payload.new||{};
-    // 스크린 시작 시점에 이미 DB에 존재하던 상태/지연된 realtime payload는
-    // 절대로 새 단계로 취급하지 않습니다. 반드시 시작 이후의 새로운 UPDATE여야 합니다.
-    if(!unlocked || !screenStartupBaseline)return;
-    if(!screenStartupLive){
-      if(Date.now()<screenStartupLockUntil)return;
-      const base=screenStartupBaseline;
-      const nextUpdated=String(next.updated_at||'');
-      const baseUpdated=String(base.updated_at||'');
-      const hasNewTimestamp=!!nextUpdated && !!baseUpdated && nextUpdated!==baseUpdated && Date.parse(nextUpdated)>Date.parse(baseUpdated);
-      const changed=String(next.phase||'LOBBY').toUpperCase()!==String(base.phase||'LOBBY').toUpperCase() ||
-                    !!next.ready!==!!base.ready ||
-                    String(next.notice||'')!==String(base.notice||'') ||
-                    Number(next.current_round||0)!==Number(base.current_round||0) ||
-                    !!next.started!==!!base.started;
-      // phase/ready/notice 등이 실제로 바뀌었고, 가능하면 updated_at도 시작 시점보다
-      // 새 값이어야만 첫 live 이벤트로 인정합니다.
-      if(!changed)return;
-      if(baseUpdated && nextUpdated && !hasNewTimestamp)return;
-      screenStartupLive=true;
-      screenStartupLockUntil=0;
-    }
-    handlePhase(next);
-  }).subscribe();
-  db.channel('wolf-game-screen-notices-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>{
-    if(Date.now()<screenStartupLockUntil)return;
-    onNotification(payload.new||{});
-  }).subscribe();
-  db.channel('wolf-game-screen-sabotage-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'sabotage_events'},payload=>{
-    if(Date.now()<screenStartupLockUntil)return;
-    sabotageSequence(payload.new||{});
-  }).subscribe();
-  setInterval(async()=>{
-    if(!unlocked)return;
-    try{
-      const current=await getSettings();
-      // 보호 구간 중에는 DB의 현재 상태가 시작 시점 snapshot과 달라졌을 때만
-      // 실제 새 단계로 인정합니다. 오래된 realtime payload는 처리하지 않습니다.
-      if(!screenStartupLive){
-        if(Date.now()<screenStartupLockUntil)return;
-        const base=screenStartupBaseline;
-        if(!base)return;
-        const phase=String(current.phase||'LOBBY').toUpperCase();
-        const changed=phase!==String(base.phase||'LOBBY').toUpperCase() ||
-                      !!current.ready!==!!base.ready ||
-                      String(current.notice||'')!==String(base.notice||'') ||
-                      Number(current.current_round||0)!==Number(base.current_round||0) ||
-                      !!current.started!==!!base.started;
-        if(!changed)return;
-        const baseUpdated=String(base.updated_at||'');
-        const currentUpdated=String(current.updated_at||'');
-        if(baseUpdated && currentUpdated && Date.parse(currentUpdated)<=Date.parse(baseUpdated))return;
-        screenStartupLive=true;
-        screenStartupLockUntil=0;
-      }
-      await handlePhase(current);
-    }catch(e){}
-  },1000);
-}
-$('unlockBtn').addEventListener('click',async()=>{
-  await unlock();
-  // 시작 버튼 이전에 쌓여 있던 재판 결과 알림은 새 스크린 시작 이벤트로 취급하지 않습니다.
-  try{
-    const r=await db.from('notifications').select('id').is('target_player',null).eq('notification_type','TRIAL_RESULT').order('id',{ascending:false}).limit(1);
-    screenTrialResultNotificationMinId=Number(r.data?.[0]?.id||0);
-  }catch(_){}
-  startScreenTrialResultWatcher();
-});
-subscribe();
+async function onNotification(n){if(!unlocked||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
+function subscribe(){db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>handlePhase(payload.new||{})).subscribe();db.channel('wolf-game-screen-notices-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>onNotification(payload.new||{})).subscribe();db.channel('wolf-game-screen-sabotage-v174').on('postgres_changes',{event:'INSERT',schema:'public',table:'sabotage_events'},payload=>sabotageSequence(payload.new||{})).subscribe();setInterval(async()=>{if(!unlocked)return;try{await handlePhase(await getSettings())}catch(e){}},1000)}
+$('unlockBtn').addEventListener('click',async()=>{await unlock();startScreenTrialResultWatcher();});subscribe();
 </script>
 </body>
 </html>
-
