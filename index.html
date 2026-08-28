@@ -1286,6 +1286,17 @@ body{background:#020204!important}
  filter:blur(1px)!important;
 }
 
+
+/* Login + lobby: no title/header and no background image. */
+body.noWolfChrome,
+body.noWolfChrome .wrap{
+  background:#020203!important;
+  background-image:none!important;
+}
+body.noWolfChrome .wolfHeader{
+  display:none!important;
+}
+
 /* v189: unified dark horror system */
 @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Dokdo&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
 :root{
@@ -1344,6 +1355,40 @@ body{
  border:1px solid rgba(145,0,22,.45)!important;
  box-shadow:inset 0 0 35px #000,0 18px 50px rgba(0,0,0,.8)!important;
 }
+
+/* 로그인 후 대기화면: 제목/카드/배경 장식을 제거하고 안내문만 표시 */
+#lobby{
+ background:#000!important;
+}
+#lobby .lobbyLogoutBtn{display:block!important;width:min(320px,80%);margin:32px auto 0;padding:11px 13px;}
+#lobby .lobbyWaitingMessage{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:10px;
+ width:100%;
+ min-height:100%;
+ color:#fff;
+ font-size:clamp(24px,3.2vw,44px);
+ line-height:1.45;
+ font-weight:900;
+ text-align:center;
+ text-shadow:0 2px 12px rgba(0,0,0,.8);
+}
+#lobby .card,#lobby .row,#lobby .pill,#lobby .notice,#lobby #roleText{display:none!important;}
+/* 준비완료 이후 대기화면 전용: 로그인 직후 대기화면은 기존 검정 화면 유지 */
+#lobby .lobbyReadyBackdrop,#lobby .lobbyReadyTitleWrap{display:none;}
+#lobby.readyWaiting{position:relative!important;overflow:hidden!important;background:#020203!important;}
+#lobby.readyWaiting .lobbyReadyBackdrop{display:block;position:absolute;inset:-5%;z-index:0;background:linear-gradient(rgba(0,0,0,.46),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);transform:scale(1.06);animation:lobbyReadyBgIdle 7s ease-in-out infinite alternate;}
+#lobby.readyWaiting .lobbyReadyTitleWrap{display:flex;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;pointer-events:none;}
+#lobby.readyWaiting .lobbyReadyTitle{width:min(78vw,900px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:lobbyReadyTitleIdle 4s ease-in-out infinite alternate;}
+#lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin-top:clamp(260px,34vh,420px);}
+#lobby.readyWaiting .lobbyLogoutBtn{position:relative;z-index:3;}
+@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
+@keyframes lobbyReadyTitleIdle{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.012)}}
+
+
 #login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
  font-family:var(--wolf-title-font)!important;
  text-shadow:3px 4px 0 #30040a,0 0 22px rgba(180,0,30,.6)!important;
@@ -1542,14 +1587,28 @@ body{
   text-shadow:3px 4px 0 #26030a,0 0 18px rgba(170,0,25,.55)!important;
 }
 
+</style>
 
-/* ROLE INTRO v1: spreadsheet flow — black → table image only */
-#roleSelect.roleIntroTableOnly{background:#000!important;overflow:hidden!important}
-#roleSelect.roleIntroTableOnly .roleSelectBackdrop,#roleSelect.roleIntroTableOnly .roleSelectInk{display:none!important}
-#roleSelect.roleIntroTableOnly .roleSelectHeader,#roleSelect.roleIntroTableOnly #roleCards,#roleSelect.roleIntroTableOnly #roleSelectStatus,#roleSelect.roleIntroTableOnly #roleWait{visibility:hidden!important;opacity:0!important}
-#roleSelect.roleIntroTableOnly .roleSelectTable{position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;width:100vw!important;height:100vh!important;margin:0!important;transform:translate(-50%,-50%)!important;border:0!important;border-radius:0!important;background:#000!important;box-shadow:none!important;opacity:1!important;overflow:hidden!important;z-index:2!important}
-#roleSelect.roleIntroTableOnly .roleIntroTableImage{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:0!important;animation:roleIntroTableFadeIn .9s ease 2.5s forwards!important}
-@keyframes roleIntroTableFadeIn{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
+<style id="spreadsheet-stage-fix-index">
+.loginInstruction{font-size:clamp(20px,2.8vw,34px);font-weight:900;line-height:1.5;text-align:center;margin:0 0 20px}
+.roleIntroVisual{position:absolute;inset:0;z-index:1}
+.roleIntroTableImg{position:absolute;left:50%;bottom:4%;width:min(94vw,1200px);height:58vh;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 -18px 45px rgba(255,0,128,.22))}
+.roleIntroTitleImages,.roleSelectImageTitle{display:flex;align-items:center;justify-content:center;gap:clamp(3px,.7vw,12px)}
+.roleIntroTitleImages{position:absolute;top:7%;left:50%;transform:translateX(-50%);z-index:4}
+.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(52px,7vw,112px);height:auto;object-fit:contain;opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r,0deg));animation:idxTitleIn .52s cubic-bezier(.15,.9,.2,1) forwards}
+.roleIntroTitleImages img:nth-child(1),.roleSelectImageTitle img:nth-child(1){--r:-7deg;animation-delay:.05s}
+.roleIntroTitleImages img:nth-child(2),.roleSelectImageTitle img:nth-child(2){--r:3deg;animation-delay:.20s}
+.roleIntroTitleImages img:nth-child(3),.roleSelectImageTitle img:nth-child(3){--r:-5deg;animation-delay:.35s}
+.roleIntroTitleImages img:nth-child(4),.roleSelectImageTitle img:nth-child(4){--r:7deg;animation-delay:.50s}
+.roleIntroMessage{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);z-index:5;font-size:clamp(24px,3.5vw,54px);font-weight:1000;white-space:nowrap;text-shadow:0 0 24px rgba(255,0,128,.7)}
+.roleSelectStage.roleIntroTableOnly .roleIntroVisual{display:block}
+.roleSelectStage.roleIntroTableOnly .roleSelectHeader,.roleSelectStage.roleIntroTableOnly #roleCards,.roleSelectStage.roleIntroTableOnly #roleSelectStatus,.roleSelectStage.roleIntroTableOnly #roleWait{visibility:hidden}
+.roleSelectStage:not(.roleIntroTableOnly) .roleIntroVisual{display:none}
+.roleSelectImageTitle{gap:clamp(3px,.7vw,12px)}
+.roleSelectImageTitle img{opacity:1;animation:none;transform:rotate(var(--r,0deg))}
+.roleSelectTable img{width:100%;height:100%;object-fit:contain;display:block}
+@keyframes idxTitleIn{0%{opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r))}70%{opacity:1;transform:translateY(-3px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
+@media(max-width:600px){.roleIntroMessage{font-size:20px}.roleIntroTableImg{height:52vh}.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(42px,11vw,76px)}}
 </style>
 </head>
 <body class="wolf-v181">
@@ -1564,12 +1623,18 @@ body{
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><h1>게임 입장</h1><p class="muted">이름을 입력하십시오. <b>관리자</b>를 입력하면 관리자 화면으로 입장합니다.</p>
-<input id="name" placeholder="성명" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">입장</button><div id="loginStatus"></div></div>
+<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>을 모두 입력하여 로그인하여 주세요.</p>
+<input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
 <section id="lobby" class="screen">
-<div class="card"><div class="row"><h1 style="flex:1">대기실</h1><span class="pill" id="role"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
+  <div class="lobbyReadyBackdrop" aria-hidden="true"></div>
+  <div class="lobbyReadyTitleWrap" aria-hidden="true"><img class="lobbyReadyTitle" src="assets/wolf_game_title.png" alt=""></div>
+  <div class="lobbyWaitingMessage">
+    <div>곧 게임이 시작됩니다.</div>
+    <div>대기하여 주십시오.</div>
+  </div>
+  <button id="lobbyLogoutBtn" class="secondary lobbyLogoutBtn" type="button" onclick="playerLogout()">로그아웃</button>
 </section>
 
 <section id="player" class="screen">
@@ -1683,8 +1748,17 @@ body{
 
 <section id="roleSelect" class="screen roleSelectStage">
 <div class="roleSelectBackdrop"></div><div class="roleSelectInk"></div>
-<div class="roleSelectHeader"><div class="roleSelectTitle"><span>카</span><span>드</span><span>선</span><span>택</span></div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요</div></div>
-<div class="roleSelectTable"><img class="roleIntroTableImage" src="assets/table.png" alt="테이블"></div>
+<div class="roleIntroVisual">
+  <img class="roleIntroTableImg" src="assets/table.png" alt="">
+  <div class="roleIntroTitleImages" aria-label="역할선정">
+    <img src="assets/role_selection_01_역.png" alt=""><img src="assets/role_selection_02_할.png" alt=""><img src="assets/role_selection_03_선.png" alt=""><img src="assets/role_selection_04_정.png" alt="">
+  </div>
+  <div class="roleIntroMessage">지금부터 양과 늑대를 정하겠습니다.</div>
+</div>
+<div class="roleSelectHeader"><div class="roleSelectTitle roleSelectImageTitle" aria-label="카드선택">
+  <img src="assets/card_selection_01_카.png" alt=""><img src="assets/card_selection_02_드.png" alt=""><img src="assets/card_selection_03_선.png" alt=""><img src="assets/card_selection_04_택.png" alt="">
+</div><div class="roleSelectSub" id="roleSelectSub">원하는 카드를 터치하세요.</div></div>
+<div class="roleSelectTable"><img src="assets/table.png" alt=""></div>
 <div id="roleCards" class="roleSelectBoard"></div>
 <div id="roleSelectStatus" class="roleSelectStatus">선택 대기</div>
 <div id="roleWait" class="roleSelectWait">카드를 선택하면 다른 행동을 할 수 없습니다. 모든 플레이어의 선택을 기다립니다.</div>
@@ -1948,14 +2022,14 @@ function stopAllTimers(){
 }
 
 const SOUND_FILES={
- roleSelectionBgm:"sounds/role-selection-bgm.mp3",
- gameStartBgm:"sounds/game-start-bgm.mp3",
+
+
  trialBgm:"sounds/trial-bgm.mp3",
- countdown5:"sounds/countdown-5.mp3",
- countdown4:"sounds/countdown-4.mp3",
- countdown3:"sounds/countdown-3.mp3",
- countdown2:"sounds/countdown-2.mp3",
- countdown1:"sounds/countdown-1.mp3",
+
+
+
+
+
  morning:"sounds/morning.mp3",
  login:"sounds/login.mp3",
  button:"sounds/button.mp3",
@@ -2066,10 +2140,16 @@ document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:tru
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
 window.addEventListener("focus",()=>activateStageAudio());
 
+/* v-login-lobby-chrome: login/lobby have no wolfHeader and no image background. */
+function syncLoginLobbyChrome(id){
+  const hideChrome = id === "login" || id === "lobby";
+  document.body.classList.toggle("noWolfChrome", hideChrome);
+}
 function el(id){return document.getElementById(id);}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
+ syncLoginLobbyChrome(id);
  const target=el(id);
  if(!target)return;
  const alreadyActive=target.classList.contains("active") && target.style.display!=="none";
@@ -2483,27 +2563,16 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
- el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
- el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
- el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
+ // 로그인 직후 대기 단계와 준비완료 이후 대기 단계를 구분합니다.
+ el("lobby").classList.toggle("readyWaiting",!!g.ready);
+ // 로그인 직후 대기 단계에서는 플레이어의 역할/관리자 공지 등을 노출하지 않습니다.
+ showScreen("lobby");
+ stopAllTimers();
 }
 
 
-async function startAdminRoleSelectionBgm(){
- try{
-  const a=audio.roleSelectionBgm;if(!a)return;
-  a.loop=true;a.volume=.45;
-  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
-  a.currentTime=0;
-  await a.play();
- }catch(e){console.warn("관리자 역할 선정 BGM 재생 실패:",e);}
-}
-function stopRoleSelectionBgm(){
- try{
-  const a=audio.roleSelectionBgm;
-  if(a){a.pause();a.currentTime=0;}
- }catch(e){}
-}
+async function startAdminRoleSelectionBgm(){ return; }
+function stopRoleSelectionBgm(){ return; }
 
 
 let nightPreTimer=null;
@@ -2600,17 +2669,12 @@ async function renderPlayerTrialResult(data){
 }
 async function renderRoleIntro(){
  const roleSelect=el("roleSelect");
- if(!roleSelect)return;
- roleSelect.classList.add("roleIntroTableOnly");
- roleSelect.classList.remove("roleIntroReset");
- void roleSelect.offsetWidth;
- roleSelect.classList.add("roleIntroReset");
+ if(roleSelect)roleSelect.classList.add("roleIntroTableOnly");
  await showScreen("roleSelect");
- // 스크린의 역할선정 연출과 동기화: 테이블 등장 → 타이틀/문구 → 3초 대기 후 카드선택
- await new Promise(r=>setTimeout(r,7600));
- if(roleSelect)roleSelect.classList.remove("roleIntroTableOnly","roleIntroReset");
+ await new Promise(r=>setTimeout(r,2500));
+ if(roleSelect)roleSelect.classList.remove("roleIntroTableOnly");
  const g=await settings();
- if(String(g.phase).toUpperCase()==="ROLE_INTRO"){
+ if(g.phase==="ROLE_INTRO"){
    await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});
  }
 }
@@ -4012,63 +4076,16 @@ function stopGameStartBgm(){
  }catch(e){}
 }
 
-async function startAdminLoopBgm(name){
- if(localStorage.getItem("wolf_game_admin_v7")!=="1")return;
- try{
-  const a=audio[name];
-  if(!a)return;
-  a.loop=true;a.volume=.45;
-  if(audioContext && audioContext.state==="suspended")await audioContext.resume();
-  if(a.paused){
-   a.currentTime=0;
-   await a.play();
-  }
- }catch(e){console.warn("관리자 BGM 재생 실패:",name,e);}
-}
-function stopAdminBgm(name){
- try{
-  const a=audio[name];
-  if(a){a.pause();a.currentTime=0;}
- }catch(e){}
-}
-function stopAllAdminBgm(){
- stopRoleSelectionBgm();
- stopGameStartBgm();
- stopAdminBgm("trialBgm");
-}
+async function startAdminLoopBgm(){ return; }
+function stopAdminBgm(){ return; }
+function stopAllAdminBgm(){ return; }
 
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
- if(countdownTimer && document.querySelector("#gameCountdown.screen.active"))return;
  await showScreen("gameCountdown");
- const root=el("gameCountdown");
- root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"></div></div>';
- const content=el("gameStartContent");
- if(!content)return;
- if(countdownTimer)clearInterval(countdownTimer);
- const sequence=async()=>{
-   content.innerHTML='<div class="gameStartMessage">지금부터 게임을 시작하겠습니다.</div>';
-   await new Promise(r=>setTimeout(r,5000));
-   for(let n=5;n>=1;n--){
-     content.innerHTML='<div class="gameStartCount">'+n+'</div>';
-     await playSound("countdown"+n,"game-countdown-"+g.current_round+"-"+n+"-"+Date.now());
-     await new Promise(r=>setTimeout(r,2000));
-   }
-   content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
-   await playSound("gameStart","game-start-title-"+g.current_round+"-"+Date.now());
-   await new Promise(r=>setTimeout(r,4000));
-   const latest=await settings();
-   if(latest.phase==="COUNTDOWN"){
-     // 카운트다운이 끝난 이 시점부터 실제 라운드 시간이 시작됩니다.
-     const startedAt=new Date().toISOString();
-     await set({phase:"PLAY",notice:"게임이 시작되었습니다.",round_started_at:startedAt});
-   }
-   countdownTimer=null;
- };
- countdownTimer={running:true};
- sequence().catch(e=>{console.error("게임 시작 연출:",e);countdownTimer=null;});
+ const root=el("gameCountdown");if(!root)return;
+ root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">곧 게임이 시작됩니다.</div></div></div>';
 }
-
 async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
  const g=await settings(),done=busy(document.querySelector('#admin button[onclick*="nextRound"]'),"다음 라운드 준비 중...");
