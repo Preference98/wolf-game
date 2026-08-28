@@ -1558,6 +1558,17 @@ body{
 #roleSelect.roleIntroTableOnly .roleSelectTable{position:absolute!important;inset:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:#000!important;box-shadow:none!important;transform:none!important;opacity:1!important;z-index:1!important}
 #roleSelect.roleIntroTableOnly .roleSelectTable img.roleIntroTableImage{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:1!important}
 #roleSelect.roleIntroTableOnly .roleSelectTable:after{display:none!important}
+
+/* FIX: 로그인/로그인 직후 대기화면 확정 상태 */
+.wolfHeader{display:none!important;}
+body{background:#000!important;}
+.wrap{background:#000!important;}
+#login{background:#000!important;}
+#lobby{background:#000!important;}
+#login .card{background:transparent!important;border:0!important;box-shadow:none!important;}
+#login .loginInstruction{color:#fff!important;}
+#lobby .lobbyWaitingMessage{color:#fff!important;}
+#lobby .lobbyLogoutBtn{display:block!important;}
 </style>
 
 <style id="fixed-login-lobby-2026-08-28-030000">
@@ -1582,7 +1593,7 @@ html,body{background:#000!important;}
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><p class="loginInstruction">본인의 <span style="color:#32e875;font-weight:1000">성</span>과 <span style="color:#32e875;font-weight:1000">이름</span>을 모두 입력하여 로그인하여 주세요.</p>
+<div class="card"><p class="loginInstruction">이름을 입력하여 로그인하여 주세요.</p>
 <input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
 </section>
 
