@@ -1609,6 +1609,11 @@ body{
 .roleSelectTable img{width:100%;height:100%;object-fit:contain;display:block}
 @keyframes idxTitleIn{0%{opacity:0;transform:translateY(24px) scale(.84) rotate(var(--r))}70%{opacity:1;transform:translateY(-3px) scale(1.04) rotate(var(--r))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--r))}}
 @media(max-width:600px){.roleIntroMessage{font-size:20px}.roleIntroTableImg{height:52vh}.roleIntroTitleImages img,.roleSelectImageTitle img{width:clamp(42px,11vw,76px)}}
+
+/* ROLE_INTRO 새 구현: 플레이어는 테이블만 표시 */
+#roleIntro.roleIntroStageNew{position:fixed!important;inset:0!important;margin:0!important;padding:0!important;background:#000!important;overflow:hidden!important;}
+#roleIntro .roleIntroTableOnly{position:absolute!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#000!important;opacity:1!important;}
+#roleIntro .roleIntroTableOnly img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;}
 </style>
 </head>
 <body class="wolf-v181">
@@ -1742,8 +1747,8 @@ body{
 </section>
 
 
-<section id="roleIntro" class="screen">
-<div class="fullStage show" id="roleIntroStage"><div><h1>지금부터 양과 늑대를<br>선정하겠습니다.</h1></div></div>
+<section id="roleIntro" class="screen roleIntroStageNew">
+  <div class="roleIntroTableOnly"><img src="assets/table.png" alt=""></div>
 </section>
 
 <section id="roleSelect" class="screen roleSelectStage">
@@ -2668,15 +2673,13 @@ async function renderPlayerTrialResult(data){
  else if(String(g.phase).toUpperCase()==="PLAY")await renderPlayer();
 }
 async function renderRoleIntro(){
- const roleSelect=el("roleSelect");
- if(roleSelect)roleSelect.classList.add("roleIntroTableOnly");
- await showScreen("roleSelect");
- await new Promise(r=>setTimeout(r,2500));
- if(roleSelect)roleSelect.classList.remove("roleIntroTableOnly");
- const g=await settings();
- if(g.phase==="ROLE_INTRO"){
-   await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});
- }
+  stopAllTimers();
+  await showScreen("roleIntro");
+  await new Promise(r=>setTimeout(r,2500));
+  const g=await settings();
+  if(String(g.phase).toUpperCase()==="ROLE_INTRO"){
+    await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});
+  }
 }
 
 async function renderRoleSelect(p,g){
