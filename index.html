@@ -2674,12 +2674,9 @@ async function renderPlayerTrialResult(data){
 }
 async function renderRoleIntro(){
   stopAllTimers();
+  // 역할선정 단계의 phase 전환은 screen의 연출이 끝난 뒤에만 수행합니다.
+  // 플레이어 화면에서는 테이블을 표시한 채 ROLE_INTRO 상태를 유지합니다.
   await showScreen("roleIntro");
-  await new Promise(r=>setTimeout(r,2500));
-  const g=await settings();
-  if(String(g.phase).toUpperCase()==="ROLE_INTRO"){
-    await set({phase:"ROLE_SELECT",notice:"카드를 선택하십시오."});
-  }
 }
 
 async function renderRoleSelect(p,g){
