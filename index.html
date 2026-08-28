@@ -1550,50 +1550,13 @@ body{
 #roleSelect.roleIntroTableOnly .roleSelectTable{position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;width:100vw!important;height:100vh!important;margin:0!important;transform:translate(-50%,-50%)!important;border:0!important;border-radius:0!important;background:#000!important;box-shadow:none!important;opacity:1!important;overflow:hidden!important;z-index:2!important}
 #roleSelect.roleIntroTableOnly .roleIntroTableImage{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:0!important;animation:roleIntroTableFadeIn .9s ease 2.5s forwards!important}
 @keyframes roleIntroTableFadeIn{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
-<style>
-/* ROLE INTRO PATCH 2026-08-28-025401: player shows only the real table image */
-#roleSelect.roleIntroTableOnly{background:#000!important;overflow:hidden!important}
-#roleSelect.roleIntroTableOnly .roleSelectBackdrop,
-#roleSelect.roleIntroTableOnly .roleSelectInk{display:none!important}
-#roleSelect.roleIntroTableOnly .roleSelectTable{position:absolute!important;inset:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:#000!important;box-shadow:none!important;transform:none!important;opacity:1!important;z-index:1!important}
-#roleSelect.roleIntroTableOnly .roleSelectTable img.roleIntroTableImage{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:1!important}
-#roleSelect.roleIntroTableOnly .roleSelectTable:after{display:none!important}
-
-/* FIX: 로그인/로그인 직후 대기화면 확정 상태 */
-.wolfHeader{display:none!important;}
-body{background:#000!important;}
-.wrap{background:#000!important;}
-#login{background:#000!important;}
-#lobby{background:#000!important;}
-#login .card{background:transparent!important;border:0!important;box-shadow:none!important;}
-#login .loginInstruction{color:#fff!important;}
-#lobby .lobbyWaitingMessage{color:#fff!important;}
-#lobby .lobbyLogoutBtn{display:block!important;}
-</style>
-
-<style id="fixed-login-lobby-2026-08-28-030000">
-/* Preserve previously fixed login/lobby appearance. */
-html,body{background:#000!important;}
-.wrap{background:#000!important;box-shadow:none!important;}
-.wolfHeader{display:none!important;}
-#login{background:#000!important;min-height:100vh!important;}
-#login .card{background:#000!important;border:0!important;box-shadow:none!important;}
-#lobby{background:#000!important;min-height:100vh!important;position:relative!important;overflow:hidden!important;}
-#lobby .lobbyReadyBackdrop{display:none;position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);z-index:0;}
-#lobby.readyWaiting .lobbyReadyBackdrop{display:block;}
-#lobby .lobbyReadyContent{display:none;position:relative;z-index:2;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:30px;}
-#lobby.readyWaiting .lobbyReadyContent{display:flex;}
-#lobby .lobbyReadyTitle{width:min(78vw,900px);height:auto;max-width:none;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:playerReadyTitleIdle 4s ease-in-out infinite alternate;}
-#lobby .lobbyReadyText{margin-top:34px;color:#fff;font-size:clamp(22px,3.1vw,42px);font-weight:900;line-height:1.45;text-shadow:0 2px 16px #000;}
-@keyframes playerReadyTitleIdle{from{transform:scale(1) translateY(0)}to{transform:scale(1.018) translateY(-5px)}}
-#lobby{background:#000!important;min-height:100vh!important;}
-#lobby .card,#lobby .row,#lobby .pill,#lobby .notice,#lobby #roleText{display:none!important;}
-#lobby .lobbyWaitingMessage{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;width:100%!important;min-height:100vh!important;color:#fff!important;font-size:clamp(24px,3.2vw,44px)!important;line-height:1.45!important;font-weight:900!important;text-align:center!important;text-shadow:0 2px 12px rgba(0,0,0,.8)!important;}
-#lobby .lobbyLogoutBtn{display:block!important;width:min(320px,80%)!important;margin:32px auto 0!important;}
 </style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
+<header class="wolfHeader">
+  <div class="wolfHeaderTitle" aria-label="늑대게임"><span>늑</span><span>대</span><span>게</span><span>임</span></div>
+</header>
 <main>
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
   <b>게임 화면을 불러오는 중 오류가 발생했습니다.</b>
@@ -1601,21 +1564,12 @@ html,body{background:#000!important;}
 </div>
 
 <section id="login" class="screen active" style="display:block">
-<div class="card"><p class="loginInstruction">이름을 입력하여 로그인하여 주세요.</p>
-<input id="name" placeholder="이름을 입력하여 주세요" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">로그인</button><div id="loginStatus"></div></div>
+<div class="card"><h1>게임 입장</h1><p class="muted">이름을 입력하십시오. <b>관리자</b>를 입력하면 관리자 화면으로 입장합니다.</p>
+<input id="name" placeholder="성명" autocomplete="name"><button id="joinBtn" style="width:100%" onclick="join()">입장</button><div id="loginStatus"></div></div>
 </section>
 
 <section id="lobby" class="screen">
-  <div class="lobbyReadyBackdrop" aria-hidden="true"></div>
-  <div class="lobbyWaitingMessage" id="lobbyWaitingMessage">
-    <div>곧 게임이 시작됩니다.</div>
-    <div>대기하여 주십시오.</div>
-  </div>
-  <div class="lobbyReadyContent" id="lobbyReadyContent">
-    <img class="lobbyReadyTitle" src="assets/wolf_game_title.png" alt="늑대게임">
-    <div class="lobbyReadyText">곧 게임이 시작됩니다.<br>대기하여 주십시오.</div>
-    <button id="lobbyLogoutBtn" class="secondary lobbyLogoutBtn" type="button" onclick="playerLogout()">로그아웃</button>
-  </div>
+<div class="card"><div class="row"><h1 style="flex:1">대기실</h1><span class="pill" id="role"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div><div id="lobbyNotice" class="notice"></div><div id="roleText" class="muted"></div></div>
 </section>
 
 <section id="player" class="screen">
@@ -2529,21 +2483,9 @@ async function route(){
 
 async function renderLobby(p,g){
  stopPlayerTrialBgm();
- const role=el("role");
- const roleText=el("roleText");
- const lobbyNotice=el("lobbyNotice");
- if(role){role.textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";}
- if(roleText){roleText.innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";}
- if(lobbyNotice){lobbyNotice.textContent=g.notice||"게임 시작을 기다리고 있습니다.";}
- const lobby=el("lobby");
- const ready=!!g.ready;
- if(lobby)lobby.classList.toggle("readyWaiting",ready);
- const waiting=el("lobbyWaitingMessage");
- const readyContent=el("lobbyReadyContent");
- if(waiting)waiting.style.display=ready?"none":"flex";
- if(readyContent)readyContent.style.display=ready?"flex":"none";
- showScreen("lobby");
- stopAllTimers();
+ el("role").textContent=p.role==="WOLF"?"🐺 늑대":p.role==="SHEEP"?"🐑 양":"역할 대기";
+ el("roleText").innerHTML=p.role==="WOLF"?"<b>🐺 당신은 늑대입니다.</b>":p.role==="SHEEP"?"<b>🐑 당신은 양입니다.</b>":"게임 시작을 기다리고 있습니다.";
+ el("lobbyNotice").textContent=g.notice||"게임 시작을 기다리고 있습니다.";showScreen("lobby");stopAllTimers();
 }
 
 
@@ -2659,13 +2601,12 @@ async function renderPlayerTrialResult(data){
 async function renderRoleIntro(){
  const roleSelect=el("roleSelect");
  if(!roleSelect)return;
- // 역할선정 도입에서 플레이어 화면은 테이블만 표시합니다.
  roleSelect.classList.add("roleIntroTableOnly");
  roleSelect.classList.remove("roleIntroReset");
  void roleSelect.offsetWidth;
  roleSelect.classList.add("roleIntroReset");
  await showScreen("roleSelect");
- // 스크린 연출과 동기화: 2.5초 페이드 → 테이블/타이틀 연출 → 강조문구 → 3초 후 카드선택
+ // 스크린의 역할선정 연출과 동기화: 테이블 등장 → 타이틀/문구 → 3초 대기 후 카드선택
  await new Promise(r=>setTimeout(r,7600));
  if(roleSelect)roleSelect.classList.remove("roleIntroTableOnly","roleIntroReset");
  const g=await settings();
@@ -2795,8 +2736,7 @@ async function startRoleSelection(){
  }
  stopAllAdminBgm();
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
- // 역할선정 BGM은 screen.html에서만 재생합니다. 관리자 화면에서는 재생하지 않습니다.
- stopAdminBgm("roleSelectionBgm");
+ await startAdminLoopBgm("roleSelectionBgm");
  toast("양과 늑대 선정 화면을 시작합니다.");
  await renderAdmin();
  }catch(e){console.error("startRoleSelection 오류:",e);toast("양과 늑대 선정 시작 실패: "+(e.message||String(e)));}
@@ -3942,7 +3882,7 @@ async function renderAdmin(){
   if(g.phase==="TRIAL"){
     stopRoleSelectionBgm();stopGameStartBgm();await startAdminLoopBgm("trialBgm");
   }else if(g.phase==="ROLE_INTRO"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_REVEAL"){
-    stopGameStartBgm();stopAdminBgm("trialBgm");stopAdminBgm("roleSelectionBgm");
+    stopGameStartBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("roleSelectionBgm");
   }else if(g.phase==="COUNTDOWN"){
     stopRoleSelectionBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
   }else{
