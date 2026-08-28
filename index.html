@@ -1413,29 +1413,75 @@ function resetPlayerCardSelectionIntro(){
 function startPlayerCardSelectionIntro(){
   resetPlayerCardSelectionIntro();
 
+  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
   const title=document.getElementById("playerCardSelectionTitle");
   const instruction=document.getElementById("playerCardSelectionInstruction");
-  if(!title || !instruction){
-    console.warn("카드선택 연출 요소를 찾지 못했습니다.");
+  if(!emphasis || !title || !instruction){
+    console.warn("플레이어 역할선정 연출 요소를 찾지 못했습니다.");
     return;
   }
 
-  title.style.visibility="visible";
-  title.style.opacity="1";
-  title.classList.add("active");
+  // 테이블 등장 후 2초간 테이블만 표시.
+  playerCardSelectionIntroTimer=setTimeout(()=>{
+    // 플레이어 화면 중앙에 강조문구 표시.
+    emphasis.classList.remove("hide");
+    emphasis.classList.add("active");
 
-  // 마지막 글자 애니메이션 종료 후 2초 대기.
-  playerCardSelectionInstructionTimer=setTimeout(()=>{
-    instruction.classList.add("active");
-  },3750);
+    // 3초 표시 후 문구 제거 → 카드선택 타이틀 시작.
+    playerCardSelectionIntroTimer=setTimeout(()=>{
+      emphasis.classList.remove("active");
+      emphasis.classList.add("hide");
+
+      title.style.visibility="visible";
+      title.style.opacity="1";
+      title.classList.add("active");
+
+      // 마지막 글자 애니메이션 종료 후 2초 대기.
+      playerCardSelectionInstructionTimer=setTimeout(()=>{
+        instruction.classList.add("active");
+      },3750);
+    },3000);
+  },2000);
 }
 </script>
+
+
+<style id="player-role-selection-emphasis">
+#roleSelect .playerRoleSelectionEmphasis{
+  position:absolute;
+  z-index:60;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:min(88vw,1100px);
+  text-align:center;
+  font-size:clamp(24px,3.8vw,58px);
+  line-height:1.3;
+  font-weight:900;
+  color:#fff;
+  text-shadow:0 3px 18px rgba(0,0,0,.9);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+#roleSelect .playerRoleSelectionEmphasis.active{
+  visibility:visible;
+  opacity:1;
+}
+#roleSelect .playerRoleSelectionEmphasis.hide{
+  opacity:0;
+  visibility:hidden;
+}
+</style>
 
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
 <section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
+<div id="playerRoleSelectionEmphasis" class="playerRoleSelectionEmphasis">
+  지금부터 양과 늑대를 정하겠습니다.
+</div>
 <div id="playerCardSelectionTitle" class="playerCardSelectionTitle" aria-label="카드선택">
   <img src="assets/card_selection_01_카.png" alt="카">
   <img src="assets/card_selection_02_드.png" alt="드">
