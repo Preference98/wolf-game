@@ -1721,6 +1721,13 @@ body{
 }
 </style>
 
+
+<style id="unified-role-select-player">
+/* ROLE_SELECT 내부에서 배부→선택으로 넘어갈 때 별도 화면 전환을 만들지 않음 */
+#roleSelect.cleanCardSelectScreen{transition:none!important}
+#roleSelect .cleanRoleSelectTable,#roleSelect .cleanCardBoard{transition:none!important}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2792,6 +2799,32 @@ async function renderRoleIntro(){
   await showScreen("roleIntro");
 }
 
+/* ROLE_SELECT 내부 상태: 카드 배부와 카드 선택은 같은 phase에서 진행 */
+const ROLE_SELECT_DISTRIBUTE_MS = 2500;
+let roleSelectDistributionStartedAt = null;
+let roleSelectDistributionTimer = null;
+let roleSelectDistributionDone = false;
+
+function roleSelectDistributionKey(players){
+  return players.map(x=>String(x.id)).sort().join("|");
+}
+
+function startRoleSelectDistribution(players){
+  const key=roleSelectDistributionKey(players);
+  if(window.__roleSelectDistributionKey!==key){
+    window.__roleSelectDistributionKey=key;
+    roleSelectDistributionStartedAt=Date.now();
+    roleSelectDistributionDone=false;
+    if(roleSelectDistributionTimer)clearTimeout(roleSelectDistributionTimer);
+    roleSelectDistributionTimer=setTimeout(()=>{
+      roleSelectDistributionDone=true;
+      window.__roleSelectDistributionDoneKey=key;
+      route();
+    },ROLE_SELECT_DISTRIBUTE_MS);
+  }
+  return roleSelectDistributionDone || window.__roleSelectDistributionDoneKey===key;
+}
+
 async function renderCleanCardSelect(p,g){
   await showScreen("roleSelect");
   const r=await db.from("players").select("*").order("card_position");
@@ -2799,21 +2832,32 @@ async function renderCleanCardSelect(p,g){
   const players=(r.data||[]).filter(x=>String(x.status).toUpperCase()==="ALIVE");
   const board=el("cleanCardBoard");
   if(!board)return;
+
+  const distributed=startRoleSelectDistribution(players);
   const chosen=p.card_selected===true;
   const notice=el("cleanCardSelectNotice");
-  if(notice)notice.textContent=chosen?"카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요.":"원하는 카드를 터치하세요.";
-  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}:${x.card_position}`).join("|");
+
+  if(notice){
+    notice.textContent = distributed
+      ? (chosen ? "카드를 선택했습니다. 모든 플레이어의 선택을 기다려주세요." : "원하는 카드를 터치하세요.")
+      : "카드가 배부되고 있습니다.";
+  }
+
+  const signature=players.map(x=>`${x.id}:${x.card_selected?'1':'0'}:${x.card_position}`).join("|")+`|${distributed}`;
   if(window.__cleanCardSignature===signature && board.children.length===players.length){
-    board.querySelectorAll(".cleanChoiceCard").forEach((btn)=>{
+    board.querySelectorAll(".cleanChoiceCard").forEach(btn=>{
       const mine=String(btn.dataset.playerId)===String(p.id);
-      const mineSelected=mine && p.card_selected===true;
+      const mineSelected=mine && chosen;
       btn.classList.toggle("isMineSelected",mineSelected);
       btn.classList.toggle("isOtherAfterSelection",chosen && !mineSelected);
+      btn.disabled=!distributed || chosen || !!players.find(x=>String(x.id)===String(btn.dataset.playerId))?.card_selected;
     });
     return;
   }
+
   window.__cleanCardSignature=signature;
   board.innerHTML="";
+
   players.forEach((x,i)=>{
     const btn=document.createElement("button");
     btn.type="button";
@@ -2822,14 +2866,15 @@ async function renderCleanCardSelect(p,g){
     btn.dataset.playerId=String(x.id);
     btn.innerHTML='<img src="assets/card_back.png" alt="선택 카드">';
     const mine=String(x.id)===String(p.id);
-    const mineSelected=mine && p.card_selected===true;
+    const mineSelected=mine && chosen;
     btn.classList.toggle("isMineSelected",mineSelected);
     btn.classList.toggle("isOtherAfterSelection",chosen && !mineSelected);
-    btn.disabled=chosen || !!x.card_selected;
+    btn.disabled=!distributed || chosen || !!x.card_selected;
     btn.onclick=()=>selectCleanCard(i);
     board.appendChild(btn);
   });
 }
+
 
 let cleanCardSelecting=false;
 async function selectCleanCard(position){
