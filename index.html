@@ -2759,7 +2759,8 @@ async function startRoleSelection(){
  }
  stopAllAdminBgm();
  await set({phase:"ROLE_INTRO",started:false,roles_selected:false,notice:"지금부터 양과 늑대를 선정하겠습니다."});
- await startAdminLoopBgm("roleSelectionBgm");
+ // 역할선정 BGM은 screen.html에서만 재생합니다. 관리자 화면에서는 재생하지 않습니다.
+ stopAdminBgm("roleSelectionBgm");
  toast("양과 늑대 선정 화면을 시작합니다.");
  await renderAdmin();
  }catch(e){console.error("startRoleSelection 오류:",e);toast("양과 늑대 선정 시작 실패: "+(e.message||String(e)));}
@@ -3905,7 +3906,7 @@ async function renderAdmin(){
   if(g.phase==="TRIAL"){
     stopRoleSelectionBgm();stopGameStartBgm();await startAdminLoopBgm("trialBgm");
   }else if(g.phase==="ROLE_INTRO"||g.phase==="ROLE_SELECT"||g.phase==="ROLE_REVEAL"){
-    stopGameStartBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("roleSelectionBgm");
+    stopGameStartBgm();stopAdminBgm("trialBgm");stopAdminBgm("roleSelectionBgm");
   }else if(g.phase==="COUNTDOWN"){
     stopRoleSelectionBgm();stopAdminBgm("trialBgm");await startAdminLoopBgm("gameStartBgm");
   }else{
