@@ -1760,19 +1760,9 @@ body{
 </style>
 
 <script id="role-select-audio-override">
-window.playRoleSelectBgm=window.playRoleSelectBgm||function(){
-  try{
-    const a=window.__roleSelectBgm||(window.__roleSelectBgm=new Audio("sounds/role-select-bgm.mp3"));
-    a.loop=true;
-    const p=a.play(); if(p&&p.catch)p.catch(()=>{});
-  }catch(e){}
-};
-window.stopPrepBgm=window.stopPrepBgm||function(){
-  try{
-    const a=window.__prepBgm;
-    if(a){a.pause();a.currentTime=0;}
-  }catch(e){}
-};
+/* 플레이어는 BGM을 재생하지 않습니다. 혹시 남아 있는 타이틀 오디오만 정리합니다. */
+window.stopPrepBgm=window.stopPrepBgm||function(){};
+window.playRoleSelectBgm=window.playRoleSelectBgm||function(){};
 </script>
 
 <style id="role-select-sequence-player">
