@@ -1391,6 +1391,7 @@ main > .screen{
 
 <script id="player-card-selection-intro-js">
 let playerCardSelectionIntroTimer=null;
+let playerRouteLastPhase=null;
 let playerCardSelectionInstructionTimer=null;
 
 function resetPlayerCardSelectionIntro(){
@@ -1414,13 +1415,16 @@ function startPlayerCardSelectionIntro(){
 
   const title=document.getElementById("playerCardSelectionTitle");
   const instruction=document.getElementById("playerCardSelectionInstruction");
-  if(!title || !instruction)return;
+  if(!title || !instruction){
+    console.warn("카드선택 연출 요소를 찾지 못했습니다.");
+    return;
+  }
 
-  // '지금부터...' 문구가 사라진 직후 호출.
+  title.style.visibility="visible";
+  title.style.opacity="1";
   title.classList.add("active");
 
-  // 마지막 글자 등장 시작 1.13s + 애니메이션 0.62s = 약 1.75s.
-  // 그 뒤 2초를 기다린 후 안내문구를 표시.
+  // 마지막 글자 애니메이션 종료 후 2초 대기.
   playerCardSelectionInstructionTimer=setTimeout(()=>{
     instruction.classList.add("active");
   },3750);
@@ -2316,10 +2320,18 @@ async function routeCore(){
   localStorage.removeItem("wolf_game_death_lock_v1");
   const g=await settings();
 
-  switch(String(g.phase||"LOBBY").toUpperCase()){
+  const currentPhase=String(g.phase||"LOBBY").toUpperCase();
+  const prevPhase=playerRouteLastPhase;
+  playerRouteLastPhase=currentPhase;
+
+  switch(currentPhase){
    case "ROLE_SELECT":
      stopAllTimers();
      await showScreen("roleSelect");
+     if(prevPhase!=="ROLE_SELECT"){
+       clearTimeout(playerCardSelectionIntroTimer);
+       playerCardSelectionIntroTimer=setTimeout(startPlayerCardSelectionIntro,5000);
+     }
      return;
 
    case "LOBBY":
@@ -3795,7 +3807,6 @@ window.startRoleSelection = async function(){
     });
 
     await showScreen("roleSelect");
-    setTimeout(startPlayerCardSelectionIntro, 5000);
 
     // 역할선정 화면으로 전환한 뒤 역할선정 BGM만 재생합니다.
     await activateStageAudio();
