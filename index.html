@@ -3800,10 +3800,8 @@ window.startRoleSelection = async function(){
       roles_selected:false,
       notice:"역할 선정 중"
     });
-
-    await showScreen("roleSelect");
-
-    // 역할선정 화면으로 전환한 뒤 역할선정 BGM만 재생합니다.
+    // 관리자는 역할선정 전용 플레이어 화면으로 이동하지 않습니다.
+    // 관리자 대시보드는 renderAdmin()이 계속 유지합니다.
     await activateStageAudio();
     await startAdminLoopBgm("roleSelectionBgm");
   }catch(e){
