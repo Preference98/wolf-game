@@ -1794,7 +1794,23 @@ function bindCardSelectionV20(){
   position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);
   z-index:50;pointer-events:none;white-space:nowrap;
 }
-</style></head>
+</style>
+<style id="role-reveal-unified-card-fix-v1">
+#roleReveal .Stage{position:relative!important;min-height:100vh!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;padding:24px 20px 110px!important;box-sizing:border-box!important}
+#roleReveal .unifiedRoleCard{width:min(68vw,360px)!important;height:min(66vh,540px)!important;max-height:540px!important;perspective:1400px!important;position:relative!important;z-index:3!important;flex:0 0 auto!important}
+#roleReveal .unifiedRoleCardInner{position:relative!important;width:100%!important;height:100%!important;transform-style:preserve-3d!important;transition:transform .7s cubic-bezier(.2,.8,.2,1)!important}
+#roleReveal .unifiedRoleCardInner.isFront{transform:rotateY(180deg)!important}
+#roleReveal .unifiedRoleCardFace{position:absolute!important;inset:0!important;backface-visibility:hidden!important;-webkit-backface-visibility:hidden!important;border-radius:14px!important;overflow:hidden!important}
+#roleReveal .unifiedRoleCardBack{background:#545957!important;border:7px solid #a7aaa9!important;box-shadow:inset 0 0 0 3px #222,inset 0 0 0 7px #c7cac7,0 18px 55px #000!important}
+#roleReveal .unifiedRoleCardBack img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}
+#roleReveal .unifiedRoleCardFront{transform:rotateY(180deg)!important;background:#050505!important;border:4px solid #ff3f9f!important}
+#roleReveal .unifiedRoleCardFront img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
+#roleReveal .unifiedRoleFlipButton{position:absolute!important;left:50%!important;bottom:28px!important;transform:translateX(-50%)!important;z-index:10!important;min-width:150px!important;padding:12px 24px!important;border:1px solid #777!important;border-radius:10px!important;background:#151515!important;color:#fff!important;font-size:18px!important;font-weight:900!important;cursor:pointer!important}
+#roleReveal .unifiedRoleFlipButton:disabled{opacity:.55!important;cursor:default!important}
+#roleReveal .unifiedRoleRevealAnnouncement{position:absolute!important;left:50%!important;bottom:84px!important;transform:translateX(-50%)!important;z-index:9!important;width:min(90vw,600px)!important;text-align:center!important;color:#fff!important;font-size:clamp(24px,5vw,48px)!important;font-weight:1000!important;text-shadow:0 0 25px #ff3f9f,0 3px 10px #000!important;pointer-events:none!important;transition:opacity .2s ease!important}
+@media(max-width:600px){#roleReveal .Stage{padding:18px 12px 100px!important}#roleReveal .unifiedRoleCard{width:min(78vw,320px)!important;height:min(60vh,480px)!important}#roleReveal .unifiedRoleFlipButton{bottom:22px!important}}
+</style>
+</head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
@@ -2847,12 +2863,18 @@ async function renderPlayerTrialResult(data){
 let roleRevealShownOnce=false;
 async function renderCleanRoleReveal(p,g){
   await showScreen("roleReveal");
-  const front=el("cleanRoleCardFront");
-  const inner=el("cleanRoleCardInner");
-  const btn=el("cleanRoleFlipButton");
-  const announcement=el("cleanRoleRevealAnnouncement");
-  const dim=el("cleanRoleRevealDim");
-  if(!front||!inner||!btn)return;
+  const front=el("unifiedRoleCardFront");
+  const inner=el("unifiedRoleCardInner");
+  const card=el("unifiedRoleCard");
+  const btn=el("unifiedRoleFlipButton");
+  if(!front||!inner||!card||!btn)return;
+  let announcement=el("unifiedRoleRevealAnnouncement");
+  if(!announcement){
+    announcement=document.createElement("div");
+    announcement.id="unifiedRoleRevealAnnouncement";
+    announcement.className="unifiedRoleRevealAnnouncement";
+    card.parentElement.appendChild(announcement);
+  }
 
   const isWolf=String(p.role||"").toUpperCase()==="WOLF";
   const roleName=isWolf?"늑대":"양";
@@ -2862,18 +2884,14 @@ async function renderCleanRoleReveal(p,g){
   inner.classList.remove("isFront");
   btn.textContent="뒤집기";
   btn.disabled=false;
-  if(dim)dim.style.opacity="0";
-  if(announcement){
-    announcement.textContent="";
-    announcement.style.opacity="0";
-    announcement.style.visibility="hidden";
-  }
+  announcement.textContent="";
+  announcement.style.opacity="0";
+  announcement.style.visibility="hidden";
 
   const flip=()=>{
     const on=inner.classList.toggle("isFront");
     if(on){
       btn.disabled=true;
-      if(dim)dim.style.opacity="1";
       if(announcement){
         announcement.textContent="당신은 "+roleName+"입니다";
         announcement.style.opacity="1";
@@ -2882,19 +2900,13 @@ async function renderCleanRoleReveal(p,g){
       setTimeout(()=>{
         if(!inner.classList.contains("isFront"))return;
         btn.disabled=false;
-        if(dim)dim.style.opacity="0";
-        if(announcement){
-          announcement.style.opacity="0";
-          announcement.style.visibility="hidden";
-        }
+        announcement.style.opacity="0";
+        announcement.style.visibility="hidden";
       },2500);
     }else{
       btn.disabled=false;
-      if(dim)dim.style.opacity="0";
-      if(announcement){
-        announcement.style.opacity="0";
-        announcement.style.visibility="hidden";
-      }
+      announcement.style.opacity="0";
+      announcement.style.visibility="hidden";
     }
   };
   btn.onclick=flip;
