@@ -1967,6 +1967,9 @@ function bindCardSelectionV20(){
 /* v23: 카드 선택 화면을 타이틀 / 안내문 / 카드의 3개 독립 영역으로 고정 */
 #roleSelect{
   position:relative!important;
+  display:none!important;
+}
+#roleSelect.active{
   display:grid!important;
   grid-template-rows:minmax(72px,13dvh) minmax(52px,10dvh) minmax(0,1fr)!important;
   grid-template-columns:minmax(0,1fr)!important;
