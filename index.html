@@ -3010,24 +3010,31 @@ async function routeCore(){
      return;
 
    case "LOBBY":
+     playerGameStartSequenceToken++;
      resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderLobby(p,g);return;
    case "ROLE_REVEAL":
+     playerGameStartSequenceToken++;
      resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderCleanRoleReveal(p,g);return;
    case "COUNTDOWN":
-     if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
+     if(document.querySelector("#gameCountdown.screen.active") && document.querySelector("#gameStartContent"))return;
      await renderGameCountdown(p,g);return;
    case "INVESTIGATION":
+     playerGameStartSequenceToken++;
      stopRoundTimer();await renderInvestigation(p,g);return;
    case "NIGHT":
+     playerGameStartSequenceToken++;
      await renderNight(p,g);return;
    case "TRIAL":
+     playerGameStartSequenceToken++;
      await renderTrial(p,g);return;
    case "FINISHED":
+     playerGameStartSequenceToken++;
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
      return;
    case "PLAY":
+     playerGameStartSequenceToken++;
      if(String(g.notice||"").startsWith("NIGHT_WARNING|")){
        await renderNightPreAlert(g);
        return;
@@ -4598,23 +4605,26 @@ function stopAllAdminBgm(){
   ["roleSelectionBgm","trialBgm","nightBgm","gameStartBgm"].forEach(k=>stopAdminBgm(k));
 }
 
+let playerGameStartSequenceToken=0;
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
+ const token=String(g.current_round||0);
+ const sequenceToken=++playerGameStartSequenceToken;
  await showScreen("gameCountdown");
  const root=el("gameCountdown");if(!root)return;
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">곧 게임이 시작됩니다.</div></div></div>';
- const round=String(g.current_round||0);
- const token=String(round);
- // 플레이어 화면에는 5~1 카운트다운을 표시하지 않습니다.
- // 스크린에서 진행되는 COUNTDOWN과 동일한 시작 시점 기준으로 마지막
- // 「게임 시작」 연출만 15초 후 표시합니다.
+ // 플레이어 화면에는 5~1 숫자 카운트다운을 표시하지 않습니다.
+ // 스크린 카운트다운과 동일하게 15초 후 마지막 「게임 시작」만 표시합니다.
  await wait(15000);
- const latest=await settings();
- if(String(latest.phase).toUpperCase()!=="COUNTDOWN" || String(latest.current_round||0)!==token)return;
+ if(sequenceToken!==playerGameStartSequenceToken)return;
  const content=el("gameStartContent");if(!content)return;
+ const latest=await settings();
+ if(String(latest.current_round||0)!==token)return;
  content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
- await playSound("gameStart","player-game-start-"+round);
+ // 플레이어의 로그인/카드 선택 과정에서 확보한 오디오 권한으로 효과음을 재생합니다.
+ await playSound("gameStart","player-game-start-"+token).catch(()=>{});
  await wait(4000);
+ if(sequenceToken!==playerGameStartSequenceToken)return;
 }
 async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
