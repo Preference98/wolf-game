@@ -1389,8 +1389,9 @@ async function getPlayerCountForCardDealV18(){
   // 카드 배부 함수와 동일한 실행 스코프에서 기존 db를 사용합니다.
   // 별도의 Supabase client는 절대로 생성하지 않습니다.
   try{
-    if(typeof db!=="undefined" && db && typeof db.from==="function"){
-      const r=await db.from("players")
+    const client=(typeof db!=="undefined" && db && typeof db.from==="function")?db:window.__wolfGameDb;
+    if(client && typeof client.from==="function"){
+      const r=await client.from("players")
         .select("id,name,status")
         .eq("status","ALIVE");
       if(!r.error){
@@ -1763,34 +1764,7 @@ function bindCardSelectionV20(){
   position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);
   z-index:50;pointer-events:none;white-space:nowrap;
 }
-</style>
-<style id="role-reveal-unified-fix-20260829">
-#roleReveal{margin:0!important;min-height:100vh!important;background:#000!important}
-#roleReveal .roleRevealStageUnified{position:fixed!important;inset:0!important;z-index:1000!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;background:#020202!important}
-#roleReveal .roleRevealStageUnified:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 40%,rgba(255,0,120,.16),transparent 30%)}
-#roleReveal .roleRevealStageUnified.sheep:before{background:radial-gradient(circle at 50% 40%,rgba(0,255,150,.18),transparent 30%)}
-#roleReveal .roleRevealStageUnified.wolf:before{background:radial-gradient(circle at 50% 40%,rgba(255,0,35,.22),transparent 30%)}
-#roleReveal .unifiedRoleCard{position:relative;width:min(62vw,420px);height:min(74vh,620px);perspective:1500px;z-index:2}
-#roleReveal .unifiedRoleCardInner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.18,.75,.2,1)}
-#roleReveal .unifiedRoleCardInner.isFront{transform:rotateY(180deg)}
-#roleReveal .unifiedRoleCardFace{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
-#roleReveal .unifiedRoleCardBack{background:#545957;border:7px solid #a7aaa9;box-shadow:inset 0 0 0 3px #222,inset 0 0 0 7px #c7cac7,0 18px 55px #000}
-#roleReveal .unifiedRoleCardBack img{width:100%;height:100%;object-fit:cover}
-#roleReveal .unifiedRoleCardFront{transform:rotateY(180deg);background:#050505;border:4px solid #ff3f9f;box-shadow:0 0 75px rgba(255,0,125,.35),inset 0 0 45px rgba(255,0,125,.08)}
-#roleReveal .unifiedRoleCardFront.sheep{border-color:#29a960;box-shadow:0 0 75px rgba(41,169,96,.35),inset 0 0 45px rgba(41,169,96,.08)}
-#roleReveal .unifiedRoleCardFront.wolf{border-color:#b00012;box-shadow:0 0 85px rgba(176,0,18,.4),inset 0 0 45px rgba(176,0,18,.1)}
-#roleReveal .unifiedRoleCardFront img{width:100%;height:100%;object-fit:contain;display:block}
-#roleReveal .Dim{position:absolute;inset:0;z-index:3;background:rgba(0,0,0,.55);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease}
-#roleReveal .Announcement{position:absolute;left:5%;right:5%;top:12%;z-index:4;text-align:center;color:#fff;font-size:clamp(28px,5vw,58px);font-weight:1000;text-shadow:0 3px 18px #000,0 0 25px rgba(255,0,140,.6);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease}
-#roleReveal .sheep .Announcement{color:#58f39a;text-shadow:0 3px 18px #000,0 0 25px rgba(0,255,150,.55)}
-#roleReveal .wolf .Announcement{color:#ff3347;text-shadow:0 3px 18px #000,0 0 25px rgba(255,0,35,.6)}
-#roleReveal .unifiedRoleFlipButton{position:absolute;z-index:5;bottom:7%;min-width:190px;padding:14px 30px;border:2px solid #ff3f9f;background:rgba(8,2,4,.94);color:#fff;border-radius:8px;font-size:clamp(17px,3vw,24px);font-weight:900;letter-spacing:.15em;box-shadow:0 0 22px rgba(255,0,140,.35);cursor:pointer}
-#roleReveal .sheep .unifiedRoleFlipButton{border-color:#20d88a;box-shadow:0 0 22px rgba(32,216,138,.3)}
-#roleReveal .wolf .unifiedRoleFlipButton{border-color:#ff2c35;box-shadow:0 0 22px rgba(255,44,53,.3)}
-#roleReveal .unifiedRoleFlipButton:disabled{opacity:.55;cursor:default}
-@media(max-width:600px){#roleReveal .unifiedRoleCard{width:min(78vw,360px);height:min(68vh,540px)}#roleReveal .Announcement{top:9%;font-size:clamp(24px,7vw,42px)}#roleReveal .unifiedRoleFlipButton{bottom:5%;min-width:170px}}
-</style>
-</head>
+</style></head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
@@ -2312,8 +2286,8 @@ document.addEventListener("click",(event)=>{
 },true);
 document.addEventListener("pointerdown",()=>{unlockSound().catch(()=>{});},{once:true});
 document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:true});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
-window.addEventListener("focus",()=>activateStageAudio());
+// 자동 focus/visibility 이벤트에서는 AudioContext를 생성하지 않습니다.
+// Chrome의 사용자 제스처 제한으로 인한 콘솔 오류를 방지합니다.
 
 /* v-login-lobby-chrome: login/lobby have no  and no image background. */
 function syncLoginLobbyChrome(id){
@@ -2843,66 +2817,59 @@ async function renderPlayerTrialResult(data){
 let roleRevealShownOnce=false;
 async function renderCleanRoleReveal(p,g){
   await showScreen("roleReveal");
-  const stage=document.querySelector("#roleReveal .Stage");
-  const card=document.getElementById("unifiedRoleCard");
-  const inner=document.getElementById("unifiedRoleCardInner");
-  const front=document.getElementById("unifiedRoleCardFront");
-  const btn=document.getElementById("unifiedRoleFlipButton");
-  const dim=document.getElementById("Dim");
-  const announcement=document.getElementById("Announcement");
-  if(!stage||!card||!inner||!front||!btn)return;
+  const front=el("cleanRoleCardFront");
+  const inner=el("cleanRoleCardInner");
+  const btn=el("cleanRoleFlipButton");
+  const announcement=el("cleanRoleRevealAnnouncement");
+  const dim=el("cleanRoleRevealDim");
+  if(!front||!inner||!btn)return;
 
-  const isWolf=String(p?.role||"").toUpperCase()==="WOLF";
+  const isWolf=String(p.role||"").toUpperCase()==="WOLF";
   const roleName=isWolf?"늑대":"양";
-  const roleClass=isWolf?"wolf":"sheep";
   const src=isWolf?"assets/wolf_role_card.png":"assets/sheep_role_card.png";
-
-  stage.className="Stage roleRevealStageUnified "+roleClass;
-  front.className="unifiedRoleCardFace unifiedRoleCardFront "+roleClass;
   front.innerHTML='<img src="'+src+'" alt="'+roleName+' 역할 카드">';
-  inner.classList.remove("isFront");
-  card.classList.remove("revealed");
-  btn.disabled=false;
-  btn.textContent="뒤집기";
-  if(dim){dim.style.opacity="0";dim.style.visibility="hidden";}
-  if(announcement){announcement.textContent="";announcement.style.opacity="0";announcement.style.visibility="hidden";}
 
-  let revealTimer=null;
-  const resetAnnouncement=()=>{
-    if(dim){dim.style.opacity="0";dim.style.visibility="hidden";}
-    if(announcement){announcement.style.opacity="0";announcement.style.visibility="hidden";}
-  };
+  inner.classList.remove("isFront");
+  btn.textContent="뒤집기";
+  btn.disabled=false;
+  if(dim)dim.style.opacity="0";
+  if(announcement){
+    announcement.textContent="";
+    announcement.style.opacity="0";
+    announcement.style.visibility="hidden";
+  }
+
   const flip=()=>{
-    if(btn.disabled)return;
-    const revealed=!inner.classList.contains("isFront");
-    inner.classList.toggle("isFront",revealed);
-    card.classList.toggle("revealed",revealed);
-    if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
-    if(revealed){
+    const on=inner.classList.toggle("isFront");
+    if(on){
       btn.disabled=true;
-      if(dim){dim.style.opacity="1";dim.style.visibility="visible";}
+      if(dim)dim.style.opacity="1";
       if(announcement){
         announcement.textContent="당신은 "+roleName+"입니다";
         announcement.style.opacity="1";
         announcement.style.visibility="visible";
       }
-      revealTimer=setTimeout(()=>{
+      setTimeout(()=>{
         if(!inner.classList.contains("isFront"))return;
         btn.disabled=false;
-        resetAnnouncement();
+        if(dim)dim.style.opacity="0";
+        if(announcement){
+          announcement.style.opacity="0";
+          announcement.style.visibility="hidden";
+        }
       },2500);
     }else{
       btn.disabled=false;
-      resetAnnouncement();
+      if(dim)dim.style.opacity="0";
+      if(announcement){
+        announcement.style.opacity="0";
+        announcement.style.visibility="hidden";
+      }
     }
   };
   btn.onclick=flip;
-  window.__roleRevealCleanup=()=>{
-    if(revealTimer)clearTimeout(revealTimer);
-    btn.onclick=null;
-    window.__roleRevealCleanup=null;
-  };
 }
+
 
 async function markReady(){
  const g=await settings();
@@ -5189,6 +5156,7 @@ async function boot(){
     throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
   }
   db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  window.__wolfGameDb=db;
   preloadSounds();
   realtime();
   startDeathNotificationWatcher();
