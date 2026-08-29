@@ -4505,6 +4505,9 @@ async function startGame(){
  
  try{
    const g=await settings();
+   // 게임시작 버튼을 누르는 즉시 역할선정 BGM을 끊습니다.
+   stopAdminBgm("roleSelectionBgm");
+   stopAdminBgm("trialBgm");
    if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해야 합니다.");return;}
    const pr=await db.from("players").select("*").eq("status","ALIVE");
    if(pr.error)throw new Error("플레이어 조회 실패: "+pr.error.message);
@@ -4600,6 +4603,18 @@ async function renderGameCountdown(p,g){
  await showScreen("gameCountdown");
  const root=el("gameCountdown");if(!root)return;
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">곧 게임이 시작됩니다.</div></div></div>';
+ const round=String(g.current_round||0);
+ const token=String(round);
+ // 플레이어 화면에는 5~1 카운트다운을 표시하지 않습니다.
+ // 스크린에서 진행되는 COUNTDOWN과 동일한 시작 시점 기준으로 마지막
+ // 「게임 시작」 연출만 15초 후 표시합니다.
+ await wait(15000);
+ const latest=await settings();
+ if(String(latest.phase).toUpperCase()!=="COUNTDOWN" || String(latest.current_round||0)!==token)return;
+ const content=el("gameStartContent");if(!content)return;
+ content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
+ await playSound("gameStart","player-game-start-"+round);
+ await wait(4000);
 }
 async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
