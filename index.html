@@ -1296,11 +1296,48 @@ main > .screen{
 </style>
 
 
+<style id="player-card-selection-v9">
+#roleSelect .playerCardSelectionTitle{position:absolute;z-index:60;left:50%;top:8%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:clamp(2px,.35vw,8px);width:min(92vw,900px);opacity:0;visibility:hidden;pointer-events:none}
+#roleSelect .playerCardSelectionTitle img{width:clamp(52px,9vw,118px);height:auto;opacity:0;transform:translateY(45px) scale(.6);filter:blur(5px)}
+#roleSelect .playerCardSelectionTitle.active{opacity:1;visibility:visible}
+#roleSelect .playerCardSelectionTitle.active img{animation:playerCardSelectionLetterInV9 .62s cubic-bezier(.12,.9,.18,1) forwards}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(1){animation-delay:.08s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(2){animation-delay:.43s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(3){animation-delay:.78s}
+#roleSelect .playerCardSelectionTitle.active img:nth-child(4){animation-delay:1.13s}
+@keyframes playerCardSelectionLetterInV9{0%{opacity:0;transform:translateY(45px) scale(.6);filter:blur(5px)}60%{opacity:1;transform:translateY(-6px) scale(1.05);filter:blur(0)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+#roleSelect .playerCardSelectionInstruction{position:absolute;z-index:61;left:50%;top:calc(8% + clamp(135px,16vw,205px));transform:translateX(-50%);width:min(90vw,1000px);text-align:center;font-size:clamp(22px,3vw,46px);font-weight:900;color:#fff;text-shadow:0 3px 16px rgba(0,0,0,.9);opacity:0;visibility:hidden;pointer-events:none}
+#roleSelect .playerCardSelectionInstruction.active{opacity:1;visibility:visible}
+</style>
+<script id="player-card-selection-v9-js">
+let playerCardSelectionIntroTimer=null,playerCardSelectionInstructionTimer=null;
+function resetPlayerCardSelectionIntro(){
+ clearTimeout(playerCardSelectionIntroTimer);clearTimeout(playerCardSelectionInstructionTimer);
+ const t=document.getElementById("playerCardSelectionTitle"),n=document.getElementById("playerCardSelectionInstruction");
+ if(t)t.classList.remove("active");if(n)n.classList.remove("active");
+}
+function startPlayerCardSelectionIntro(){
+ resetPlayerCardSelectionIntro();
+ const t=document.getElementById("playerCardSelectionTitle"),n=document.getElementById("playerCardSelectionInstruction");
+ if(!t||!n)return;
+ playerCardSelectionIntroTimer=setTimeout(()=>{
+   t.classList.add("active");
+   playerCardSelectionInstructionTimer=setTimeout(()=>n.classList.add("active"),3750);
+ },2000);
+}
+</script>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
 <section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
+<div id="playerCardSelectionTitle" class="playerCardSelectionTitle" aria-label="카드선택">
+  <img src="assets/card_selection_01_카.png" alt="카">
+  <img src="assets/card_selection_02_드.png" alt="드">
+  <img src="assets/card_selection_03_선.png" alt="선">
+  <img src="assets/card_selection_04_택.png" alt="택">
+</div>
+<div id="playerCardSelectionInstruction" class="playerCardSelectionInstruction">원하는 카드를 터치하세요.</div>
 <div class="roleSelectionTableOverlay" aria-hidden="true"></div></section>
 
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
