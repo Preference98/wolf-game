@@ -1296,24 +1296,6 @@ main > .screen{
 </style>
 
 
-<script id="player-card-selection-v13-js">
-let playerCardSelectionIntroTimer=null,playerCardSelectionInstructionTimer=null;
-function resetPlayerCardSelectionIntro(){
- clearTimeout(playerCardSelectionIntroTimer);clearTimeout(playerCardSelectionInstructionTimer);
- const t=document.getElementById("playerCardSelectionTitle"),n=document.getElementById("playerCardSelectionInstruction");
- if(t){t.querySelectorAll("img").forEach(x=>{x.style.animation="none";x.style.opacity="1";x.style.visibility="visible"});}
- if(n){n.classList.remove("active");n.style.opacity="0";n.style.visibility="hidden";}
-}
-function startPlayerCardSelectionIntro(){
- resetPlayerCardSelectionIntro();
- const t=document.getElementById("playerCardSelectionTitle"),n=document.getElementById("playerCardSelectionInstruction");
- if(!t||!n)return;
- playerCardSelectionIntroTimer=setTimeout(()=>{
-   t.querySelectorAll("img").forEach(x=>{x.style.animation="";});
-   playerCardSelectionInstructionTimer=setTimeout(()=>{n.classList.add("active");n.style.opacity="1";n.style.visibility="visible";},3750);
- },2000);
-}
-</script>
 <script id="broadcast-screen-global-v10">
 window.openBroadcastScreen=function(){
   const w=window.open("screen.html","wolfGameBroadcastScreen","popup,width=1280,height=720");
@@ -1323,14 +1305,77 @@ window.openBroadcastScreen=function(){
   }
 };
 </script>
-<style id="player-card-selection-v13">
-#roleSelect .playerCardSelectionTitle{position:absolute!important;z-index:9999!important;left:50%!important;top:6%!important;transform:translateX(-50%)!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(3px,.45vw,10px)!important;width:min(96vw,1100px)!important;height:auto!important;opacity:1!important;visibility:visible!important;pointer-events:none!important}
-#roleSelect .playerCardSelectionTitle img{display:block!important;width:clamp(82px,13vw,165px)!important;height:auto!important;max-width:none!important;flex:none!important;opacity:1!important;visibility:visible!important;transform:translateY(35px) scale(.15)!important;filter:blur(8px)!important;animation:playerCardSelectionLetterInV13 .62s cubic-bezier(.12,.9,.18,1) both!important}
-#roleSelect .playerCardSelectionTitle img:nth-child(1){animation-delay:.08s!important}#roleSelect .playerCardSelectionTitle img:nth-child(2){animation-delay:.43s!important}#roleSelect .playerCardSelectionTitle img:nth-child(3){animation-delay:.78s!important}#roleSelect .playerCardSelectionTitle img:nth-child(4){animation-delay:1.13s!important}
-@keyframes playerCardSelectionLetterInV13{0%{opacity:1;transform:translateY(35px) scale(.15);filter:blur(8px)}60%{opacity:1;transform:translateY(-7px) scale(1.08);filter:blur(0)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
-#roleSelect .playerCardSelectionInstruction{position:absolute!important;z-index:9998!important;left:50%!important;top:calc(6% + clamp(175px,19vw,245px))!important;transform:translateX(-50%)!important;width:min(92vw,1050px)!important;text-align:center!important;font-size:clamp(22px,3vw,46px)!important;font-weight:900!important;color:#fff!important;text-shadow:0 3px 16px rgba(0,0,0,.9)!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
-#roleSelect .playerCardSelectionInstruction.active{opacity:1!important;visibility:visible!important}
+<style id="player-card-selection-final-v14">
+#roleSelect #playerCardSelectionTitle{
+ position:absolute;z-index:10000;left:50%;top:6%;transform:translateX(-50%);
+ display:flex;align-items:center;justify-content:center;gap:clamp(4px,.5vw,12px);
+ width:min(96vw,1200px);height:auto;pointer-events:none;
+}
+#roleSelect #playerCardSelectionTitle img{
+ display:block;width:clamp(90px,14vw,180px);height:auto;max-width:none;
+ flex:none;opacity:0;transform:translateY(35px) scale(.45);filter:blur(6px);
+}
+#roleSelect #playerCardSelectionTitle.card-selection-active img{
+ animation:playerCardSelectionFinalV14 .62s cubic-bezier(.12,.9,.18,1) both;
+}
+#roleSelect #playerCardSelectionTitle.card-selection-active img:nth-child(1){animation-delay:.08s}
+#roleSelect #playerCardSelectionTitle.card-selection-active img:nth-child(2){animation-delay:.43s}
+#roleSelect #playerCardSelectionTitle.card-selection-active img:nth-child(3){animation-delay:.78s}
+#roleSelect #playerCardSelectionTitle.card-selection-active img:nth-child(4){animation-delay:1.13s}
+@keyframes playerCardSelectionFinalV14{
+ 0%{opacity:0;transform:translateY(35px) scale(.45);filter:blur(6px)}
+ 60%{opacity:1;transform:translateY(-7px) scale(1.06);filter:blur(0)}
+ 100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+}
+#roleSelect #playerCardSelectionInstruction{
+ position:absolute;z-index:9999;left:50%;
+ top:calc(6% + clamp(190px,20vw,270px));transform:translateX(-50%);
+ width:min(92vw,1050px);text-align:center;
+ font-size:clamp(24px,3.2vw,50px);font-weight:900;color:#fff;
+ text-shadow:0 3px 16px rgba(0,0,0,.9);
+ opacity:0;visibility:hidden;pointer-events:none;
+}
+#roleSelect #playerCardSelectionInstruction.card-selection-instruction-active{
+ opacity:1;visibility:visible;
+}
 </style>
+<script id="player-card-selection-final-v14-js">
+let playerCardSelectionTimerV14=null;
+let playerCardInstructionTimerV14=null;
+
+function resetPlayerCardSelectionV14(){
+ clearTimeout(playerCardSelectionTimerV14);
+ clearTimeout(playerCardInstructionTimerV14);
+ const title=document.getElementById("playerCardSelectionTitle");
+ const instruction=document.getElementById("playerCardSelectionInstruction");
+ if(title){
+   title.classList.remove("card-selection-active");
+   title.querySelectorAll("img").forEach(img=>{
+     img.style.animation="none";
+   });
+ }
+ if(instruction){
+   instruction.classList.remove("card-selection-instruction-active");
+ }
+}
+
+function startPlayerCardSelectionV14(){
+ resetPlayerCardSelectionV14();
+ const title=document.getElementById("playerCardSelectionTitle");
+ const instruction=document.getElementById("playerCardSelectionInstruction");
+ if(!title||!instruction)return;
+
+ playerCardSelectionTimerV14=setTimeout(()=>{
+   title.querySelectorAll("img").forEach(img=>{img.style.animation="";});
+   title.classList.add("card-selection-active");
+
+   // 4글자 순차 애니메이션 종료 후 2초 뒤 안내문구
+   playerCardInstructionTimerV14=setTimeout(()=>{
+     instruction.classList.add("card-selection-instruction-active");
+   },4200);
+ },0);
+}
+</script>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2218,6 +2263,7 @@ async function routeCore(){
    case "ROLE_SELECT":
      stopAllTimers();
      await showScreen("roleSelect");
+      startPlayerCardSelectionV14();
       startPlayerCardSelectionIntro();
       return;
 
