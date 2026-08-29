@@ -1810,6 +1810,57 @@ function bindCardSelectionV20(){
 #roleReveal .unifiedRoleRevealAnnouncement{position:absolute!important;left:50%!important;bottom:84px!important;transform:translateX(-50%)!important;z-index:9!important;width:min(90vw,600px)!important;text-align:center!important;color:#fff!important;font-size:clamp(24px,5vw,48px)!important;font-weight:1000!important;text-shadow:0 0 25px #ff3f9f,0 3px 10px #000!important;pointer-events:none!important;transition:opacity .2s ease!important}
 @media(max-width:600px){#roleReveal .Stage{padding:18px 12px 100px!important}#roleReveal .unifiedRoleCard{width:min(78vw,320px)!important;height:min(60vh,480px)!important}#roleReveal .unifiedRoleFlipButton{bottom:22px!important}}
 </style>
+
+<style id="role-reveal-mobile-layout-fix-v2">
+/* 결과 확인 화면: 카드와 버튼을 같은 화면 안에서 함께 배치 */
+#roleReveal .Stage{
+  min-height:100dvh!important;
+  height:100dvh!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:16px!important;
+  padding:20px 16px 24px!important;
+  overflow:hidden!important;
+}
+#roleReveal .unifiedRoleCard{
+  width:min(68vw,360px,calc((100dvh - 118px)*2 / 3))!important;
+  height:auto!important;
+  aspect-ratio:2 / 3!important;
+  max-height:calc(100dvh - 118px)!important;
+  flex:0 1 auto!important;
+  position:relative!important;
+}
+#roleReveal .unifiedRoleFlipButton{
+  position:relative!important;
+  left:auto!important;
+  bottom:auto!important;
+  transform:none!important;
+  flex:0 0 auto!important;
+  margin:0!important;
+}
+@media(max-width:600px){
+  #roleReveal .Stage{
+    min-height:100dvh!important;
+    height:100dvh!important;
+    gap:12px!important;
+    padding:14px 12px 18px!important;
+  }
+  #roleReveal .unifiedRoleCard{
+    width:min(82vw,320px,calc((100dvh - 92px)*2 / 3))!important;
+    height:auto!important;
+    aspect-ratio:2 / 3!important;
+    max-height:calc(100dvh - 92px)!important;
+  }
+  #roleReveal .unifiedRoleFlipButton{
+    min-width:140px!important;
+    padding:11px 22px!important;
+    font-size:17px!important;
+  }
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
