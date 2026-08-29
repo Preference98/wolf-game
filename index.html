@@ -1599,7 +1599,8 @@ function setCardSelectionLockedV20(card,locked){
 }
 
 async function reconcileCardPositionsV20(){
-  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  const client=getCardFlowClientV20();
+  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
   const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
   const byPos=new Map();
@@ -1613,7 +1614,8 @@ async function reconcileCardPositionsV20(){
     if(group.length<2)continue;
     group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
     for(const loser of group.slice(1)){
-      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+      const u=await client.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+      if(u.error)throw new Error(u.error.message);
     }
   }
 }
