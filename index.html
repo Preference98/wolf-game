@@ -1545,10 +1545,54 @@ function showCardSelectedFeedbackV20(card){
   if(!card)return;
   card.classList.add("card-selected-feedback");
   card.setAttribute("aria-selected","true");
+  const grid=card.parentElement;
+  if(!grid)return;
+  grid.querySelectorAll('.cardSelectedBadge').forEach(x=>x.remove());
   const badge=document.createElement("span");
   badge.className="cardSelectedBadge";
   badge.textContent="선택 완료";
-  card.appendChild(badge);
+  badge.dataset.cardSelectedBadge=card.dataset.cardIndex||"";
+  badge.style.left=(card.offsetLeft+card.offsetWidth/2)+"px";
+  badge.style.top=(card.offsetTop+card.offsetHeight+14)+"px";
+  grid.appendChild(badge);
+}
+function clearCardSelectedFeedbackV20(card){
+  if(!card)return;
+  card.classList.remove("card-selected-feedback");
+  card.removeAttribute("aria-selected");
+  card.parentElement?.querySelectorAll('.cardSelectedBadge').forEach(x=>x.remove());
+}
+function setCardSelectionLockedV20(card,locked){
+  const area=document.querySelector("#roleSelect .cardDealArea");
+  if(locked){
+    area?.classList.remove("card-input-enabled");
+    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
+      if(c!==card)c.classList.add("card-selection-disabled");
+    });
+  }else{
+    area?.classList.add("card-input-enabled");
+    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>c.classList.remove("card-selection-disabled"));
+  }
+}
+
+async function reconcileCardPositionsV20(){
+  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
+  }
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+    }
+  }
 }
 
 async function finishRoleSelectionIfCompleteV20(){
@@ -1558,11 +1602,7 @@ async function finishRoleSelectionIfCompleteV20(){
   if(players.length>0 && players.every(p=>p.card_selected)){
     const g=await settings();
     if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
-      await set({
-        phase:"ROLE_REVEAL",
-        roles_selected:true,
-        notice:"모든 플레이어가 카드를 선택했습니다."
-      });
+      await set({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어가 카드를 선택했습니다."});
     }
     return true;
   }
@@ -1576,18 +1616,21 @@ async function onPlayerCardSelectedV20(card,index){
   if(card.classList.contains("card-selected-feedback"))return;
   cardSelectionBusyV20=true;
 
+  // 터치 즉시 화면 피드백을 먼저 표시합니다.
+  card.dataset.cardIndex=String(index);
+  showCardSelectedFeedbackV20(card);
+  setCardSelectionLockedV20(card,true);
+
   try{
     const p=await me();
     if(!p||!p.id)throw new Error("플레이어 정보를 확인하지 못했습니다.");
     const g=await settings();
-    if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
+    if(String(g.phase).toUpperCase()!=="ROLE_SELECT")throw new Error("현재는 카드를 선택할 수 없는 단계입니다.");
 
-    // 같은 카드가 이미 선택되어 있으면 이 카드의 선택을 거부합니다.
     const taken=await db.from("players").select("id").eq("status","ALIVE").eq("card_selected",true).eq("card_position",index);
     if(taken.error)throw new Error(taken.error.message);
     if((taken.data||[]).some(x=>String(x.id)!==String(p.id))){
-      toast("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
-      return;
+      throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
     }
 
     const count=(await db.from("players").select("id,name,status").eq("status","ALIVE")).data
@@ -1599,30 +1642,21 @@ async function onPlayerCardSelectedV20(card,index){
     const role=roles[index];
     if(!role)throw new Error("선택한 카드의 역할 정보를 확인하지 못했습니다.");
 
-    const upd=await db.from("players").update({
-      card_selected:true,
-      card_position:index,
-      role:role
-    }).eq("id",p.id).eq("status","ALIVE").eq("card_selected",false);
+    const upd=await db.from("players").update({card_selected:true,card_position:index,role:role})
+      .eq("id",p.id).eq("status","ALIVE").eq("card_selected",false);
     if(upd.error)throw new Error(upd.error.message);
 
-    // 동시 선택으로 동일 카드가 겹친 경우를 정리합니다.
     await reconcileCardPositionsV20();
-
     const meAfter=await db.from("players").select("card_selected,card_position").eq("id",p.id).maybeSingle();
     if(meAfter.error)throw new Error(meAfter.error.message);
     if(!meAfter.data?.card_selected || Number(meAfter.data.card_position)!==index){
       throw new Error("방금 선택한 카드는 다른 플레이어가 먼저 선택했습니다.");
     }
 
-    showCardSelectedFeedbackV20(card);
-    area.classList.remove("card-input-enabled");
-    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
-      if(c!==card)c.classList.add("card-selection-disabled");
-    });
-
     await finishRoleSelectionIfCompleteV20();
   }catch(e){
+    clearCardSelectedFeedbackV20(card);
+    setCardSelectionLockedV20(card,false);
     console.error("카드 선택 처리 실패:",e);
     toast("카드 선택에 실패했습니다: "+(e.message||e));
   }finally{
@@ -1634,13 +1668,20 @@ function bindCardSelectionV20(){
   const grid=document.getElementById("cardDealGrid");
   if(!grid)return;
   [...grid.children].forEach((card,index)=>{
-    card.onclick=()=>onPlayerCardSelectedV20(card,index);
-    card.ontouchend=(ev)=>{ev.preventDefault();onPlayerCardSelectedV20(card,index);};
+    card.dataset.cardIndex=String(index);
+    card.style.touchAction="manipulation";
+    card.onclick=null;
+    card.ontouchend=null;
+    card.onpointerup=(ev)=>{
+      if(ev.pointerType!=="mouse" && ev.button!==0)return;
+      ev.preventDefault();
+      onPlayerCardSelectedV20(card,index);
+    };
   });
 }
 </script>
 <style id="card-selection-feedback-v20">
-#roleSelect .cardDealCard{position:relative}
+#roleSelect .cardDealCard{position:relative;z-index:2;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 #roleSelect .cardDealCard.card-selected-feedback{
   filter:brightness(1.35) drop-shadow(0 0 22px rgba(255,220,120,.95));
   box-shadow:0 0 0 4px rgba(255,230,150,.85),0 0 34px rgba(255,210,90,.9);
@@ -1652,7 +1693,7 @@ function bindCardSelectionV20(){
 }
 #roleSelect .cardSelectedBadge{
   position:absolute;
-  left:50%;bottom:-42px;transform:translateX(-50%);
+  transform:translateX(-50%);
   white-space:nowrap;padding:6px 14px;border-radius:999px;
   background:rgba(20,120,65,.96);border:1px solid #7dffad;color:#fff;
   font-size:clamp(13px,1.5vw,20px);font-weight:900;pointer-events:none;
