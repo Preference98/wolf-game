@@ -1018,9 +1018,13 @@ body{
 #lobby.readyWaiting .lobbyReadyTitle{width:min(78vw,900px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:lobbyReadyTitleIdle 4s ease-in-out infinite alternate;}
 #lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin-top:clamp(260px,34vh,420px);}
 #lobby.readyWaiting .lobbyLogoutBtn{position:relative;z-index:3;}
-@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
+@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)} }
 @keyframes lobbyReadyTitleIdle{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.012)}}
 
+/* 로그인 직후 대기화면의 로그아웃 버튼만 상단 우측에 배치 */
+#lobby:not(.readyWaiting){position:relative;}
+#lobby:not(.readyWaiting) .lobbyLogoutBtn{position:absolute!important;top:max(12px,env(safe-area-inset-top))!important;right:max(12px,env(safe-area-inset-right))!important;z-index:5!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:7px 11px!important;font-size:13px!important;line-height:1.2!important;}
+@media (max-height:560px){#lobby:not(.readyWaiting) .lobbyLogoutBtn{top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important;padding:6px 10px!important;font-size:12px!important;}}
 
 #login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
  font-family:var(--wolf-title-font)!important;
@@ -2086,32 +2090,6 @@ function bindCardSelectionV20(){
   }
   #roleSelect .cardDealCard{
     width:clamp(62px,13vh,92px)!important;
-  }
-}
-</style>
-<style id="lobby-initial-logout-top-right-fix">
-/* 로그인 직후 기본 대기화면에서만 로그아웃 버튼을 우측 상단에 배치 */
-#lobby:not(.readyWaiting) .lobbyLogoutBtn{
-  position:absolute!important;
-  top:max(12px, env(safe-area-inset-top, 0px) + 8px)!important;
-  right:max(12px, env(safe-area-inset-right, 0px) + 8px)!important;
-  bottom:auto!important;
-  left:auto!important;
-  z-index:10!important;
-  width:auto!important;
-  min-width:0!important;
-  max-width:none!important;
-  margin:0!important;
-  padding:7px 11px!important;
-  font-size:13px!important;
-  line-height:1.2!important;
-}
-@media (max-height:560px){
-  #lobby:not(.readyWaiting) .lobbyLogoutBtn{
-    top:max(10px, env(safe-area-inset-top, 0px) + 6px)!important;
-    right:max(10px, env(safe-area-inset-right, 0px) + 6px)!important;
-    padding:6px 10px!important;
-    font-size:12px!important;
   }
 }
 </style>
