@@ -1339,49 +1339,22 @@ window.openBroadcastScreen=function(){
  opacity:1;visibility:visible;
 }
 </style>
-<script id="player-role-card-flow-v23-js">
-let playerRoleToCardTimerV23=null;
+<script id="player-role-card-flow-v18-js">
+let playerRoleToCardTimerV18=null;
 function startPlayerRoleCardFlowV18(){
- clearTimeout(playerRoleToCardTimerV23);
+ clearTimeout(playerRoleToCardTimerV18);
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
- const area=document.querySelector("#roleSelect .cardDealArea");
- const grid=document.getElementById("cardDealGrid");
- if(!emphasis||!title||!instruction||!area||!grid)return;
-
+ if(!emphasis||!title||!instruction)return;
  emphasis.classList.add("visible");
  title.classList.remove("card-selection-active");
  instruction.classList.remove("card-selection-instruction-active");
- area.classList.remove("card-input-enabled");
- grid.innerHTML="";
- grid.dataset.cardCount="0";
-
- playerRoleToCardTimerV23=setTimeout(()=>{
+ playerRoleToCardTimerV18=setTimeout(()=>{
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
-
-   setTimeout(async()=>{
-     const g=await settings();
-     if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
-     const count=await getPlayerCountForCardDealV18();
-     if(!count)return;
-
-     grid.dataset.cardCount=String(count);
-     buildCardDealV18(grid,count,'assets/card_back.png');
-     area.classList.remove("card-input-enabled");
-
-     [...grid.children].forEach((card,index)=>{
-       setTimeout(()=>card.classList.add("dealt"),index*360);
-     });
-
-     const totalDealTime=Math.max(0,(count-1)*360+700);
-     setTimeout(async()=>{
-       const latest=await settings();
-       if(String(latest.phase).toUpperCase()!=="ROLE_SELECT")return;
-       await enterCardSelectionStageV21();
-     },totalDealTime);
-   },1800);
+   // 타이틀 애니메이션 종료 후 카드 배부 시작
+   setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
  },3000);
 }
 </script>
@@ -1514,37 +1487,6 @@ async function startCardDealV18(){
     area.classList.add("card-input-enabled");
     if(instruction)instruction.classList.add("card-selection-instruction-active");
   },Math.max(0,(count-1)*360+700));
-}
-</script>
-<script id="card-selection-persistent-stage-v21">
-async function renderCardSelectionReadyV21(){
-  const area=document.querySelector("#roleSelect .cardDealArea");
-  const grid=document.getElementById("cardDealGrid");
-  const instruction=document.getElementById("playerCardSelectionInstruction");
-  const title=document.getElementById("playerCardSelectionTitle");
-  if(!area||!grid||!instruction||!title)return;
-
-  clearTimeout(cardDealTimerV18);
-  clearTimeout(cardDealDoneTimerV18);
-  const count=await getPlayerCountForCardDealV18();
-  if(!count)return;
-
-  title.classList.add("card-selection-active");
-  grid.dataset.cardCount=String(count);
-  buildCardDealV18(grid,count,'assets/card_back.png');
-  [...grid.children].forEach(card=>card.classList.add("dealt"));
-  area.classList.add("card-input-enabled");
-  instruction.classList.add("card-selection-instruction-active");
-}
-
-async function enterCardSelectionStageV21(){
-  const g=await settings();
-  if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
-  try{
-    await set({phase:"CARD_SELECT",notice:"카드 선택 대기"});
-  }catch(e){
-    console.warn("카드 선택 단계 전환 실패:",e);
-  }
 }
 </script>
 </head>
@@ -2440,12 +2382,6 @@ async function routeCore(){
      stopAllTimers();
      await showScreen("roleSelect");
      startPlayerRoleCardFlowV18();
-     return;
-
-   case "CARD_SELECT":
-     stopAllTimers();
-     await showScreen("roleSelect");
-     await renderCardSelectionReadyV21();
      return;
 
    case "LOBBY":
