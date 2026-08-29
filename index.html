@@ -1962,6 +1962,157 @@ function bindCardSelectionV20(){
   #roleSelect .cardDealArea{top:25%!important;bottom:2%!important;}
 }
 </style>
+
+<style id="card-selection-layout-grid-v23">
+/* v23: 카드 선택 화면을 타이틀 / 안내문 / 카드의 3개 독립 영역으로 고정 */
+#roleSelect{
+  position:relative!important;
+  display:grid!important;
+  grid-template-rows:minmax(72px,13dvh) minmax(52px,10dvh) minmax(0,1fr)!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  align-items:stretch!important;
+  justify-items:stretch!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+  padding-top:max(8px,env(safe-area-inset-top))!important;
+  padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
+}
+#roleSelect #playerCardSelectionTitle{
+  position:relative!important;
+  inset:auto!important;
+  left:auto!important;top:auto!important;
+  transform:none!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0 10px!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+#roleSelect #playerCardSelectionTitle img{
+  width:clamp(54px,12vw,150px)!important;
+  max-width:22vw!important;
+  height:auto!important;
+}
+#roleSelect #playerCardSelectionInstruction{
+  position:relative!important;
+  inset:auto!important;
+  left:auto!important;top:auto!important;
+  transform:none!important;
+  grid-row:2!important;
+  align-self:center!important;
+  justify-self:center!important;
+  width:min(92vw,900px)!important;
+  height:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:4px 14px!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  font-size:clamp(14px,2.2vw,28px)!important;
+  line-height:1.25!important;
+  overflow:hidden!important;
+  overflow-wrap:anywhere!important;
+  word-break:keep-all!important;
+}
+#roleSelect .cardDealArea{
+  position:relative!important;
+  inset:auto!important;
+  left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  grid-row:3!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+}
+#roleSelect .cardDealGrid{
+  position:relative!important;
+  left:auto!important;top:auto!important;
+  transform:none!important;
+  width:min(88vw,1000px)!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  height:auto!important;
+  margin:0 auto!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:clamp(6px,1.5vw,20px)!important;
+  justify-items:center!important;
+  align-items:center!important;
+}
+#roleSelect .cardDealCard{
+  width:min(clamp(78px,11vw,150px),100%)!important;
+  max-width:100%!important;
+  max-height:calc(100% - 4px)!important;
+  aspect-ratio:2/3!important;
+}
+@media(max-width:600px){
+  #roleSelect{
+    grid-template-rows:minmax(64px,12dvh) minmax(48px,9dvh) minmax(0,1fr)!important;
+  }
+  #roleSelect #playerCardSelectionTitle img{
+    width:clamp(44px,13vw,82px)!important;
+    max-width:21vw!important;
+  }
+  #roleSelect #playerCardSelectionInstruction{
+    width:94vw!important;
+    font-size:clamp(13px,3.8vw,21px)!important;
+    line-height:1.2!important;
+    padding:2px 10px!important;
+  }
+  #roleSelect .cardDealGrid{
+    width:min(92vw,560px)!important;
+    gap:clamp(5px,1.8vw,12px)!important;
+  }
+  #roleSelect .cardDealCard{
+    width:clamp(76px,24vw,118px)!important;
+  }
+}
+@media(max-width:360px){
+  #roleSelect{
+    grid-template-rows:minmax(58px,11dvh) minmax(46px,9dvh) minmax(0,1fr)!important;
+  }
+  #roleSelect #playerCardSelectionTitle img{
+    width:clamp(40px,12vw,64px)!important;
+  }
+  #roleSelect #playerCardSelectionInstruction{
+    font-size:clamp(12px,3.5vw,17px)!important;
+  }
+  #roleSelect .cardDealCard{
+    width:clamp(70px,22vw,98px)!important;
+  }
+}
+@media(orientation:landscape) and (max-height:600px){
+  #roleSelect{
+    grid-template-rows:minmax(48px,18dvh) minmax(38px,12dvh) minmax(0,1fr)!important;
+  }
+  #roleSelect #playerCardSelectionTitle img{
+    width:clamp(38px,8vw,90px)!important;
+  }
+  #roleSelect #playerCardSelectionInstruction{
+    font-size:clamp(12px,2.5vw,20px)!important;
+  }
+  #roleSelect .cardDealCard{
+    width:clamp(62px,13vh,92px)!important;
+  }
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
