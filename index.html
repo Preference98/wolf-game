@@ -1345,9 +1345,29 @@ window.openBroadcastScreen=function(){
 }
 </style>
 <script id="player-role-card-flow-v18-js">
-let playerRoleToCardTimerV18=null;
+let playerRoleToCardTimerV18=null, playerRoleCardStartTimerV18=null;
+function resetPlayerRoleCardVisualsV18(){
+  clearTimeout(playerRoleToCardTimerV18);
+  clearTimeout(playerRoleCardStartTimerV18);
+  playerRoleToCardTimerV18=null;
+  playerRoleCardStartTimerV18=null;
+  clearTimeout(cardDealTimerV18);
+  clearTimeout(cardDealDoneTimerV18);
+  cardDealTimerV18=null;
+  cardDealDoneTimerV18=null;
+  const area=document.querySelector("#roleSelect .cardDealArea");
+  const grid=document.getElementById("cardDealGrid");
+  const instruction=document.getElementById("playerCardSelectionInstruction");
+  if(area)area.classList.remove("card-input-enabled");
+  if(grid){
+    grid.innerHTML="";
+    grid.removeAttribute("data-card-count");
+  }
+  if(instruction)instruction.classList.remove("card-selection-instruction-active");
+}
+
 function startPlayerRoleCardFlowV18(){
- clearTimeout(playerRoleToCardTimerV18);
+ resetPlayerRoleCardVisualsV18();
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
@@ -1359,7 +1379,7 @@ function startPlayerRoleCardFlowV18(){
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
    // 타이틀 애니메이션 종료 후 카드 배부 시작
-   setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
+   playerRoleCardStartTimerV18=setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
  },3000);
 }
 </script>
@@ -2983,14 +3003,17 @@ async function routeCore(){
 
   switch(currentPhase){
    case "ROLE_SELECT":
+     resetPlayerRoleCardVisualsV18();
      stopAllTimers();
      await showScreen("roleSelect");
      startPlayerRoleCardFlowV18();
      return;
 
    case "LOBBY":
+     resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderLobby(p,g);return;
    case "ROLE_REVEAL":
+     resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderCleanRoleReveal(p,g);return;
    case "COUNTDOWN":
      if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
