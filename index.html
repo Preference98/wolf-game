@@ -1485,11 +1485,184 @@ async function startCardDealV18(){
   // 마지막 카드가 도착한 뒤에만 안내문구와 카드 터치를 활성화합니다.
   cardDealDoneTimerV18=setTimeout(()=>{
     area.classList.add("card-input-enabled");
+    bindCardSelectionV20();
     if(instruction)instruction.classList.add("card-selection-instruction-active");
   },Math.max(0,(count-1)*360+700));
 }
 </script>
-</head>
+<style id="card-selection-position-v20-final">
+#roleSelect #playerCardSelectionInstruction{
+  position:absolute!important;
+  z-index:95!important;
+  left:50%!important;
+  top:calc(6% + clamp(190px,20vw,270px))!important;
+  transform:translateX(-50%)!important;
+  width:min(92vw,1050px)!important;
+  margin:0!important;
+  text-align:center!important;
+  font-size:clamp(24px,3.2vw,50px)!important;
+  font-weight:900!important;
+  color:#fff!important;
+  text-shadow:0 3px 16px rgba(0,0,0,.9)!important;
+}
+</style><script id="card-selection-complete-v20">
+let cardSelectionBusyV20=false;
+
+function getCardRoleDeckV20(count,wolfCount,round){
+  const roles=[];
+  for(let n=0;n<wolfCount;n++)roles.push("WOLF");
+  while(roles.length<count)roles.push("SHEEP");
+  let seed=((Number(round)||1)*1009+count*97+wolfCount*53)>>>0;
+  for(let n=roles.length-1;n>0;n--){
+    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+    const j=seed%(n+1);
+    [roles[n],roles[j]]=[roles[j],roles[n]];
+  }
+  return roles;
+}
+
+async function reconcileCardPositionsV20(){
+  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
+  }
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+    }
+  }
+}
+
+function showCardSelectedFeedbackV20(card){
+  if(!card)return;
+  card.classList.add("card-selected-feedback");
+  card.setAttribute("aria-selected","true");
+  const badge=document.createElement("span");
+  badge.className="cardSelectedBadge";
+  badge.textContent="선택 완료";
+  card.appendChild(badge);
+}
+
+async function finishRoleSelectionIfCompleteV20(){
+  const r=await db.from("players").select("id,name,status,card_selected").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const players=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자");
+  if(players.length>0 && players.every(p=>p.card_selected)){
+    const g=await settings();
+    if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
+      await set({
+        phase:"ROLE_REVEAL",
+        roles_selected:true,
+        notice:"모든 플레이어가 카드를 선택했습니다."
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+async function onPlayerCardSelectedV20(card,index){
+  if(cardSelectionBusyV20)return;
+  const area=document.querySelector("#roleSelect .cardDealArea");
+  if(!area||!area.classList.contains("card-input-enabled"))return;
+  if(card.classList.contains("card-selected-feedback"))return;
+  cardSelectionBusyV20=true;
+
+  try{
+    const p=await me();
+    if(!p||!p.id)throw new Error("플레이어 정보를 확인하지 못했습니다.");
+    const g=await settings();
+    if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
+
+    // 같은 카드가 이미 선택되어 있으면 이 카드의 선택을 거부합니다.
+    const taken=await db.from("players").select("id").eq("status","ALIVE").eq("card_selected",true).eq("card_position",index);
+    if(taken.error)throw new Error(taken.error.message);
+    if((taken.data||[]).some(x=>String(x.id)!==String(p.id))){
+      toast("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
+      return;
+    }
+
+    const count=(await db.from("players").select("id,name,status").eq("status","ALIVE")).data
+      ?.filter(x=>String(x.name||"").trim()!=="관리자").length || 0;
+    if(!count)throw new Error("플레이어 수를 확인하지 못했습니다.");
+
+    const wolfCount=Math.max(1,Math.min(count-1,Math.floor(Number(g.wolf_count)||1)));
+    const roles=getCardRoleDeckV20(count,wolfCount,g.current_round);
+    const role=roles[index];
+    if(!role)throw new Error("선택한 카드의 역할 정보를 확인하지 못했습니다.");
+
+    const upd=await db.from("players").update({
+      card_selected:true,
+      card_position:index,
+      role:role
+    }).eq("id",p.id).eq("status","ALIVE").eq("card_selected",false);
+    if(upd.error)throw new Error(upd.error.message);
+
+    // 동시 선택으로 동일 카드가 겹친 경우를 정리합니다.
+    await reconcileCardPositionsV20();
+
+    const meAfter=await db.from("players").select("card_selected,card_position").eq("id",p.id).maybeSingle();
+    if(meAfter.error)throw new Error(meAfter.error.message);
+    if(!meAfter.data?.card_selected || Number(meAfter.data.card_position)!==index){
+      throw new Error("방금 선택한 카드는 다른 플레이어가 먼저 선택했습니다.");
+    }
+
+    showCardSelectedFeedbackV20(card);
+    area.classList.remove("card-input-enabled");
+    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
+      if(c!==card)c.classList.add("card-selection-disabled");
+    });
+
+    await finishRoleSelectionIfCompleteV20();
+  }catch(e){
+    console.error("카드 선택 처리 실패:",e);
+    toast("카드 선택에 실패했습니다: "+(e.message||e));
+  }finally{
+    cardSelectionBusyV20=false;
+  }
+}
+
+function bindCardSelectionV20(){
+  const grid=document.getElementById("cardDealGrid");
+  if(!grid)return;
+  [...grid.children].forEach((card,index)=>{
+    card.onclick=()=>onPlayerCardSelectedV20(card,index);
+    card.ontouchend=(ev)=>{ev.preventDefault();onPlayerCardSelectedV20(card,index);};
+  });
+}
+</script>
+<style id="card-selection-feedback-v20">
+#roleSelect .cardDealCard{position:relative}
+#roleSelect .cardDealCard.card-selected-feedback{
+  filter:brightness(1.35) drop-shadow(0 0 22px rgba(255,220,120,.95));
+  box-shadow:0 0 0 4px rgba(255,230,150,.85),0 0 34px rgba(255,210,90,.9);
+  animation:cardSelectedPulseV20 .55s ease-out 1;
+}
+#roleSelect .cardDealCard.card-selection-disabled{
+  filter:brightness(.55);
+  opacity:.55;
+}
+#roleSelect .cardSelectedBadge{
+  position:absolute;
+  left:50%;bottom:-42px;transform:translateX(-50%);
+  white-space:nowrap;padding:6px 14px;border-radius:999px;
+  background:rgba(20,120,65,.96);border:1px solid #7dffad;color:#fff;
+  font-size:clamp(13px,1.5vw,20px);font-weight:900;pointer-events:none;
+}
+@keyframes cardSelectedPulseV20{
+  0%{transform:scale(1)}
+  45%{transform:translateY(-10px) scale(1.07)}
+  100%{transform:scale(1)}
+}
+</style></head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
