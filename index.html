@@ -1892,6 +1892,15 @@ function bindCardSelectionV20(){
 #roleReveal .unifiedRoleCardBack img{object-fit:cover!important}
 #roleReveal .unifiedRoleCardFront img{object-fit:contain!important}
 </style>
+<style id="role-reveal-front-image-width-fix-v4">
+/* 결과 공개 앞면 이미지: 뒷면과 동일한 카드 영역을 가득 채우도록 가로 폭을 확장 */
+#roleReveal .unifiedRoleCardFront img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:fill!important;
+  display:block!important;
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
