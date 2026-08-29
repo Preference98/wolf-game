@@ -1698,10 +1698,6 @@ function stopAllTimers(){
 const SOUND_FILES={
 
 
- roleSelectionBgm:"sounds/role-selection-bgm.mp3",
- trialBgm:"sounds/trial-bgm.mp3",
-
-
 
 
 
@@ -1715,9 +1711,7 @@ const SOUND_FILES={
  deadSheepFound:"sounds/body-found.mp3",
  death:"sounds/death.mp3",
  sabotage:"sounds/sabotage.mp3",
- adminNotice:"sounds/admin-notice.mp3",
  nightAlert:"sounds/night-alert.mp3",
- nightBgm:"sounds/night-bgm.mp3"
 };
 const audio={};
 let soundUnlocked=false;
@@ -2182,10 +2176,6 @@ async function routeCore(){
    case "ROLE_SELECT":
      stopAllTimers();
      await showScreen("roleSelect");
-     if(prevPhase!=="ROLE_SELECT"){
-       clearTimeout(playerCardSelectionIntroTimer);
-       playerCardSelectionIntroTimer=setTimeout(startPlayerCardSelectionIntro,5000);
-     }
      return;
 
    case "LOBBY":
@@ -2531,8 +2521,6 @@ async function renderNight(p,g){
        '<button class="danger" style="width:100%" onclick="openWolfDeathList()">☠️ 사망처리</button>'+
        '<p class="small muted">이번 라운드의 사망 처리는 최대 1명입니다.</p>';
    }
-
-   activateStageAudio().then(()=>startPlayerLoopBgm("nightBgm",.42)).catch(()=>{});
  }
 
  const timerEl=isWolf?el("nightWolfTimer"):el("nightSheepTimer");
