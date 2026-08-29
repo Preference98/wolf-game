@@ -1628,7 +1628,7 @@ async function onPlayerCardSelectedV20(card,index){
 
   try{
     // v20의 기존 db/playerId 구조를 직접 사용합니다.
-    const currentId=typeof playerId!=="undefined" ? playerId : window.playerId;
+    const currentId=(typeof playerId!=="undefined" && playerId) ? playerId : (window.playerId || localStorage.getItem("wolf_game_player_v7"));
     if(!currentId)throw new Error("현재 플레이어 ID를 확인할 수 없습니다.");
 
     const g=await settings();
