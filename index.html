@@ -1541,69 +1541,17 @@ async function reconcileCardPositionsV20(){
   }
 }
 
-function showCardSelectedFeedbackV20(card,index){
+function showCardSelectedFeedbackV20(card){
   if(!card)return;
   card.classList.add("card-selected-feedback");
   card.setAttribute("aria-selected","true");
-
-  const grid=card.closest("#cardDealGrid")||card.parentElement;
-  if(grid){
-    [...grid.querySelectorAll(".cardDealCard")].forEach(other=>{
-      if(other!==card){
-        other.classList.add("card-selection-disabled");
-        other.style.pointerEvents="none";
-      }
-    });
-  }
-
-  const badge=document.createElement("span");
-  badge.className="cardSelectedBadge";
-  badge.textContent="선택 완료";
-  badge.dataset.forCard=String(index);
-  badge.setAttribute("aria-hidden","true");
-
-  const cardWrap=card.parentElement;
-  if(cardWrap){
-    cardWrap.style.position=cardWrap.style.position||"relative";
-    cardWrap.appendChild(badge);
-  }
-}
-function clearCardSelectedFeedbackV20(card){
-  if(!card)return;
-  card.classList.remove("card-selected-feedback");
-  card.removeAttribute("aria-selected");
-  card.parentElement?.querySelectorAll('.cardSelectedBadge').forEach(x=>x.remove());
-}
-function setCardSelectionLockedV20(card,locked){
-  const area=document.querySelector("#roleSelect .cardDealArea");
-  if(locked){
-    area?.classList.remove("card-input-enabled");
-    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
-      if(c!==card)c.classList.add("card-selection-disabled");
-    });
-  }else{
-    area?.classList.add("card-input-enabled");
-    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>c.classList.remove("card-selection-disabled"));
-  }
-}
-
-async function reconcileCardPositionsV20(){
-  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
-  if(r.error)throw new Error(r.error.message);
-  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
-  const byPos=new Map();
-  for(const p of selected){
-    const pos=Number(p.card_position);
-    if(!Number.isInteger(pos))continue;
-    if(!byPos.has(pos))byPos.set(pos,[]);
-    byPos.get(pos).push(p);
-  }
-  for(const group of byPos.values()){
-    if(group.length<2)continue;
-    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-    for(const loser of group.slice(1)){
-      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
-    }
+  const wrap=card.parentElement;
+  if(wrap){
+    wrap.style.position=wrap.style.position||"relative";
+    const badge=document.createElement("span");
+    badge.className="cardSelectedBadge";
+    badge.textContent="선택 완료";
+    wrap.appendChild(badge);
   }
 }
 
@@ -1614,7 +1562,11 @@ async function finishRoleSelectionIfCompleteV20(){
   if(players.length>0 && players.every(p=>p.card_selected)){
     const g=await settings();
     if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
-      await set({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어가 카드를 선택했습니다."});
+      await set({
+        phase:"ROLE_REVEAL",
+        roles_selected:true,
+        notice:"모든 플레이어가 카드를 선택했습니다."
+      });
     }
     return true;
   }
@@ -1622,122 +1574,84 @@ async function finishRoleSelectionIfCompleteV20(){
 }
 
 async function onPlayerCardSelectedV20(card,index){
-  if(window.__cardSelectionBusyV20)return;
-  const area=card && card.closest(".cardDealArea");
-  if(!card || !area || !area.classList.contains("card-input-enabled"))return;
+  const area=card&&card.closest(".cardDealArea");
+  if(!card||!area||!area.classList.contains("card-input-enabled"))return;
+  if(cardSelectionBusyV20)return;
+  cardSelectionBusyV20=true;
 
-  window.__cardSelectionBusyV20=true;
-
-  // 터치 즉시 피드백: 네트워크 응답을 기다리지 않습니다.
-  showCardSelectedFeedbackV20(card,index);
+  // 터치 즉시 피드백
+  showCardSelectedFeedbackV20(card);
   area.classList.remove("card-input-enabled");
+  [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
+    if(c!==card)c.classList.add("card-selection-disabled");
+  });
 
   try{
-    const client=(typeof db!=="undefined" && db) ||
-                 (typeof window.db!=="undefined" && window.db);
-    if(!client || typeof client.from!=="function"){
-      throw new Error("기존 Supabase 클라이언트를 찾을 수 없습니다.");
+    // v20에 이미 존재하는 DB/플레이어 조회 함수를 그대로 사용
+    const p=await me();
+    if(!p||!p.id)throw new Error("플레이어 정보를 확인하지 못했습니다.");
+    const g=await settings();
+    if(String(g.phase).toUpperCase()!=="ROLE_SELECT")throw new Error("현재 카드 선택 단계가 아닙니다.");
+
+    const taken=await db.from("players").select("id")
+      .eq("status","ALIVE").eq("card_selected",true).eq("card_position",index);
+    if(taken.error)throw new Error(taken.error.message);
+    if((taken.data||[]).some(x=>String(x.id)!==String(p.id))){
+      throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
     }
 
-    // 현재 로그인 플레이어는 v20의 기존 localStorage/session 정보에서
-    // 이름을 가져오고, players 테이블에서 실제 레코드를 찾습니다.
-    const storedName=localStorage.getItem("playerName") ||
-                     localStorage.getItem("player_name") ||
-                     window.currentPlayerName ||
-                     window.playerName;
-    if(!storedName)throw new Error("현재 플레이어 이름을 확인할 수 없습니다.");
+    const count=(await db.from("players").select("id,name,status").eq("status","ALIVE")).data
+      ?.filter(x=>String(x.name||"").trim()!=="관리자").length||0;
+    if(!count)throw new Error("플레이어 수를 확인하지 못했습니다.");
 
-    const {data:players,error:loadError}=await client
-      .from("players")
-      .select("id,name,status,card_selected,card_position")
-      .eq("status","ALIVE");
-    if(loadError)throw loadError;
+    const wolfCount=Math.max(1,Math.min(count-1,Math.floor(Number(g.wolf_count)||1)));
+    const roles=getCardRoleDeckV20(count,wolfCount,g.current_round);
+    const role=roles[index];
+    if(!role)throw new Error("선택한 카드의 역할 정보를 확인하지 못했습니다.");
 
-    const mine=(players||[]).find(p=>String(p.name)===String(storedName));
-    if(!mine)throw new Error("현재 플레이어의 players 레코드를 찾을 수 없습니다.");
-    if(mine.card_selected){
-      return;
+    const upd=await db.from("players").update({
+      card_selected:true,card_position:index,role:role
+    }).eq("id",p.id).eq("status","ALIVE").eq("card_selected",false);
+    if(upd.error)throw new Error(upd.error.message);
+
+    await reconcileCardPositionsV20();
+
+    const meAfter=await db.from("players").select("card_selected,card_position")
+      .eq("id",p.id).maybeSingle();
+    if(meAfter.error)throw new Error(meAfter.error.message);
+    if(!meAfter.data?.card_selected || Number(meAfter.data.card_position)!==index){
+      throw new Error("방금 선택한 카드는 다른 플레이어가 먼저 선택했습니다.");
     }
 
-    const taken=(players||[]).some(p=>
-      p.id!==mine.id &&
-      p.card_selected===true &&
-      Number(p.card_position)===Number(index)
-    );
-    if(taken){
-      throw new Error("이미 다른 플레이어가 선택한 카드입니다.");
-    }
-
-    const {error:updateError}=await client.from("players").update({
-      card_selected:true,
-      card_position:index
-    }).eq("id",mine.id);
-    if(updateError)throw updateError;
-
-    // 모든 ALIVE 플레이어가 선택했는지 확인.
-    const {data:latest,error:latestError}=await client
-      .from("players")
-      .select("id,name,status,card_selected")
-      .eq("status","ALIVE");
-    if(latestError)throw latestError;
-
-    const alive=(latest||[]).filter(
-      p=>String(p.name||"").trim()!=="관리자"
-    );
-
-    if(alive.length>0 && alive.every(p=>p.card_selected===true)){
-      // v20 프로젝트의 기존 phase setter를 우선 사용합니다.
-      if(typeof set==="function"){
-        await set({phase:"ROLE_REVEAL"});
-      }else if(typeof window.setPhase==="function"){
-        await window.setPhase("ROLE_REVEAL");
-      }else{
-        throw new Error("기존 게임 단계 전환 함수를 찾을 수 없습니다.");
-      }
-    }
-  }catch(error){
-    console.error("카드 선택 처리 실패:",error);
-
-    // 저장 실패 시에만 즉시 피드백을 되돌립니다.
+    await finishRoleSelectionIfCompleteV20();
+  }catch(e){
+    console.error("카드 선택 처리 실패:",e);
     card.classList.remove("card-selected-feedback");
     card.removeAttribute("aria-selected");
-
-    const grid=card.closest("#cardDealGrid")||card.parentElement;
-    if(grid){
-      [...grid.querySelectorAll(".cardDealCard")].forEach(other=>{
-        other.classList.remove("card-selection-disabled");
-        other.style.pointerEvents="";
-      });
-      const badge=grid.querySelector(
-        '.cardSelectedBadge[data-for-card="'+index+'"]'
-      );
-      if(badge)badge.remove();
-    }
+    const badge=card.parentElement?.querySelector(".cardSelectedBadge");
+    if(badge)badge.remove();
+    [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>{
+      c.classList.remove("card-selection-disabled");
+    });
     area.classList.add("card-input-enabled");
-
-    // v20에 존재하는 알림 함수를 찾되, 없는 toast()는 호출하지 않습니다.
     if(typeof window.showToast==="function"){
-      try{window.showToast(error.message||"카드 선택에 실패했습니다.");}catch(e){}
+      try{window.showToast("카드 선택에 실패했습니다: "+(e.message||e));}catch(_){}
     }else{
-      console.warn(error.message||"카드 선택에 실패했습니다.");
+      console.warn("카드 선택에 실패했습니다:",e.message||e);
     }
   }finally{
-    window.__cardSelectionBusyV20=false;
+    cardSelectionBusyV20=false;
   }
 }
 
 function bindCardSelectionV20(){
-  const area=document.querySelector(".cardDealArea");
   const grid=document.getElementById("cardDealGrid");
-  if(!area||!grid)return;
-
-  [...grid.querySelectorAll(".cardDealCard")].forEach((card,index)=>{
-    // 중복 바인딩 방지
-    card.onpointerup=null;
+  if(!grid)return;
+  [...grid.children].forEach((card,index)=>{
     card.onclick=null;
     card.ontouchend=null;
-
-    card.onpointerup=function(ev){
+    card.onpointerup=null;
+    card.onpointerup=(ev)=>{
       ev.preventDefault();
       ev.stopPropagation();
       onPlayerCardSelectedV20(card,index);
@@ -1746,7 +1660,7 @@ function bindCardSelectionV20(){
 }
 </script>
 <style id="card-selection-feedback-v20">
-#roleSelect .cardDealCard{position:relative;z-index:2;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#roleSelect .cardDealCard{position:relative}
 #roleSelect .cardDealCard.card-selected-feedback{
   filter:brightness(1.35) drop-shadow(0 0 22px rgba(255,220,120,.95));
   box-shadow:0 0 0 4px rgba(255,230,150,.85),0 0 34px rgba(255,210,90,.9);
@@ -1758,7 +1672,7 @@ function bindCardSelectionV20(){
 }
 #roleSelect .cardSelectedBadge{
   position:absolute;
-  transform:translateX(-50%);
+  left:50%;bottom:-42px;transform:translateX(-50%);
   white-space:nowrap;padding:6px 14px;border-radius:999px;
   background:rgba(20,120,65,.96);border:1px solid #7dffad;color:#fff;
   font-size:clamp(13px,1.5vw,20px);font-weight:900;pointer-events:none;
@@ -1768,25 +1682,16 @@ function bindCardSelectionV20(){
   45%{transform:translateY(-10px) scale(1.07)}
   100%{transform:scale(1)}
 }
-</style><style id="card-touch-fixed-v21">
-.cardDealArea.card-input-enabled{pointer-events:auto;z-index:1000}
-.cardDealArea.card-input-enabled .cardDealGrid{pointer-events:auto}
-.cardDealArea.card-input-enabled .cardDealCard{
-  pointer-events:auto;
-  touch-action:manipulation;
-  cursor:pointer;
+</style><style id="card-selection-touch-fixed-v21">
+#roleSelect .cardDealArea.card-input-enabled{pointer-events:auto;z-index:1000}
+#roleSelect .cardDealArea.card-input-enabled .cardDealGrid{pointer-events:auto}
+#roleSelect .cardDealArea.card-input-enabled .cardDealCard{
+  pointer-events:auto;touch-action:manipulation;cursor:pointer;
 }
-.cardDealArea:not(.card-input-enabled) .cardDealCard{
-  pointer-events:none;
-}
-.cardSelectedBadge{
-  position:absolute;
-  left:50%;
-  bottom:-34px;
-  transform:translateX(-50%);
-  z-index:50;
-  pointer-events:none;
-  white-space:nowrap;
+#roleSelect .cardDealArea:not(.card-input-enabled) .cardDealCard{pointer-events:none}
+#roleSelect .cardSelectedBadge{
+  position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);
+  z-index:50;pointer-events:none;white-space:nowrap;
 }
 </style></head>
 <body class="wolf-v181">
