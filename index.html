@@ -1354,7 +1354,7 @@ function startPlayerRoleCardFlowV18(){
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
    // 타이틀 애니메이션 종료 후 카드 배부 시작
-   setTimeout(startCardDealV18, 2300);
+   setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
  },3000);
 }
 </script>
@@ -1386,11 +1386,65 @@ function startPlayerRoleCardFlowV18(){
 <script id="card-deal-v18-player">
 let cardDealTimerV18=null, cardDealDoneTimerV18=null;
 async function getPlayerCountForCardDealV18(){
-  try{
-    const r=await db.from("players").select("id,name,status").eq("status","ALIVE");
-    if(r.error)throw r.error;
-    return (r.data||[]).filter(p=>p&&p.name&&p.name!=="관리자").length;
-  }catch(e){console.warn("카드 배부용 플레이어 수 조회 실패:",e);return 0;}
+  // 플레이어 화면에서는 이미 로드된 players 상태를 가장 먼저 사용합니다.
+  const sources=[
+    window.players,
+    window.playerList,
+    window.gamePlayers,
+    window.currentPlayers
+  ];
+  for(const list of sources){
+    if(Array.isArray(list)){
+      const count=list.filter(p=>{
+        const name=typeof p==="string"?p:(p&&p.name);
+        const status=typeof p==="object"&&p ? String(p.status||"ALIVE").toUpperCase() : "ALIVE";
+        return name && String(name).trim()!=="관리자" && status==="ALIVE";
+      }).length;
+      if(count>0)return count;
+    }
+  }
+
+  // 전역 배열이 없는 경우, 페이지가 이미 유지하고 있는 참가자 UI를 사용합니다.
+  const selectors=[
+    "#playerList .player-item",
+    "#playerList > *",
+    ".player-list .player-item",
+    "[data-player-name]"
+  ];
+  for(const sel of selectors){
+    const count=document.querySelectorAll(sel).length;
+    if(count>0)return count;
+  }
+
+  // 게임 코드가 별도로 노출하는 확정 인원수를 마지막으로 사용합니다.
+  for(const value of [
+    window.currentPlayerCount,
+    window.playerCount,
+    window.totalPlayers
+  ]){
+    const count=Number(value);
+    if(Number.isFinite(count)&&count>0)return Math.floor(count);
+  }
+
+  // db가 이미 존재하는 경우에만 보조적으로 조회합니다.
+  // db가 없는 상태에서는 절대로 ReferenceError를 발생시키지 않습니다.
+  if(typeof db!=="undefined" && db && typeof db.from==="function"){
+    try{
+      const result=await db.from("players")
+        .select("id,name,status")
+        .eq("status","ALIVE");
+      if(!result.error){
+        const count=(result.data||[]).filter(
+          p=>String(p.name||"").trim()!=="관리자"
+        ).length;
+        if(count>0)return count;
+      }
+    }catch(error){
+      console.warn("카드 배부용 플레이어 수 DB 조회 실패:",error);
+    }
+  }
+
+  return 0;
 }
 function buildCardDealV18(container,count,back){
   if(!container)return;
@@ -1405,21 +1459,33 @@ function buildCardDealV18(container,count,back){
   }
 }
 async function startCardDealV18(){
-  clearTimeout(cardDealTimerV18);clearTimeout(cardDealDoneTimerV18);
+  clearTimeout(cardDealTimerV18);
+  clearTimeout(cardDealDoneTimerV18);
+
   const area=document.querySelector("#roleSelect .cardDealArea");
   const grid=document.getElementById("cardDealGrid");
   const instruction=document.getElementById("playerCardSelectionInstruction");
   if(!area||!grid)return;
+
   area.classList.remove("card-input-enabled");
   if(instruction)instruction.classList.remove("card-selection-instruction-active");
+
   const count=await getPlayerCountForCardDealV18();
+
+  if(!count){
+    console.warn("카드 배부 중단: 실제 ALIVE 플레이어 수를 확인하지 못했습니다.");
+    return;
+  }
+
   grid.dataset.cardCount=String(count);
-  if(count<1){console.warn("카드 배부 중단: 현재 ALIVE 플레이어가 없습니다.");return;}
   buildCardDealV18(grid,count,'assets/card_back.png');
+
   const cards=[...grid.children];
   cards.forEach((card,index)=>{
-    cardDealTimerV18=setTimeout(()=>card.classList.add("dealt"),index*360);
+    setTimeout(()=>card.classList.add("dealt"),index*360);
   });
+
+  // 마지막 카드가 도착한 뒤에만 안내문구와 카드 터치를 활성화합니다.
   cardDealDoneTimerV18=setTimeout(()=>{
     area.classList.add("card-input-enabled");
     if(instruction)instruction.classList.add("card-selection-instruction-active");
