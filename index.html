@@ -1540,25 +1540,37 @@ async function getCardFlowSettingsV20(){
   return r.data;
 }
 
-async function reconcileCardPositionsV20(){
+async function reconcileCardPositionsV20(currentId){
   const client=getCardFlowClientV20();
-  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
-  if(r.error)throw new Error(r.error.message);
-  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
-  const byPos=new Map();
-  for(const p of selected){
-    const pos=Number(p.card_position);
-    if(!Number.isInteger(pos))continue;
-    if(!byPos.has(pos))byPos.set(pos,[]);
-    byPos.get(pos).push(p);
-  }
-  for(const group of byPos.values()){
-    if(group.length<2)continue;
-    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-    for(const loser of group.slice(1)){
-      await client.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+  // 동시 선택 충돌은 각 클라이언트가 자기 자신의 행만 정리하도록 합니다.
+  // 여러 플레이어가 같은 카드를 거의 동시에 누르는 경우에도 승자(가장 작은 ID)는 유지하고,
+  // 나머지 플레이어만 선택 상태를 해제하여 즉시 다른 카드를 다시 선택할 수 있게 합니다.
+  const delays=[0,120,240,400];
+  for(const delay of delays){
+    if(delay) await new Promise(r=>setTimeout(r,delay));
+    const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+    if(r.error)throw new Error(r.error.message);
+    const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+    const mine=selected.find(p=>String(p.id)===String(currentId));
+    if(!mine) return false;
+    const samePosition=selected.filter(p=>Number(p.card_position)===Number(mine.card_position));
+    if(samePosition.length<2) return true;
+    samePosition.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    const winner=samePosition[0];
+    if(String(winner.id)!==String(currentId)){
+      const u=await client.from("players")
+        .update({card_selected:false,card_position:null,role:null})
+        .eq("id",currentId)
+        .eq("status","ALIVE")
+        .eq("card_selected",true)
+        .eq("card_position",mine.card_position);
+      if(u.error)throw new Error(u.error.message);
+      return false;
     }
+    // 현재 플레이어가 충돌 승자라면 다른 플레이어의 상태를 건드리지 않습니다.
+    return true;
   }
+  return true;
 }
 
 function showCardSelectedFeedbackV20(card){
@@ -1595,28 +1607,6 @@ function setCardSelectionLockedV20(card,locked){
   }else{
     area?.classList.add("card-input-enabled");
     [...document.querySelectorAll("#cardDealGrid .cardDealCard")].forEach(c=>c.classList.remove("card-selection-disabled"));
-  }
-}
-
-async function reconcileCardPositionsV20(){
-  const client=getCardFlowClientV20();
-  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
-  if(r.error)throw new Error(r.error.message);
-  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
-  const byPos=new Map();
-  for(const p of selected){
-    const pos=Number(p.card_position);
-    if(!Number.isInteger(pos))continue;
-    if(!byPos.has(pos))byPos.set(pos,[]);
-    byPos.get(pos).push(p);
-  }
-  for(const group of byPos.values()){
-    if(group.length<2)continue;
-    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-    for(const loser of group.slice(1)){
-      const u=await client.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
-      if(u.error)throw new Error(u.error.message);
-    }
   }
 }
 
@@ -1685,13 +1675,16 @@ async function onPlayerCardSelectedV20(card,index){
     }).eq("id",mine.id).eq("status","ALIVE").eq("card_selected",false);
     if(u.error)throw new Error(u.error.message);
 
-    await reconcileCardPositionsV20();
+    const reconciled=await reconcileCardPositionsV20(currentId);
 
     const check=await client.from("players").select("card_selected,card_position")
       .eq("id",mine.id).maybeSingle();
     if(check.error)throw new Error(check.error.message);
     if(!check.data || check.data.card_selected!==true ||
        Number(check.data.card_position)!==Number(index)){
+      if(reconciled===false){
+        throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
+      }
       throw new Error("선택 상태 저장에 실패했습니다.");
     }
 
