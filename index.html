@@ -1861,6 +1861,37 @@ function bindCardSelectionV20(){
   }
 }
 </style>
+
+<style id="role-reveal-card-face-equal-size-v3">
+/* 결과 공개 카드: 앞면/뒷면 외곽 프레임 제거 + 동일한 카드 영역 사용 */
+#roleReveal .unifiedRoleCardFace{
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:100%!important;
+  inset:0!important;
+  border:0!important;
+  border-radius:0!important;
+}
+#roleReveal .unifiedRoleCardBack{
+  border:0!important;
+  box-shadow:none!important;
+  background:#545957!important;
+}
+#roleReveal .unifiedRoleCardFront{
+  border:0!important;
+  box-shadow:none!important;
+  background:#050505!important;
+}
+#roleReveal .unifiedRoleCardBack img,
+#roleReveal .unifiedRoleCardFront img{
+  width:100%!important;
+  height:100%!important;
+  display:block!important;
+  box-sizing:border-box!important;
+}
+#roleReveal .unifiedRoleCardBack img{object-fit:cover!important}
+#roleReveal .unifiedRoleCardFront img{object-fit:contain!important}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
