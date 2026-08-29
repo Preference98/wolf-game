@@ -1339,51 +1339,69 @@ window.openBroadcastScreen=function(){
  opacity:1;visibility:visible;
 }
 </style>
-<script id="player-card-selection-final-v14-js">
-let playerCardSelectionTimerV14=null;
-let playerCardInstructionTimerV14=null;
+<script id="player-role-card-flow-v16-js">
+let playerRoleToCardTimerV16=null;
+let playerCardInstructionTimerV16=null;
 
-function resetPlayerCardSelectionV14(){
- clearTimeout(playerCardSelectionTimerV14);
- clearTimeout(playerCardInstructionTimerV14);
+function resetPlayerRoleCardFlowV16(){
+ clearTimeout(playerRoleToCardTimerV16);
+ clearTimeout(playerCardInstructionTimerV16);
+ const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
+ if(emphasis)emphasis.classList.remove("visible");
  if(title){
    title.classList.remove("card-selection-active");
-   title.querySelectorAll("img").forEach(img=>{
-     img.style.animation="none";
-   });
+   title.querySelectorAll("img").forEach(img=>img.style.animation="none");
  }
- if(instruction){
-   instruction.classList.remove("card-selection-instruction-active");
- }
+ if(instruction)instruction.classList.remove("card-selection-instruction-active");
 }
 
-function startPlayerCardSelectionV14(){
- resetPlayerCardSelectionV14();
+function startPlayerRoleCardFlowV16(){
+ resetPlayerRoleCardFlowV16();
+ const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
- if(!title||!instruction)return;
+ if(!emphasis||!title||!instruction)return;
 
- playerCardSelectionTimerV14=setTimeout(()=>{
-   title.querySelectorAll("img").forEach(img=>{img.style.animation="";});
+ // 역할선정 진입 즉시 문구 표시 → 문구가 사라진 뒤 카드선택 단계 진입.
+ emphasis.classList.add("visible");
+
+ playerRoleToCardTimerV16=setTimeout(()=>{
+   emphasis.classList.remove("visible");
+
+   // 같은 roleSelect/table.png 화면 안에서 카드선택 단계 시작
    title.classList.add("card-selection-active");
+   title.querySelectorAll("img").forEach(img=>img.style.animation="");
 
-   // 4글자 순차 애니메이션 종료 후 2초 뒤 안내문구
-   playerCardInstructionTimerV14=setTimeout(()=>{
+   // 카드선택 타이틀 4글자 애니메이션이 끝난 뒤 안내문구 표시
+   playerCardInstructionTimerV16=setTimeout(()=>{
      instruction.classList.add("card-selection-instruction-active");
    },4200);
- },0);
+ },3000);
 }
 </script>
-<script id="player-card-selection-compat-v15">
-window.startPlayerCardSelectionIntro=function(){ return startPlayerCardSelectionV14(); };
-</script>
+<style id="player-role-selection-emphasis-v16">
+#roleSelect #playerRoleSelectionEmphasis{
+ position:absolute;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;
+ background:rgba(0,0,0,.58);opacity:0;visibility:hidden;pointer-events:none;
+ transition:opacity .25s ease;
+}
+#roleSelect #playerRoleSelectionEmphasis.visible{opacity:1;visibility:visible}
+#roleSelect .playerRoleSelectionEmphasisText{
+ width:min(90vw,900px);text-align:center;color:#fff;font-weight:900;
+ font-size:clamp(24px,3.2vw,48px);line-height:1.35;
+ text-shadow:0 4px 20px rgba(0,0,0,.85);
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
 <section id="roleSelect" class="screen roleSelectionTableBackground" aria-label="역할 선정">
+<div id="playerRoleSelectionEmphasis" aria-hidden="true">
+  <div class="playerRoleSelectionEmphasisText">지금부터 양과 늑대를 정하겠습니다.</div>
+</div>
 <div id="playerCardSelectionTitle" class="playerCardSelectionTitle" aria-label="카드선택">
   <img src="assets/card_selection_01_카.png" alt="카">
   <img src="assets/card_selection_02_드.png" alt="드">
@@ -2266,9 +2284,8 @@ async function routeCore(){
    case "ROLE_SELECT":
      stopAllTimers();
      await showScreen("roleSelect");
-      startPlayerCardSelectionV14();
-      startPlayerCardSelectionV14();
-      return;
+     startPlayerRoleCardFlowV16();
+     return;
 
    case "LOBBY":
      stopAllTimers();await renderLobby(p,g);return;
