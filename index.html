@@ -2644,6 +2644,7 @@ function syncLoginLobbyChrome(id){
   document.body.classList.toggle("noWolfChrome", hideChrome);
 }
 function el(id){return document.getElementById(id);}
+function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
