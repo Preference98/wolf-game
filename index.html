@@ -1339,10 +1339,10 @@ window.openBroadcastScreen=function(){
  opacity:1;visibility:visible;
 }
 </style>
-<script id="player-role-card-flow-v22-js">
-let playerRoleToCardTimerV22=null;
+<script id="player-role-card-flow-v23-js">
+let playerRoleToCardTimerV23=null;
 function startPlayerRoleCardFlowV18(){
- clearTimeout(playerRoleToCardTimerV22);
+ clearTimeout(playerRoleToCardTimerV23);
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
@@ -1357,21 +1357,21 @@ function startPlayerRoleCardFlowV18(){
  grid.innerHTML="";
  grid.dataset.cardCount="0";
 
- playerRoleToCardTimerV22=setTimeout(()=>{
+ playerRoleToCardTimerV23=setTimeout(()=>{
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
 
    setTimeout(async()=>{
      const g=await settings();
      if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
-
      const count=await getPlayerCountForCardDealV18();
      if(!count)return;
+
      grid.dataset.cardCount=String(count);
      buildCardDealV18(grid,count,'assets/card_back.png');
+     area.classList.remove("card-input-enabled");
 
-     const cards=[...grid.children];
-     cards.forEach((card,index)=>{
+     [...grid.children].forEach((card,index)=>{
        setTimeout(()=>card.classList.add("dealt"),index*360);
      });
 
@@ -1381,7 +1381,7 @@ function startPlayerRoleCardFlowV18(){
        if(String(latest.phase).toUpperCase()!=="ROLE_SELECT")return;
        await enterCardSelectionStageV21();
      },totalDealTime);
-   },2300);
+   },1800);
  },3000);
 }
 </script>
@@ -1526,20 +1526,15 @@ async function renderCardSelectionReadyV21(){
 
   clearTimeout(cardDealTimerV18);
   clearTimeout(cardDealDoneTimerV18);
+  const count=await getPlayerCountForCardDealV18();
+  if(!count)return;
 
   title.classList.add("card-selection-active");
-  area.classList.add("card-input-enabled");
-  instruction.classList.add("card-selection-instruction-active");
-
-  const count=await getPlayerCountForCardDealV18();
-  if(!count){
-    console.warn("CARD_SELECT: 플레이어 수를 확인하지 못했습니다.");
-    return;
-  }
-
   grid.dataset.cardCount=String(count);
   buildCardDealV18(grid,count,'assets/card_back.png');
   [...grid.children].forEach(card=>card.classList.add("dealt"));
+  area.classList.add("card-input-enabled");
+  instruction.classList.add("card-selection-instruction-active");
 }
 
 async function enterCardSelectionStageV21(){
