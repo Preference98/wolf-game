@@ -1339,30 +1339,32 @@ window.openBroadcastScreen=function(){
  opacity:1;visibility:visible;
 }
 </style>
-<script id="player-role-card-flow-v21-js">
-let playerRoleToCardTimerV18=null;
+<script id="player-role-card-flow-v22-js">
+let playerRoleToCardTimerV22=null;
 function startPlayerRoleCardFlowV18(){
- clearTimeout(playerRoleToCardTimerV18);
+ clearTimeout(playerRoleToCardTimerV22);
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
- if(!emphasis||!title||!instruction)return;
+ const area=document.querySelector("#roleSelect .cardDealArea");
+ const grid=document.getElementById("cardDealGrid");
+ if(!emphasis||!title||!instruction||!area||!grid)return;
+
  emphasis.classList.add("visible");
  title.classList.remove("card-selection-active");
  instruction.classList.remove("card-selection-instruction-active");
+ area.classList.remove("card-input-enabled");
+ grid.innerHTML="";
+ grid.dataset.cardCount="0";
 
- playerRoleToCardTimerV18=setTimeout(()=>{
+ playerRoleToCardTimerV22=setTimeout(()=>{
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
+
    setTimeout(async()=>{
      const g=await settings();
      if(String(g.phase).toUpperCase()!=="ROLE_SELECT")return;
 
-     const area=document.querySelector("#roleSelect .cardDealArea");
-     const grid=document.getElementById("cardDealGrid");
-     if(!area||!grid)return;
-
-     area.classList.remove("card-input-enabled");
      const count=await getPlayerCountForCardDealV18();
      if(!count)return;
      grid.dataset.cardCount=String(count);
@@ -1530,7 +1532,10 @@ async function renderCardSelectionReadyV21(){
   instruction.classList.add("card-selection-instruction-active");
 
   const count=await getPlayerCountForCardDealV18();
-  if(!count)return;
+  if(!count){
+    console.warn("CARD_SELECT: 플레이어 수를 확인하지 못했습니다.");
+    return;
+  }
 
   grid.dataset.cardCount=String(count);
   buildCardDealV18(grid,count,'assets/card_back.png');
