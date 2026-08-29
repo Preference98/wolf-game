@@ -1513,17 +1513,13 @@ async function startCardDealV18(){
 </style><script id="card-selection-complete-v20">
 let cardSelectionBusyV20=false;
 
-function getCardRoleDeckV20(count,wolfCount,round){
-  const roles=[];
-  for(let n=0;n<wolfCount;n++)roles.push("WOLF");
-  while(roles.length<count)roles.push("SHEEP");
-  let seed=((Number(round)||1)*1009+count*97+wolfCount*53)>>>0;
-  for(let n=roles.length-1;n>0;n--){
-    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
-    const j=seed%(n+1);
-    [roles[n],roles[j]]=[roles[j],roles[n]];
+function shufflePlayersForRoleAssignmentV20(players){
+  const shuffled=[...players];
+  for(let i=shuffled.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
   }
-  return roles;
+  return shuffled;
 }
 
 function getCardFlowClientV20(){
@@ -1540,37 +1536,25 @@ async function getCardFlowSettingsV20(){
   return r.data;
 }
 
-async function reconcileCardPositionsV20(currentId){
+async function reconcileCardPositionsV20(){
   const client=getCardFlowClientV20();
-  // 동시 선택 충돌은 각 클라이언트가 자기 자신의 행만 정리하도록 합니다.
-  // 여러 플레이어가 같은 카드를 거의 동시에 누르는 경우에도 승자(가장 작은 ID)는 유지하고,
-  // 나머지 플레이어만 선택 상태를 해제하여 즉시 다른 카드를 다시 선택할 수 있게 합니다.
-  const delays=[0,120,240,400];
-  for(const delay of delays){
-    if(delay) await new Promise(r=>setTimeout(r,delay));
-    const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
-    if(r.error)throw new Error(r.error.message);
-    const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
-    const mine=selected.find(p=>String(p.id)===String(currentId));
-    if(!mine) return false;
-    const samePosition=selected.filter(p=>Number(p.card_position)===Number(mine.card_position));
-    if(samePosition.length<2) return true;
-    samePosition.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-    const winner=samePosition[0];
-    if(String(winner.id)!==String(currentId)){
-      const u=await client.from("players")
-        .update({card_selected:false,card_position:null,role:null})
-        .eq("id",currentId)
-        .eq("status","ALIVE")
-        .eq("card_selected",true)
-        .eq("card_position",mine.card_position);
-      if(u.error)throw new Error(u.error.message);
-      return false;
-    }
-    // 현재 플레이어가 충돌 승자라면 다른 플레이어의 상태를 건드리지 않습니다.
-    return true;
+  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
   }
-  return true;
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      await client.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+    }
+  }
 }
 
 function showCardSelectedFeedbackV20(card){
@@ -1610,20 +1594,72 @@ function setCardSelectionLockedV20(card,locked){
   }
 }
 
-async function finishRoleSelectionIfCompleteV20(){
+async function reconcileCardPositionsV20(){
   const client=getCardFlowClientV20();
-  const r=await client.from("players").select("id,name,status,card_selected").eq("status","ALIVE");
+  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
-  const players=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자");
-  if(players.length>0 && players.every(p=>p.card_selected)){
-    const g=await getCardFlowSettingsV20();
-    if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
-      const u=await client.from("game_settings").update({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어가 카드를 선택했습니다."}).eq("id",1);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
+  }
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      const u=await client.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
       if(u.error)throw new Error(u.error.message);
     }
-    return true;
   }
-  return false;
+}
+
+async function finishRoleSelectionIfCompleteV20(){
+  const client=getCardFlowClientV20();
+  const r=await client.from("players").select("id,name,status,card_selected,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const players=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자");
+  if(!(players.length>0 && players.every(p=>p.card_selected)))return false;
+
+  // 카드 선택은 역할을 결정하지 않습니다. 모든 플레이어의 선택이 끝난 뒤
+  // 단 한 명의 클라이언트만 역할 배정 잠금을 획득하고 랜덤 배정합니다.
+  const lock=await client.from("game_settings")
+    .update({roles_selected:true,notice:"역할을 랜덤으로 배정하는 중입니다."})
+    .eq("id",1).eq("phase","ROLE_SELECT").eq("roles_selected",false)
+    .select("id").maybeSingle();
+  if(lock.error)throw new Error("역할 배정 잠금 실패: "+lock.error.message);
+  if(!lock.data){
+    // 다른 플레이어가 먼저 역할 배정을 시작했으므로 여기서는 아무것도 하지 않습니다.
+    return false;
+  }
+
+  try{
+    const g=await getCardFlowSettingsV20();
+    const wolfCount=Math.floor(Number(g.wolf_count));
+    if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=players.length){
+      throw new Error("설정된 늑대 수가 현재 플레이어 수와 맞지 않습니다.");
+    }
+
+    const shuffled=shufflePlayersForRoleAssignmentV20(players);
+    for(let i=0;i<shuffled.length;i++){
+      const role=i<wolfCount?"WOLF":"SHEEP";
+      const u=await client.from("players").update({role}).eq("id",shuffled[i].id).eq("status","ALIVE");
+      if(u.error)throw new Error("역할 배정 실패: "+u.error.message);
+    }
+
+    const phaseUpdate=await client.from("game_settings")
+      .update({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어의 역할이 배정되었습니다."})
+      .eq("id",1).eq("phase","ROLE_SELECT").eq("roles_selected",true);
+    if(phaseUpdate.error)throw new Error("결과 공개 단계 전환 실패: "+phaseUpdate.error.message);
+    return true;
+  }catch(e){
+    // 역할 배정 실패 시 다른 클라이언트가 재시도할 수 있도록 잠금을 되돌립니다.
+    await client.from("players").update({role:"UNASSIGNED"}).eq("status","ALIVE");
+    await client.from("game_settings").update({roles_selected:false,notice:"역할 배정에 실패했습니다. 다시 시도합니다."}).eq("id",1).eq("phase","ROLE_SELECT");
+    throw e;
+  }
 }
 
 async function onPlayerCardSelectedV20(card,index){
@@ -1663,28 +1699,19 @@ async function onPlayerCardSelectedV20(card,index){
     );
     if(taken)throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
 
-    const wolfCount=Math.max(1,Math.min(players.length-1,Math.floor(Number(g.wolf_count)||1)));
-    const roles=getCardRoleDeckV20(players.length,wolfCount,g.current_round);
-    const role=roles[index];
-    if(!role)throw new Error("선택한 카드의 역할 정보를 확인할 수 없습니다.");
-
     const u=await client.from("players").update({
       card_selected:true,
-      card_position:index,
-      role:role
+      card_position:index
     }).eq("id",mine.id).eq("status","ALIVE").eq("card_selected",false);
     if(u.error)throw new Error(u.error.message);
 
-    const reconciled=await reconcileCardPositionsV20(currentId);
+    await reconcileCardPositionsV20();
 
     const check=await client.from("players").select("card_selected,card_position")
       .eq("id",mine.id).maybeSingle();
     if(check.error)throw new Error(check.error.message);
     if(!check.data || check.data.card_selected!==true ||
        Number(check.data.card_position)!==Number(index)){
-      if(reconciled===false){
-        throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
-      }
       throw new Error("선택 상태 저장에 실패했습니다.");
     }
 
