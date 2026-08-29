@@ -1339,45 +1339,22 @@ window.openBroadcastScreen=function(){
  opacity:1;visibility:visible;
 }
 </style>
-<script id="player-role-card-flow-v16-js">
-let playerRoleToCardTimerV16=null;
-let playerCardInstructionTimerV16=null;
-
-function resetPlayerRoleCardFlowV16(){
- clearTimeout(playerRoleToCardTimerV16);
- clearTimeout(playerCardInstructionTimerV16);
- const emphasis=document.getElementById("playerRoleSelectionEmphasis");
- const title=document.getElementById("playerCardSelectionTitle");
- const instruction=document.getElementById("playerCardSelectionInstruction");
- if(emphasis)emphasis.classList.remove("visible");
- if(title){
-   title.classList.remove("card-selection-active");
-   title.querySelectorAll("img").forEach(img=>img.style.animation="none");
- }
- if(instruction)instruction.classList.remove("card-selection-instruction-active");
-}
-
-function startPlayerRoleCardFlowV16(){
- resetPlayerRoleCardFlowV16();
+<script id="player-role-card-flow-v18-js">
+let playerRoleToCardTimerV18=null;
+function startPlayerRoleCardFlowV18(){
+ clearTimeout(playerRoleToCardTimerV18);
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
  if(!emphasis||!title||!instruction)return;
-
- // 역할선정 진입 즉시 문구 표시 → 문구가 사라진 뒤 카드선택 단계 진입.
  emphasis.classList.add("visible");
-
- playerRoleToCardTimerV16=setTimeout(()=>{
+ title.classList.remove("card-selection-active");
+ instruction.classList.remove("card-selection-instruction-active");
+ playerRoleToCardTimerV18=setTimeout(()=>{
    emphasis.classList.remove("visible");
-
-   // 같은 roleSelect/table.png 화면 안에서 카드선택 단계 시작
    title.classList.add("card-selection-active");
-   title.querySelectorAll("img").forEach(img=>img.style.animation="");
-
-   // 카드선택 타이틀 4글자 애니메이션이 끝난 뒤 안내문구 표시
-   playerCardInstructionTimerV16=setTimeout(()=>{
-     instruction.classList.add("card-selection-instruction-active");
-   },4200);
+   // 타이틀 애니메이션 종료 후 카드 배부 시작
+   setTimeout(startCardDealV18, 2300);
  },3000);
 }
 </script>
@@ -1394,6 +1371,56 @@ function startPlayerRoleCardFlowV16(){
  text-shadow:0 4px 20px rgba(0,0,0,.85);
 }
 </style>
+<style id="card-deal-v18">
+.cardDealArea{position:absolute;inset:0;z-index:80;pointer-events:none}
+.cardDealGrid{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:clamp(10px,1.4vw,24px);width:min(82vw,1100px);justify-items:center}
+.cardDealCard{width:clamp(92px,12vw,155px);aspect-ratio:2/3;pointer-events:none;
+ opacity:0;transform:translate(-50vw,-45vh) rotate(-18deg) scale(.55);
+ transition:transform .62s cubic-bezier(.2,.85,.25,1),opacity .18s ease;
+ will-change:transform,opacity}
+.cardDealCard.dealt{opacity:1;transform:translate(0,0) rotate(0) scale(1)}
+.cardDealArea.card-input-enabled .cardDealCard{pointer-events:auto;cursor:pointer}
+</style>
+<script id="card-deal-v18-player">
+let cardDealTimerV18=null, cardDealDoneTimerV18=null;
+function getPlayerCountForCardDealV18(){
+  const list=Array.isArray(window.players)?window.players:[];
+  return Math.max(1,list.filter(p=>p && p.name && p.name!=="관리자").length);
+}
+function buildCardDealV18(container,count,back){
+  if(!container)return;
+  container.innerHTML="";
+  for(let n=0;n<count;n++){
+    const img=document.createElement("img");
+    img.className="cardDealCard";
+    img.src=back;
+    img.alt="역할 카드";
+    img.draggable=false;
+    container.appendChild(img);
+  }
+}
+function startCardDealV18(){
+  clearTimeout(cardDealTimerV18);clearTimeout(cardDealDoneTimerV18);
+  const area=document.querySelector("#roleSelect .cardDealArea");
+  const grid=document.getElementById("cardDealGrid");
+  const instruction=document.getElementById("playerCardSelectionInstruction");
+  if(!area||!grid)return;
+  area.classList.remove("card-input-enabled");
+  if(instruction)instruction.classList.remove("card-selection-instruction-active");
+  const count=getPlayerCountForCardDealV18();
+  buildCardDealV18(grid,count,'assets/card_back.png');
+  const cards=[...grid.children];
+  cards.forEach((card,index)=>{
+    cardDealTimerV18=setTimeout(()=>card.classList.add("dealt"),index*360);
+  });
+  cardDealDoneTimerV18=setTimeout(()=>{
+    area.classList.add("card-input-enabled");
+    if(instruction)instruction.classList.add("card-selection-instruction-active");
+  },Math.max(0,(count-1)*360+700));
+}
+</script>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -1408,7 +1435,9 @@ function startPlayerRoleCardFlowV16(){
   <img src="assets/card_selection_03_선.png" alt="선">
   <img src="assets/card_selection_04_택.png" alt="택">
 </div>
-<div id="playerCardSelectionInstruction" class="playerCardSelectionInstruction">원하는 카드를 터치하세요.</div>
+<div id="playerCardSelectionInstruction" class="playerCardSelectionInstruction">원하는 카드를 터치하세요.</div><div class="cardDealArea" aria-label="카드 배부">
+  <div class="cardDealGrid" id="cardDealGrid"></div>
+</div>
 <div class="roleSelectionTableOverlay" aria-hidden="true"></div></section>
 
 <div id="bootFallback" style="display:none;background:#070707;border:1px solid #52000a;border-radius:12px;padding:18px;margin-bottom:14px;color:#fff">
@@ -2284,7 +2313,7 @@ async function routeCore(){
    case "ROLE_SELECT":
      stopAllTimers();
      await showScreen("roleSelect");
-     startPlayerRoleCardFlowV16();
+     startPlayerRoleCardFlowV18();
      return;
 
    case "LOBBY":
