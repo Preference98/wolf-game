@@ -1376,6 +1376,9 @@ function startPlayerCardSelectionV14(){
  },0);
 }
 </script>
+<script id="player-card-selection-compat-v15">
+window.startPlayerCardSelectionIntro=function(){ return startPlayerCardSelectionV14(); };
+</script>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2264,7 +2267,7 @@ async function routeCore(){
      stopAllTimers();
      await showScreen("roleSelect");
       startPlayerCardSelectionV14();
-      startPlayerCardSelectionIntro();
+      startPlayerCardSelectionV14();
       return;
 
    case "LOBBY":
