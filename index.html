@@ -1676,6 +1676,10 @@ async function onPlayerCardSelectedV20(card,index){
   }catch(e){
     console.error("카드 선택 처리 실패:",e);
     const instructionEl=document.getElementById("playerCardSelectionInstruction");
+    if(instructionEl && String(e?.message||"").includes("이미 다른 플레이어가 선택한 카드입니다")){
+      instructionEl.textContent="이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.";
+      instructionEl.classList.add("card-selection-instruction-active");
+    }
     card.classList.remove("card-selected-feedback");
     card.removeAttribute("aria-selected");
     const grid=card.closest("#cardDealGrid");
@@ -2448,7 +2452,7 @@ let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
 let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
 let deathNotificationMinId=0,deathNotificationWatcherStarted=false;
-let lastRealtimePhase=null,lastRealtimeRound=null;
+let lastRealtimePhase=null,lastRealtimeRound=null,lastRealtimeReady=null;
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 const roleIsWolf=r=>String(r||"").toUpperCase()==="WOLF";
@@ -5311,7 +5315,9 @@ function realtime(){
   }
   lastRealtimePhase=g.phase;
   lastRealtimeRound=g.current_round;
-  if(phaseChanged || roundChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
+  const readyChanged=lastRealtimeReady!==null && Boolean(g.ready)!==Boolean(lastRealtimeReady);
+  lastRealtimeReady=g.ready;
+  if(phaseChanged || roundChanged || readyChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
     if(realtimeRouteTimer)clearTimeout(realtimeRouteTimer);
     realtimeRouteTimer=setTimeout(async()=>{
       realtimeRouteTimer=null;
