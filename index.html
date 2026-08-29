@@ -2090,6 +2090,22 @@ function bindCardSelectionV20(){
   }
 }
 </style>
+<style id="lobby-logout-top-right-fix">
+#lobby.readyWaiting .lobbyLogoutBtn{
+ position:absolute!important;
+ top:max(12px,env(safe-area-inset-top,0px) + 8px)!important;
+ right:max(12px,env(safe-area-inset-right,0px) + 8px)!important;
+ bottom:auto!important;
+ left:auto!important;
+ width:auto!important;
+ min-width:0!important;
+ margin:0!important;
+ padding:7px 11px!important;
+ font-size:13px!important;
+ line-height:1.2!important;
+ z-index:10!important;
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
