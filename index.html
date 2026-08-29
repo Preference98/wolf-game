@@ -1526,8 +1526,23 @@ function getCardRoleDeckV20(count,wolfCount,round){
   return roles;
 }
 
+function getCardDbV20(){
+  const client=window.__wolfGameDb;
+  if(!client || typeof client.from!=="function") throw new Error("Supabase 연결을 확인할 수 없습니다.");
+  return client;
+}
+
+async function getCardGameSettingsV20(){
+  const client=getCardDbV20();
+  const r=await client.from("game_settings").select("*").eq("id",1).limit(1).maybeSingle();
+  if(r.error)throw new Error("게임 설정 오류\n"+r.error.message);
+  if(!r.data)throw new Error("게임 설정을 가져오지 못했습니다.");
+  return r.data;
+}
+
 async function reconcileCardPositionsV20(){
-  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  const client=getCardDbV20();
+  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
   const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
   const byPos=new Map();
@@ -1541,7 +1556,7 @@ async function reconcileCardPositionsV20(){
     if(group.length<2)continue;
     group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
     for(const loser of group.slice(1)){
-      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+      await getCardDbV20().from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
     }
   }
 }
@@ -1583,8 +1598,23 @@ function setCardSelectionLockedV20(card,locked){
   }
 }
 
+function getCardDbV20(){
+  const client=window.__wolfGameDb;
+  if(!client || typeof client.from!=="function") throw new Error("Supabase 연결을 확인할 수 없습니다.");
+  return client;
+}
+
+async function getCardGameSettingsV20(){
+  const client=getCardDbV20();
+  const r=await client.from("game_settings").select("*").eq("id",1).limit(1).maybeSingle();
+  if(r.error)throw new Error("게임 설정 오류\n"+r.error.message);
+  if(!r.data)throw new Error("게임 설정을 가져오지 못했습니다.");
+  return r.data;
+}
+
 async function reconcileCardPositionsV20(){
-  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  const client=getCardDbV20();
+  const r=await client.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
   const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
   const byPos=new Map();
@@ -1598,17 +1628,18 @@ async function reconcileCardPositionsV20(){
     if(group.length<2)continue;
     group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
     for(const loser of group.slice(1)){
-      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+      await getCardDbV20().from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
     }
   }
 }
 
 async function finishRoleSelectionIfCompleteV20(){
-  const r=await db.from("players").select("id,name,status,card_selected").eq("status","ALIVE");
+  const client=getCardDbV20();
+  const r=await client.from("players").select("id,name,status,card_selected").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
   const players=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자");
   if(players.length>0 && players.every(p=>p.card_selected)){
-    const g=await settings();
+    const g=await getCardGameSettingsV20();
     if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
       await set({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어가 카드를 선택했습니다."});
     }
@@ -1631,12 +1662,12 @@ async function onPlayerCardSelectedV20(card,index){
     const currentId=(typeof playerId!=="undefined" && playerId) ? playerId : (window.playerId || localStorage.getItem("wolf_game_player_v7"));
     if(!currentId)throw new Error("현재 플레이어 ID를 확인할 수 없습니다.");
 
-    const g=await settings();
+    const g=await getCardGameSettingsV20();
     if(String(g.phase).toUpperCase()!=="ROLE_SELECT"){
       throw new Error("현재 카드 선택 단계가 아닙니다.");
     }
 
-    const r=await db.from("players")
+    const r=await getCardDbV20().from("players")
       .select("id,name,status,card_selected,card_position")
       .eq("status","ALIVE");
     if(r.error)throw new Error(r.error.message);
@@ -1658,7 +1689,7 @@ async function onPlayerCardSelectedV20(card,index){
     const role=roles[index];
     if(!role)throw new Error("선택한 카드의 역할 정보를 확인할 수 없습니다.");
 
-    const u=await db.from("players").update({
+    const u=await getCardDbV20().from("players").update({
       card_selected:true,
       card_position:index,
       role:role
@@ -1667,7 +1698,7 @@ async function onPlayerCardSelectedV20(card,index){
 
     await reconcileCardPositionsV20();
 
-    const check=await db.from("players").select("card_selected,card_position")
+    const check=await getCardDbV20().from("players").select("card_selected,card_position")
       .eq("id",mine.id).maybeSingle();
     if(check.error)throw new Error(check.error.message);
     if(!check.data || check.data.card_selected!==true ||
