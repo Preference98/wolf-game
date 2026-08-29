@@ -1012,12 +1012,12 @@ body{
 #lobby .card,#lobby .row,#lobby .pill,#lobby .notice,#lobby #roleText{display:none!important;}
 /* 준비완료 이후 대기화면 전용: 로그인 직후 대기화면은 기존 검정 화면 유지 */
 #lobby .lobbyReadyBackdrop,#lobby .lobbyReadyTitleWrap{display:none;}
-#lobby.readyWaiting{position:relative!important;overflow:hidden!important;background:#020203!important;min-height:100dvh!important;height:100dvh!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;padding:24px 16px!important;}
+#lobby.readyWaiting{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#020203!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;padding:16px!important;}
 #lobby.readyWaiting .lobbyReadyBackdrop{display:block;position:absolute;inset:-5%;z-index:0;background:linear-gradient(rgba(0,0,0,.46),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.82) contrast(1.06) brightness(.72);transform:scale(1.06);animation:lobbyReadyBgIdle 7s ease-in-out infinite alternate;}
 #lobby.readyWaiting .lobbyReadyTitleWrap{display:flex;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;pointer-events:none;}
 #lobby.readyWaiting .lobbyReadyTitle{width:min(78vw,900px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:lobbyReadyTitleIdle 4s ease-in-out infinite alternate;}
-#lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin:0!important;flex:0 0 auto!important;max-width:min(92vw,700px)!important;text-align:center!important;line-height:1.45!important;}
-#lobby.readyWaiting .lobbyLogoutBtn{position:relative;z-index:3;flex:0 0 auto!important;margin:24px auto 0!important;}
+#lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:clamp(6px,1.5vh,12px)!important;max-width:92vw!important;text-align:center!important;line-height:1.45!important;flex:0 0 auto!important;}
+#lobby.readyWaiting .lobbyLogoutBtn{position:relative!important;z-index:3!important;flex:0 0 auto!important;margin:clamp(12px,2.5vh,24px) auto 0!important;max-width:92vw!important;}
 @media (max-height:560px){#lobby.readyWaiting{padding:12px 12px!important;}#lobby.readyWaiting .lobbyWaitingMessage{font-size:clamp(14px,3.5vw,18px)!important;}#lobby.readyWaiting .lobbyLogoutBtn{margin-top:14px!important;padding:9px 12px!important;}}
 @keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
 @keyframes lobbyReadyTitleIdle{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.012)}}
