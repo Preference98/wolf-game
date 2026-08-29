@@ -3167,7 +3167,21 @@ async function renderPlayerTrialResult(data){
  else if(String(g.phase).toUpperCase()==="PLAY")await renderPlayer();
 }
 let roleRevealShownOnce=false;
+function resetPlayerRoleRevealVisualsV21(){
+  if(window.__roleRevealAnnouncementTimer){clearTimeout(window.__roleRevealAnnouncementTimer);window.__roleRevealAnnouncementTimer=null;}
+  const front=el("unifiedRoleCardFront");
+  const inner=el("unifiedRoleCardInner");
+  const btn=el("unifiedRoleFlipButton");
+  const announcement=el("unifiedRoleRevealAnnouncement");
+  if(front)front.innerHTML="";
+  if(inner)inner.classList.remove("isFront");
+  if(btn){btn.textContent="뒤집기";btn.disabled=false;}
+  if(announcement){announcement.textContent="";announcement.style.opacity="0";announcement.style.visibility="hidden";}
+}
 async function renderCleanRoleReveal(p,g){
+  // 다음 라운드에서 이전 라운드의 역할 카드가 화면 전환 중 잠깐 노출되지 않도록
+  // 기존 결과 DOM을 먼저 비운 뒤 새 결과 화면으로 전환합니다.
+  resetPlayerRoleRevealVisualsV21();
   await showScreen("roleReveal");
   const front=el("unifiedRoleCardFront");
   const inner=el("unifiedRoleCardInner");
@@ -3203,7 +3217,8 @@ async function renderCleanRoleReveal(p,g){
         announcement.style.opacity="1";
         announcement.style.visibility="visible";
       }
-      setTimeout(()=>{
+      window.__roleRevealAnnouncementTimer=setTimeout(()=>{
+        window.__roleRevealAnnouncementTimer=null;
         if(!inner.classList.contains("isFront"))return;
         btn.disabled=false;
         announcement.style.opacity="0";
