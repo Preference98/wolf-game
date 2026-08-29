@@ -1386,18 +1386,59 @@ function startPlayerRoleCardFlowV18(){
 <script id="card-deal-v18-player">
 let cardDealTimerV18=null, cardDealDoneTimerV18=null;
 async function getPlayerCountForCardDealV18(){
-  // 기존 프로젝트의 db만 사용합니다. 새로운 Supabase client를 생성하지 않습니다.
-  if(typeof db!=="undefined" && db && typeof db.from==="function"){
-    try{
-      const r=await db.from("players").select("id,name,status").eq("status","ALIVE");
+  // 카드 배부 함수와 동일한 실행 스코프에서 기존 db를 사용합니다.
+  // 별도의 Supabase client는 절대로 생성하지 않습니다.
+  try{
+    if(typeof db!=="undefined" && db && typeof db.from==="function"){
+      const r=await db.from("players")
+        .select("id,name,status")
+        .eq("status","ALIVE");
       if(!r.error){
-        const n=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자").length;
-        if(n>0)return n;
+        const alive=(r.data||[]).filter(
+          p=>String(p.name||"").trim()!=="관리자"
+        );
+        if(alive.length>0)return alive.length;
       }
-    }catch(e){
-      console.warn("카드 배부용 플레이어 수 조회 실패:",e);
+    }
+  }catch(e){
+    console.warn("카드 배부용 players 조회 실패:",e);
+  }
+
+  // db가 이 함수의 스코프에 없는 경우, v20의 현재 플레이어 목록/상태를
+  // 이용해 인원수를 복구합니다.
+  const candidates=[
+    window.players,
+    window.playerList,
+    window.gamePlayers,
+    window.currentPlayers,
+    window.alivePlayers
+  ];
+  for(const list of candidates){
+    if(Array.isArray(list)){
+      const n=list.filter(p=>{
+        const name=typeof p==="string"?p:(p&&p.name);
+        const status=typeof p==="object"&&p
+          ?String(p.status||"ALIVE").toUpperCase()
+          :"ALIVE";
+        return name && String(name).trim()!=="관리자" && status==="ALIVE";
+      }).length;
+      if(n>0)return n;
     }
   }
+
+  // 페이지에 존재하는 참가자 UI도 최후의 fallback으로 사용합니다.
+  const selectors=[
+    "#playerList [data-player-name]",
+    "#playerList .player-item",
+    ".player-list .player-item",
+    "[data-player-name]"
+  ];
+  for(const sel of selectors){
+    const n=document.querySelectorAll(sel).length;
+    if(n>0)return n;
+  }
+
+  console.warn("카드 배부용 플레이어 수를 확인하지 못했습니다.");
   return 0;
 }
 function buildCardDealV18(container,count,back){
@@ -1424,11 +1465,17 @@ async function startCardDealV18(){
   area.classList.remove("card-input-enabled");
   if(instruction)instruction.classList.remove("card-selection-instruction-active");
 
-  const count=await getPlayerCountForCardDealV18();
+  let count=await getPlayerCountForCardDealV18();
 
   if(!count){
-    console.warn("카드 배부 중단: 실제 ALIVE 플레이어 수를 확인하지 못했습니다.");
-    return;
+    // 플레이어 목록이 아직 route/render 직후에 준비되지 않은 경우 500ms 후 한 번 재시도
+    await new Promise(resolve=>setTimeout(resolve,500));
+    const retryCount=await getPlayerCountForCardDealV18();
+    if(!retryCount){
+      console.warn("카드 배부 중단: 실제 ALIVE 플레이어 수를 확인하지 못했습니다.");
+      return;
+    }
+    count=retryCount;
   }
 
   grid.dataset.cardCount=String(count);
