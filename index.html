@@ -1343,30 +1343,41 @@ window.openBroadcastScreen=function(){
   }
 };
 </script>
-<style id="player-card-selection-v11">
+<style id="player-card-selection-v12">
 #roleSelect .playerCardSelectionTitle{
-  position:absolute!important;z-index:120!important;left:50%!important;top:7%!important;
-  transform:translateX(-50%)!important;display:flex!important;align-items:center!important;
-  justify-content:center!important;gap:clamp(3px,.45vw,10px)!important;
-  width:min(96vw,1100px)!important;opacity:0!important;visibility:hidden!important;
+ position:absolute!important;z-index:120!important;left:50%!important;top:7%!important;
+ transform:translateX(-50%)!important;display:flex!important;align-items:center!important;
+ justify-content:center!important;gap:clamp(3px,.45vw,10px)!important;
+ width:min(96vw,1100px)!important;opacity:0!important;visibility:hidden!important;
+ pointer-events:none!important;
 }
 #roleSelect .playerCardSelectionTitle.active{opacity:1!important;visibility:visible!important}
 #roleSelect .playerCardSelectionTitle img{
-  display:block!important;width:clamp(68px,11vw,145px)!important;height:auto!important;
-  opacity:0!important;transform:translateY(45px) scale(.6)!important;filter:blur(5px)!important;
+ display:block!important;width:clamp(68px,11vw,145px)!important;height:auto!important;
+ opacity:1!important;transform:translateY(35px) scale(.15)!important;
+ filter:blur(8px)!important;
 }
 #roleSelect .playerCardSelectionTitle.active img{
-  animation:playerCardSelectionLetterInV11 .62s cubic-bezier(.12,.9,.18,1) forwards!important;
+ animation:playerCardSelectionLetterInV12 .62s cubic-bezier(.12,.9,.18,1) forwards!important;
 }
 #roleSelect .playerCardSelectionTitle.active img:nth-child(1){animation-delay:.08s!important}
 #roleSelect .playerCardSelectionTitle.active img:nth-child(2){animation-delay:.43s!important}
 #roleSelect .playerCardSelectionTitle.active img:nth-child(3){animation-delay:.78s!important}
 #roleSelect .playerCardSelectionTitle.active img:nth-child(4){animation-delay:1.13s!important}
-@keyframes playerCardSelectionLetterInV11{
-  0%{opacity:0;transform:translateY(45px) scale(.6);filter:blur(5px)}
-  60%{opacity:1;transform:translateY(-7px) scale(1.05);filter:blur(0)}
-  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+@keyframes playerCardSelectionLetterInV12{
+ 0%{transform:translateY(35px) scale(.15);filter:blur(8px)}
+ 60%{transform:translateY(-7px) scale(1.08);filter:blur(0)}
+ 100%{transform:translateY(0) scale(1);filter:blur(0)}
 }
+#roleSelect .playerCardSelectionInstruction{
+ position:absolute!important;z-index:121!important;left:50%!important;
+ top:calc(7% + clamp(145px,17vw,220px))!important;transform:translateX(-50%)!important;
+ width:min(90vw,1000px)!important;text-align:center!important;
+ font-size:clamp(22px,3vw,46px)!important;font-weight:900!important;color:#fff!important;
+ text-shadow:0 3px 16px rgba(0,0,0,.9)!important;
+ opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+}
+#roleSelect .playerCardSelectionInstruction.active{opacity:1!important;visibility:visible!important}
 </style>
 </head>
 <body class="wolf-v181">
