@@ -1385,9 +1385,12 @@ function startPlayerRoleCardFlowV18(){
 </style>
 <script id="card-deal-v18-player">
 let cardDealTimerV18=null, cardDealDoneTimerV18=null;
-function getPlayerCountForCardDealV19(){
-  const list=Array.isArray(window.players)?window.players:[];
-  return Math.max(1,list.filter(p=>p && p.name && p.name!=="관리자").length);
+async function getPlayerCountForCardDealV18(){
+  try{
+    const r=await db.from("players").select("id,name,status").eq("status","ALIVE");
+    if(r.error)throw r.error;
+    return (r.data||[]).filter(p=>p&&p.name&&p.name!=="관리자").length;
+  }catch(e){console.warn("카드 배부용 플레이어 수 조회 실패:",e);return 0;}
 }
 function buildCardDealV18(container,count,back){
   if(!container)return;
@@ -1401,7 +1404,7 @@ function buildCardDealV18(container,count,back){
     container.appendChild(img);
   }
 }
-function startCardDealV18(){
+async function startCardDealV18(){
   clearTimeout(cardDealTimerV18);clearTimeout(cardDealDoneTimerV18);
   const area=document.querySelector("#roleSelect .cardDealArea");
   const grid=document.getElementById("cardDealGrid");
@@ -1409,7 +1412,9 @@ function startCardDealV18(){
   if(!area||!grid)return;
   area.classList.remove("card-input-enabled");
   if(instruction)instruction.classList.remove("card-selection-instruction-active");
-  const count=getPlayerCountForCardDealV19(); grid.dataset.cardCount=String(count);
+  const count=await getPlayerCountForCardDealV18();
+  grid.dataset.cardCount=String(count);
+  if(count<1){console.warn("카드 배부 중단: 현재 ALIVE 플레이어가 없습니다.");return;}
   buildCardDealV18(grid,count,'assets/card_back.png');
   const cards=[...grid.children];
   cards.forEach((card,index)=>{
@@ -1419,41 +1424,6 @@ function startCardDealV18(){
     area.classList.add("card-input-enabled");
     if(instruction)instruction.classList.add("card-selection-instruction-active");
   },Math.max(0,(count-1)*360+700));
-}
-</script>
-<script id="card-deal-count-fix-v19-player">
-function getPlayerCountForCardDealV19(){
-  const candidates=[
-    window.players,
-    window.playerList,
-    window.gamePlayers,
-    window.currentPlayers
-  ];
-  for(const value of candidates){
-    if(Array.isArray(value)){
-      const names=value.filter(p=>{
-        const name=typeof p==="string"?p:(p&&p.name);
-        return name && String(name).trim() && String(name).trim()!=="관리자";
-      });
-      if(names.length>0)return names.length;
-    }
-  }
-  const selectors=[
-    "#playerList .player-item",
-    "#playerList > *",
-    ".player-list .player-item",
-    "[data-player-name]"
-  ];
-  for(const sel of selectors){
-    const n=document.querySelectorAll(sel).length;
-    if(n>0)return n;
-  }
-  // The game may expose the count directly.
-  for(const v of [window.playerCount,window.currentPlayerCount,window.totalPlayers]){
-    const n=Number(v);
-    if(Number.isFinite(n)&&n>0)return Math.floor(n);
-  }
-  return 1;
 }
 </script>
 </head>
