@@ -982,7 +982,6 @@ body{
  background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
  color:#eee!important;
 }
-#login{background:#000!important;}
 #login .card,#lobby .card{
  background:rgba(3,3,4,.74)!important;
  border:1px solid rgba(145,0,22,.45)!important;
@@ -1018,13 +1017,9 @@ body{
 #lobby.readyWaiting .lobbyReadyTitle{width:min(78vw,900px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,130,.52));animation:lobbyReadyTitleIdle 4s ease-in-out infinite alternate;}
 #lobby.readyWaiting .lobbyWaitingMessage{position:relative;z-index:3;margin-top:clamp(260px,34vh,420px);}
 #lobby.readyWaiting .lobbyLogoutBtn{position:relative;z-index:3;}
-@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)} }
+@keyframes lobbyReadyBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
 @keyframes lobbyReadyTitleIdle{from{transform:translateY(0) scale(1)}to{transform:translateY(-6px) scale(1.012)}}
 
-/* 로그인 직후 대기화면의 로그아웃 버튼만 상단 우측에 배치 */
-#lobby:not(.readyWaiting){position:relative;}
-#lobby:not(.readyWaiting) .lobbyLogoutBtn{position:absolute!important;top:max(12px,env(safe-area-inset-top))!important;right:max(12px,env(safe-area-inset-right))!important;z-index:5!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:7px 11px!important;font-size:13px!important;line-height:1.2!important;}
-@media (max-height:560px){#lobby:not(.readyWaiting) .lobbyLogoutBtn{top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important;padding:6px 10px!important;font-size:12px!important;}}
 
 #login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
  font-family:var(--wolf-title-font)!important;
@@ -1196,6 +1191,27 @@ body{
   overflow:hidden;
 }
 
+/* Scroll containers: keep full-screen game stages fixed, but allow
+   content-heavy player/admin screens to scroll when their content exceeds
+   the viewport. */
+#admin{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch;
+}
+#admin .adminDashboard{
+  min-height:max-content;
+  padding-bottom:32px;
+}
+
+/* Content-heavy player screens. Full-screen stages keep their existing
+   overflow:hidden behavior unless explicitly listed here. */
+#mission, #sabotage, #trial, #locationChoice{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch;
+}
+
 main,
 .wrap,
 .stage,
@@ -1345,29 +1361,9 @@ window.openBroadcastScreen=function(){
 }
 </style>
 <script id="player-role-card-flow-v18-js">
-let playerRoleToCardTimerV18=null, playerRoleCardStartTimerV18=null;
-function resetPlayerRoleCardVisualsV18(){
-  clearTimeout(playerRoleToCardTimerV18);
-  clearTimeout(playerRoleCardStartTimerV18);
-  playerRoleToCardTimerV18=null;
-  playerRoleCardStartTimerV18=null;
-  clearTimeout(cardDealTimerV18);
-  clearTimeout(cardDealDoneTimerV18);
-  cardDealTimerV18=null;
-  cardDealDoneTimerV18=null;
-  const area=document.querySelector("#roleSelect .cardDealArea");
-  const grid=document.getElementById("cardDealGrid");
-  const instruction=document.getElementById("playerCardSelectionInstruction");
-  if(area)area.classList.remove("card-input-enabled");
-  if(grid){
-    grid.innerHTML="";
-    grid.removeAttribute("data-card-count");
-  }
-  if(instruction)instruction.classList.remove("card-selection-instruction-active");
-}
-
+let playerRoleToCardTimerV18=null;
 function startPlayerRoleCardFlowV18(){
- resetPlayerRoleCardVisualsV18();
+ clearTimeout(playerRoleToCardTimerV18);
  const emphasis=document.getElementById("playerRoleSelectionEmphasis");
  const title=document.getElementById("playerCardSelectionTitle");
  const instruction=document.getElementById("playerCardSelectionInstruction");
@@ -1379,7 +1375,7 @@ function startPlayerRoleCardFlowV18(){
    emphasis.classList.remove("visible");
    title.classList.add("card-selection-active");
    // 타이틀 애니메이션 종료 후 카드 배부 시작
-   playerRoleCardStartTimerV18=setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
+   setTimeout(()=>{startCardDealV18().catch(e=>console.error('카드 배부 오류:',e));},2300);
  },3000);
 }
 </script>
@@ -1414,9 +1410,8 @@ async function getPlayerCountForCardDealV18(){
   // 카드 배부 함수와 동일한 실행 스코프에서 기존 db를 사용합니다.
   // 별도의 Supabase client는 절대로 생성하지 않습니다.
   try{
-    const client=(typeof db!=="undefined" && db && typeof db.from==="function")?db:window.__wolfGameDb;
-    if(client && typeof client.from==="function"){
-      const r=await client.from("players")
+    if(typeof db!=="undefined" && db && typeof db.from==="function"){
+      const r=await db.from("players")
         .select("id,name,status")
         .eq("status","ALIVE");
       if(!r.error){
@@ -1538,35 +1533,49 @@ async function startCardDealV18(){
 </style><script id="card-selection-complete-v20">
 let cardSelectionBusyV20=false;
 
-function shufflePlayersForRoleAssignmentV20(players){
-  const shuffled=[...players];
-  for(let i=shuffled.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+function getCardRoleDeckV20(count,wolfCount,round){
+  const roles=[];
+  for(let n=0;n<wolfCount;n++)roles.push("WOLF");
+  while(roles.length<count)roles.push("SHEEP");
+  let seed=((Number(round)||1)*1009+count*97+wolfCount*53)>>>0;
+  for(let n=roles.length-1;n>0;n--){
+    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+    const j=seed%(n+1);
+    [roles[n],roles[j]]=[roles[j],roles[n]];
   }
-  return shuffled;
+  return roles;
 }
 
-function getCardFlowClientV20(){
-  const client=window.__wolfGameDb;
-  if(!client || typeof client.from!=="function") throw new Error("Supabase 연결을 확인할 수 없습니다.");
-  return client;
+async function reconcileCardPositionsV20(){
+  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
+  }
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+    }
+  }
 }
-
-async function getCardFlowSettingsV20(){
-  const client=getCardFlowClientV20();
-  const r=await client.from("game_settings").select("*").eq("id",1).limit(1).maybeSingle();
-  if(r.error)throw new Error("게임 설정 오류\n"+r.error.message);
-  if(!r.data)throw new Error("게임 설정 오류\nid=1인 game_settings가 없습니다.");
-  return r.data;
-}
-
 
 function showCardSelectedFeedbackV20(card){
   if(!card)return;
   card.classList.add("card-selected-feedback");
   card.setAttribute("aria-selected","true");
   const grid=card.closest("#cardDealGrid");
+  if(grid){
+    [...grid.querySelectorAll(".cardDealCard")].forEach(other=>{
+      if(other!==card)other.classList.add("card-selection-disabled");
+    });
+  }
   const wrap=card.parentElement;
   if(wrap && !wrap.querySelector(".cardSelectedBadge")){
     const badge=document.createElement("span");
@@ -1595,54 +1604,37 @@ function setCardSelectionLockedV20(card,locked){
 }
 
 async function reconcileCardPositionsV20(){
-  // 카드 선택은 플레이어별로 독립적이므로 중복 카드 선택을 정리하지 않습니다.
-  return true;
+  const r=await db.from("players").select("id,name,status,card_selected,card_position,role").eq("status","ALIVE");
+  if(r.error)throw new Error(r.error.message);
+  const selected=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자" && p.card_selected);
+  const byPos=new Map();
+  for(const p of selected){
+    const pos=Number(p.card_position);
+    if(!Number.isInteger(pos))continue;
+    if(!byPos.has(pos))byPos.set(pos,[]);
+    byPos.get(pos).push(p);
+  }
+  for(const group of byPos.values()){
+    if(group.length<2)continue;
+    group.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    for(const loser of group.slice(1)){
+      await db.from("players").update({card_selected:false,card_position:null,role:null}).eq("id",loser.id);
+    }
+  }
 }
 
 async function finishRoleSelectionIfCompleteV20(){
-  const client=getCardFlowClientV20();
-  const r=await client.from("players").select("id,name,status,card_selected,role").eq("status","ALIVE");
+  const r=await db.from("players").select("id,name,status,card_selected").eq("status","ALIVE");
   if(r.error)throw new Error(r.error.message);
   const players=(r.data||[]).filter(p=>String(p.name||"").trim()!=="관리자");
-  if(!(players.length>0 && players.every(p=>p.card_selected)))return false;
-
-  // 카드 선택은 역할을 결정하지 않습니다. 모든 플레이어의 선택이 끝난 뒤
-  // 단 한 명의 클라이언트만 역할 배정 잠금을 획득하고 랜덤 배정합니다.
-  const lock=await client.from("game_settings")
-    .update({roles_selected:true,notice:"역할을 랜덤으로 배정하는 중입니다."})
-    .eq("id",1).eq("phase","ROLE_SELECT").eq("roles_selected",false)
-    .select("id").maybeSingle();
-  if(lock.error)throw new Error("역할 배정 잠금 실패: "+lock.error.message);
-  if(!lock.data){
-    // 다른 플레이어가 먼저 역할 배정을 시작했으므로 여기서는 아무것도 하지 않습니다.
-    return false;
-  }
-
-  try{
-    const g=await getCardFlowSettingsV20();
-    const wolfCount=Math.floor(Number(g.wolf_count));
-    if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=players.length){
-      throw new Error("설정된 늑대 수가 현재 플레이어 수와 맞지 않습니다.");
+  if(players.length>0 && players.every(p=>p.card_selected)){
+    const g=await settings();
+    if(String(g.phase).toUpperCase()==="ROLE_SELECT"){
+      await set({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어가 카드를 선택했습니다."});
     }
-
-    const shuffled=shufflePlayersForRoleAssignmentV20(players);
-    for(let i=0;i<shuffled.length;i++){
-      const role=i<wolfCount?"WOLF":"SHEEP";
-      const u=await client.from("players").update({role}).eq("id",shuffled[i].id).eq("status","ALIVE");
-      if(u.error)throw new Error("역할 배정 실패: "+u.error.message);
-    }
-
-    const phaseUpdate=await client.from("game_settings")
-      .update({phase:"ROLE_REVEAL",roles_selected:true,notice:"모든 플레이어의 역할이 배정되었습니다."})
-      .eq("id",1).eq("phase","ROLE_SELECT").eq("roles_selected",true);
-    if(phaseUpdate.error)throw new Error("결과 공개 단계 전환 실패: "+phaseUpdate.error.message);
     return true;
-  }catch(e){
-    // 역할 배정 실패 시 다른 클라이언트가 재시도할 수 있도록 잠금을 되돌립니다.
-    await client.from("players").update({role:"UNASSIGNED"}).eq("status","ALIVE");
-    await client.from("game_settings").update({roles_selected:false,notice:"역할 배정에 실패했습니다. 다시 시도합니다."}).eq("id",1).eq("phase","ROLE_SELECT");
-    throw e;
   }
+  return false;
 }
 
 async function onPlayerCardSelectedV20(card,index){
@@ -1656,16 +1648,15 @@ async function onPlayerCardSelectedV20(card,index){
 
   try{
     // v20의 기존 db/playerId 구조를 직접 사용합니다.
-    const currentId=(typeof playerId!=="undefined" && playerId) ? playerId : (window.playerId || localStorage.getItem("wolf_game_player_v7"));
+    const currentId=typeof playerId!=="undefined" ? playerId : window.playerId;
     if(!currentId)throw new Error("현재 플레이어 ID를 확인할 수 없습니다.");
 
-    const g=await getCardFlowSettingsV20();
+    const g=await settings();
     if(String(g.phase).toUpperCase()!=="ROLE_SELECT"){
       throw new Error("현재 카드 선택 단계가 아닙니다.");
     }
 
-    const client=getCardFlowClientV20();
-    const r=await client.from("players")
+    const r=await db.from("players")
       .select("id,name,status,card_selected,card_position")
       .eq("status","ALIVE");
     if(r.error)throw new Error(r.error.message);
@@ -1675,16 +1666,28 @@ async function onPlayerCardSelectedV20(card,index){
     if(!mine)throw new Error("현재 플레이어의 players 정보를 찾을 수 없습니다.");
     if(mine.card_selected)return;
 
+    const taken=players.some(p=>
+      String(p.id)!==String(mine.id) &&
+      p.card_selected===true &&
+      Number(p.card_position)===Number(index)
+    );
+    if(taken)throw new Error("이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.");
 
-    const u=await client.from("players").update({
+    const wolfCount=Math.max(1,Math.min(players.length-1,Math.floor(Number(g.wolf_count)||1)));
+    const roles=getCardRoleDeckV20(players.length,wolfCount,g.current_round);
+    const role=roles[index];
+    if(!role)throw new Error("선택한 카드의 역할 정보를 확인할 수 없습니다.");
+
+    const u=await db.from("players").update({
       card_selected:true,
-      card_position:index
+      card_position:index,
+      role:role
     }).eq("id",mine.id).eq("status","ALIVE").eq("card_selected",false);
     if(u.error)throw new Error(u.error.message);
 
     await reconcileCardPositionsV20();
 
-    const check=await client.from("players").select("card_selected,card_position")
+    const check=await db.from("players").select("card_selected,card_position")
       .eq("id",mine.id).maybeSingle();
     if(check.error)throw new Error(check.error.message);
     if(!check.data || check.data.card_selected!==true ||
@@ -1692,19 +1695,9 @@ async function onPlayerCardSelectedV20(card,index){
       throw new Error("선택 상태 저장에 실패했습니다.");
     }
 
-    const instructionEl=document.getElementById("playerCardSelectionInstruction");
-    if(instructionEl){
-      instructionEl.textContent="다른 플레이어의 선택을 기다리는 중입니다.";
-      instructionEl.classList.add("card-selection-instruction-active");
-    }
     await finishRoleSelectionIfCompleteV20();
   }catch(e){
     console.error("카드 선택 처리 실패:",e);
-    const instructionEl=document.getElementById("playerCardSelectionInstruction");
-    if(instructionEl && String(e?.message||"").includes("이미 다른 플레이어가 선택한 카드입니다")){
-      instructionEl.textContent="이미 다른 플레이어가 선택한 카드입니다. 다른 카드를 선택해 주세요.";
-      instructionEl.classList.add("card-selection-instruction-active");
-    }
     card.classList.remove("card-selected-feedback");
     card.removeAttribute("aria-selected");
     const grid=card.closest("#cardDealGrid");
@@ -1791,329 +1784,7 @@ function bindCardSelectionV20(){
   position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);
   z-index:50;pointer-events:none;white-space:nowrap;
 }
-</style>
-<style id="role-reveal-unified-card-fix-v1">
-#roleReveal .Stage{position:relative!important;min-height:100vh!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;padding:24px 20px 110px!important;box-sizing:border-box!important}
-#roleReveal .unifiedRoleCard{width:min(68vw,360px)!important;height:min(66vh,540px)!important;max-height:540px!important;perspective:1400px!important;position:relative!important;z-index:3!important;flex:0 0 auto!important}
-#roleReveal .unifiedRoleCardInner{position:relative!important;width:100%!important;height:100%!important;transform-style:preserve-3d!important;transition:transform .7s cubic-bezier(.2,.8,.2,1)!important}
-#roleReveal .unifiedRoleCardInner.isFront{transform:rotateY(180deg)!important}
-#roleReveal .unifiedRoleCardFace{position:absolute!important;inset:0!important;backface-visibility:hidden!important;-webkit-backface-visibility:hidden!important;border-radius:14px!important;overflow:hidden!important}
-#roleReveal .unifiedRoleCardBack{background:#545957!important;border:7px solid #a7aaa9!important;box-shadow:inset 0 0 0 3px #222,inset 0 0 0 7px #c7cac7,0 18px 55px #000!important}
-#roleReveal .unifiedRoleCardBack img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}
-#roleReveal .unifiedRoleCardFront{transform:rotateY(180deg)!important;background:#050505!important;border:4px solid #ff3f9f!important}
-#roleReveal .unifiedRoleCardFront img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
-#roleReveal .unifiedRoleFlipButton{position:absolute!important;left:50%!important;bottom:28px!important;transform:translateX(-50%)!important;z-index:10!important;min-width:150px!important;padding:12px 24px!important;border:1px solid #777!important;border-radius:10px!important;background:#151515!important;color:#fff!important;font-size:18px!important;font-weight:900!important;cursor:pointer!important}
-#roleReveal .unifiedRoleFlipButton:disabled{opacity:.55!important;cursor:default!important}
-#roleReveal .unifiedRoleRevealAnnouncement{position:absolute!important;left:50%!important;bottom:84px!important;transform:translateX(-50%)!important;z-index:9!important;width:min(90vw,600px)!important;text-align:center!important;color:#fff!important;font-size:clamp(24px,5vw,48px)!important;font-weight:1000!important;text-shadow:0 0 25px #ff3f9f,0 3px 10px #000!important;pointer-events:none!important;transition:opacity .2s ease!important}
-@media(max-width:600px){#roleReveal .Stage{padding:18px 12px 100px!important}#roleReveal .unifiedRoleCard{width:min(78vw,320px)!important;height:min(60vh,480px)!important}#roleReveal .unifiedRoleFlipButton{bottom:22px!important}}
-</style>
-
-<style id="role-reveal-mobile-layout-fix-v2">
-/* 결과 확인 화면: 카드와 버튼을 같은 화면 안에서 함께 배치 */
-#roleReveal .Stage{
-  min-height:100dvh!important;
-  height:100dvh!important;
-  box-sizing:border-box!important;
-  display:flex!important;
-  flex-direction:column!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:16px!important;
-  padding:20px 16px 24px!important;
-  overflow:hidden!important;
-}
-#roleReveal .unifiedRoleCard{
-  width:min(68vw,360px,calc((100dvh - 118px)*2 / 3))!important;
-  height:auto!important;
-  aspect-ratio:2 / 3!important;
-  max-height:calc(100dvh - 118px)!important;
-  flex:0 1 auto!important;
-  position:relative!important;
-}
-#roleReveal .unifiedRoleFlipButton{
-  position:relative!important;
-  left:auto!important;
-  bottom:auto!important;
-  transform:none!important;
-  flex:0 0 auto!important;
-  margin:0!important;
-}
-@media(max-width:600px){
-  #roleReveal .Stage{
-    min-height:100dvh!important;
-    height:100dvh!important;
-    gap:12px!important;
-    padding:14px 12px 18px!important;
-  }
-  #roleReveal .unifiedRoleCard{
-    width:min(82vw,320px,calc((100dvh - 92px)*2 / 3))!important;
-    height:auto!important;
-    aspect-ratio:2 / 3!important;
-    max-height:calc(100dvh - 92px)!important;
-  }
-  #roleReveal .unifiedRoleFlipButton{
-    min-width:140px!important;
-    padding:11px 22px!important;
-    font-size:17px!important;
-  }
-}
-</style>
-
-<style id="role-reveal-card-face-equal-size-v3">
-/* 결과 공개 카드: 앞면/뒷면 외곽 프레임 제거 + 동일한 카드 영역 사용 */
-#roleReveal .unifiedRoleCardFace{
-  box-sizing:border-box!important;
-  width:100%!important;
-  height:100%!important;
-  inset:0!important;
-  border:0!important;
-  border-radius:0!important;
-}
-#roleReveal .unifiedRoleCardBack{
-  border:0!important;
-  box-shadow:none!important;
-  background:#545957!important;
-}
-#roleReveal .unifiedRoleCardFront{
-  border:0!important;
-  box-shadow:none!important;
-  background:#050505!important;
-}
-#roleReveal .unifiedRoleCardBack img,
-#roleReveal .unifiedRoleCardFront img{
-  width:100%!important;
-  height:100%!important;
-  display:block!important;
-  box-sizing:border-box!important;
-}
-#roleReveal .unifiedRoleCardBack img{object-fit:cover!important}
-#roleReveal .unifiedRoleCardFront img{object-fit:contain!important}
-</style>
-<style id="role-reveal-front-image-width-fix-v4">
-/* 결과 공개 앞면 이미지: 뒷면과 동일한 카드 영역을 가득 채우도록 가로 폭을 확장 */
-#roleReveal .unifiedRoleCardFront img{
-  width:100%!important;
-  height:100%!important;
-  object-fit:fill!important;
-  display:block!important;
-}
-</style>
-
-<style id="card-selection-layout-v22">
-/* 카드 선택 단계: 타이틀 / 안내 문구 / 카드 영역을 독립적으로 분리 */
-#roleSelect{
-  position:relative!important;
-  overflow:hidden!important;
-  min-height:100dvh!important;
-}
-#roleSelect #playerCardSelectionTitle{
-  top:3%!important;
-  z-index:10000!important;
-}
-#roleSelect #playerCardSelectionInstruction{
-  top:15%!important;
-  width:min(90vw,900px)!important;
-  padding:0 12px!important;
-  box-sizing:border-box!important;
-  font-size:clamp(16px,2.35vw,32px)!important;
-  line-height:1.35!important;
-  min-height:2.7em!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  overflow-wrap:anywhere!important;
-  word-break:keep-all!important;
-}
-#roleSelect .cardDealArea{
-  position:absolute!important;
-  left:0!important;right:0!important;
-  top:27%!important;bottom:3%!important;
-  inset:auto 0 3% 0!important;
-  z-index:80!important;
-}
-#roleSelect .cardDealGrid{
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  max-height:100%!important;
-}
-@media (max-width:600px){
-  #roleSelect #playerCardSelectionTitle{top:2.5%!important;}
-  #roleSelect #playerCardSelectionInstruction{
-    top:13%!important;
-    width:min(92vw,700px)!important;
-    font-size:clamp(15px,4vw,24px)!important;
-    line-height:1.3!important;
-    min-height:2.6em!important;
-  }
-  #roleSelect .cardDealArea{top:25%!important;bottom:2%!important;}
-  #roleSelect .cardDealGrid{
-    width:min(86vw,1100px)!important;
-    gap:clamp(8px,2vw,18px)!important;
-  }
-}
-@media (orientation:landscape) and (max-height:600px){
-  #roleSelect #playerCardSelectionTitle{top:2%!important;}
-  #roleSelect #playerCardSelectionInstruction{top:12%!important;font-size:clamp(14px,2.4vw,24px)!important;}
-  #roleSelect .cardDealArea{top:25%!important;bottom:2%!important;}
-}
-</style>
-
-<style id="card-selection-layout-grid-v23">
-/* v23: 카드 선택 화면을 타이틀 / 안내문 / 카드의 3개 독립 영역으로 고정 */
-#roleSelect{
-  position:relative!important;
-  display:none!important;
-}
-#roleSelect.active{
-  display:grid!important;
-  grid-template-rows:minmax(72px,13dvh) minmax(52px,10dvh) minmax(0,1fr)!important;
-  grid-template-columns:minmax(0,1fr)!important;
-  align-items:stretch!important;
-  justify-items:stretch!important;
-  height:100dvh!important;
-  min-height:100dvh!important;
-  max-height:100dvh!important;
-  overflow:hidden!important;
-  box-sizing:border-box!important;
-  padding-top:max(8px,env(safe-area-inset-top))!important;
-  padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
-}
-#roleSelect #playerCardSelectionTitle{
-  position:relative!important;
-  inset:auto!important;
-  left:auto!important;top:auto!important;
-  transform:none!important;
-  grid-row:1!important;
-  width:100%!important;
-  height:100%!important;
-  min-height:0!important;
-  margin:0!important;
-  padding:0 10px!important;
-  box-sizing:border-box!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  overflow:hidden!important;
-}
-#roleSelect #playerCardSelectionTitle img{
-  width:clamp(54px,12vw,150px)!important;
-  max-width:22vw!important;
-  height:auto!important;
-}
-#roleSelect #playerCardSelectionInstruction{
-  position:relative!important;
-  inset:auto!important;
-  left:auto!important;top:auto!important;
-  transform:none!important;
-  grid-row:2!important;
-  align-self:center!important;
-  justify-self:center!important;
-  width:min(92vw,900px)!important;
-  height:100%!important;
-  min-height:0!important;
-  margin:0!important;
-  padding:4px 14px!important;
-  box-sizing:border-box!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  text-align:center!important;
-  font-size:clamp(14px,2.2vw,28px)!important;
-  line-height:1.25!important;
-  overflow:hidden!important;
-  overflow-wrap:anywhere!important;
-  word-break:keep-all!important;
-}
-#roleSelect .cardDealArea{
-  position:relative!important;
-  inset:auto!important;
-  left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
-  grid-row:3!important;
-  width:100%!important;
-  height:100%!important;
-  min-height:0!important;
-  margin:0!important;
-  overflow:hidden!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  box-sizing:border-box!important;
-}
-#roleSelect .cardDealGrid{
-  position:relative!important;
-  left:auto!important;top:auto!important;
-  transform:none!important;
-  width:min(88vw,1000px)!important;
-  max-width:100%!important;
-  max-height:100%!important;
-  height:auto!important;
-  margin:0 auto!important;
-  display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  gap:clamp(6px,1.5vw,20px)!important;
-  justify-items:center!important;
-  align-items:center!important;
-}
-#roleSelect .cardDealCard{
-  width:min(clamp(78px,11vw,150px),100%)!important;
-  max-width:100%!important;
-  max-height:calc(100% - 4px)!important;
-  aspect-ratio:2/3!important;
-}
-@media(max-width:600px){
-  #roleSelect{
-    grid-template-rows:minmax(64px,12dvh) minmax(48px,9dvh) minmax(0,1fr)!important;
-  }
-  #roleSelect #playerCardSelectionTitle img{
-    width:clamp(44px,13vw,82px)!important;
-    max-width:21vw!important;
-  }
-  #roleSelect #playerCardSelectionInstruction{
-    width:94vw!important;
-    font-size:clamp(13px,3.8vw,21px)!important;
-    line-height:1.2!important;
-    padding:2px 10px!important;
-  }
-  #roleSelect .cardDealGrid{
-    width:min(92vw,560px)!important;
-    gap:clamp(5px,1.8vw,12px)!important;
-  }
-  #roleSelect .cardDealCard{
-    width:clamp(76px,24vw,118px)!important;
-  }
-}
-@media(max-width:360px){
-  #roleSelect{
-    grid-template-rows:minmax(58px,11dvh) minmax(46px,9dvh) minmax(0,1fr)!important;
-  }
-  #roleSelect #playerCardSelectionTitle img{
-    width:clamp(40px,12vw,64px)!important;
-  }
-  #roleSelect #playerCardSelectionInstruction{
-    font-size:clamp(12px,3.5vw,17px)!important;
-  }
-  #roleSelect .cardDealCard{
-    width:clamp(70px,22vw,98px)!important;
-  }
-}
-@media(orientation:landscape) and (max-height:600px){
-  #roleSelect{
-    grid-template-rows:minmax(48px,18dvh) minmax(38px,12dvh) minmax(0,1fr)!important;
-  }
-  #roleSelect #playerCardSelectionTitle img{
-    width:clamp(38px,8vw,90px)!important;
-  }
-  #roleSelect #playerCardSelectionInstruction{
-    font-size:clamp(12px,2.5vw,20px)!important;
-  }
-  #roleSelect .cardDealCard{
-    width:clamp(62px,13vh,92px)!important;
-  }
-}
-</style>
-</head>
+</style></head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
@@ -2477,7 +2148,7 @@ let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
 let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
 let deathNotificationMinId=0,deathNotificationWatcherStarted=false;
-let lastRealtimePhase=null,lastRealtimeRound=null,lastRealtimeReady=null;
+let lastRealtimePhase=null,lastRealtimeRound=null;
 let wolfDeathProcessActive=false;
 let lastSoundEvent="",lastSoundAt=0,lastInvestigationSoundKey="",fadeBusy=false,roleRevealTimer=null,countdownTimer=null,lastNfcEnabled=null;
 const roleIsWolf=r=>String(r||"").toUpperCase()==="WOLF";
@@ -2635,8 +2306,8 @@ document.addEventListener("click",(event)=>{
 },true);
 document.addEventListener("pointerdown",()=>{unlockSound().catch(()=>{});},{once:true});
 document.addEventListener("keydown",()=>{unlockSound().catch(()=>{});},{once:true});
-// 자동 focus/visibility 이벤트에서는 AudioContext를 생성하지 않습니다.
-// Chrome의 사용자 제스처 제한으로 인한 콘솔 오류를 방지합니다.
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)activateStageAudio();});
+window.addEventListener("focus",()=>activateStageAudio());
 
 /* v-login-lobby-chrome: login/lobby have no  and no image background. */
 function syncLoginLobbyChrome(id){
@@ -2644,7 +2315,6 @@ function syncLoginLobbyChrome(id){
   document.body.classList.toggle("noWolfChrome", hideChrome);
 }
 function el(id){return document.getElementById(id);}
-function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove("show"),2200);}
 function busy(btn,text){if(!btn)return()=>{};const old=btn.textContent;btn.disabled=true;btn.classList.add("busy");btn.textContent=text||"처리 중...";return()=>{btn.disabled=false;btn.classList.remove("busy");btn.textContent=old;};}
 async function showScreen(id){
@@ -3004,38 +2674,28 @@ async function routeCore(){
 
   switch(currentPhase){
    case "ROLE_SELECT":
-     resetPlayerRoleCardVisualsV18();
      stopAllTimers();
      await showScreen("roleSelect");
      startPlayerRoleCardFlowV18();
      return;
 
    case "LOBBY":
-     playerGameStartSequenceToken++;
-     resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderLobby(p,g);return;
    case "ROLE_REVEAL":
-     playerGameStartSequenceToken++;
-     resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderCleanRoleReveal(p,g);return;
    case "COUNTDOWN":
-     if(document.querySelector("#gameCountdown.screen.active") && document.querySelector("#gameStartContent"))return;
+     if(countdownTimer?.running && document.querySelector("#gameCountdown.screen.active"))return;
      await renderGameCountdown(p,g);return;
    case "INVESTIGATION":
-     playerGameStartSequenceToken++;
      stopRoundTimer();await renderInvestigation(p,g);return;
    case "NIGHT":
-     playerGameStartSequenceToken++;
      await renderNight(p,g);return;
    case "TRIAL":
-     playerGameStartSequenceToken++;
      await renderTrial(p,g);return;
    case "FINISHED":
-     playerGameStartSequenceToken++;
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
      return;
    case "PLAY":
-     playerGameStartSequenceToken++;
      if(String(g.notice||"").startsWith("NIGHT_WARNING|")){
        await renderNightPreAlert(g);
        return;
@@ -3175,34 +2835,14 @@ async function renderPlayerTrialResult(data){
  else if(String(g.phase).toUpperCase()==="PLAY")await renderPlayer();
 }
 let roleRevealShownOnce=false;
-function resetPlayerRoleRevealVisualsV21(){
-  if(window.__roleRevealAnnouncementTimer){clearTimeout(window.__roleRevealAnnouncementTimer);window.__roleRevealAnnouncementTimer=null;}
-  const front=el("unifiedRoleCardFront");
-  const inner=el("unifiedRoleCardInner");
-  const btn=el("unifiedRoleFlipButton");
-  const announcement=el("unifiedRoleRevealAnnouncement");
-  if(front)front.innerHTML="";
-  if(inner)inner.classList.remove("isFront");
-  if(btn){btn.textContent="뒤집기";btn.disabled=false;}
-  if(announcement){announcement.textContent="";announcement.style.opacity="0";announcement.style.visibility="hidden";}
-}
 async function renderCleanRoleReveal(p,g){
-  // 다음 라운드에서 이전 라운드의 역할 카드가 화면 전환 중 잠깐 노출되지 않도록
-  // 기존 결과 DOM을 먼저 비운 뒤 새 결과 화면으로 전환합니다.
-  resetPlayerRoleRevealVisualsV21();
   await showScreen("roleReveal");
-  const front=el("unifiedRoleCardFront");
-  const inner=el("unifiedRoleCardInner");
-  const card=el("unifiedRoleCard");
-  const btn=el("unifiedRoleFlipButton");
-  if(!front||!inner||!card||!btn)return;
-  let announcement=el("unifiedRoleRevealAnnouncement");
-  if(!announcement){
-    announcement=document.createElement("div");
-    announcement.id="unifiedRoleRevealAnnouncement";
-    announcement.className="unifiedRoleRevealAnnouncement";
-    card.parentElement.appendChild(announcement);
-  }
+  const front=el("cleanRoleCardFront");
+  const inner=el("cleanRoleCardInner");
+  const btn=el("cleanRoleFlipButton");
+  const announcement=el("cleanRoleRevealAnnouncement");
+  const dim=el("cleanRoleRevealDim");
+  if(!front||!inner||!btn)return;
 
   const isWolf=String(p.role||"").toUpperCase()==="WOLF";
   const roleName=isWolf?"늑대":"양";
@@ -3212,30 +2852,39 @@ async function renderCleanRoleReveal(p,g){
   inner.classList.remove("isFront");
   btn.textContent="뒤집기";
   btn.disabled=false;
-  announcement.textContent="";
-  announcement.style.opacity="0";
-  announcement.style.visibility="hidden";
+  if(dim)dim.style.opacity="0";
+  if(announcement){
+    announcement.textContent="";
+    announcement.style.opacity="0";
+    announcement.style.visibility="hidden";
+  }
 
   const flip=()=>{
     const on=inner.classList.toggle("isFront");
     if(on){
       btn.disabled=true;
+      if(dim)dim.style.opacity="1";
       if(announcement){
         announcement.textContent="당신은 "+roleName+"입니다";
         announcement.style.opacity="1";
         announcement.style.visibility="visible";
       }
-      window.__roleRevealAnnouncementTimer=setTimeout(()=>{
-        window.__roleRevealAnnouncementTimer=null;
+      setTimeout(()=>{
         if(!inner.classList.contains("isFront"))return;
         btn.disabled=false;
-        announcement.style.opacity="0";
-        announcement.style.visibility="hidden";
+        if(dim)dim.style.opacity="0";
+        if(announcement){
+          announcement.style.opacity="0";
+          announcement.style.visibility="hidden";
+        }
       },2500);
     }else{
       btn.disabled=false;
-      announcement.style.opacity="0";
-      announcement.style.visibility="hidden";
+      if(dim)dim.style.opacity="0";
+      if(announcement){
+        announcement.style.opacity="0";
+        announcement.style.visibility="hidden";
+      }
     }
   };
   btn.onclick=flip;
@@ -4513,9 +4162,6 @@ async function startGame(){
  
  try{
    const g=await settings();
-   // 게임시작 버튼을 누르는 즉시 역할선정 BGM을 끊습니다.
-   stopAdminBgm("roleSelectionBgm");
-   stopAdminBgm("trialBgm");
    if(!g.ready){toast("먼저 준비완료를 눌러 인원을 확정해야 합니다.");return;}
    const pr=await db.from("players").select("*").eq("status","ALIVE");
    if(pr.error)throw new Error("플레이어 조회 실패: "+pr.error.message);
@@ -4606,26 +4252,11 @@ function stopAllAdminBgm(){
   ["roleSelectionBgm","trialBgm","nightBgm","gameStartBgm"].forEach(k=>stopAdminBgm(k));
 }
 
-let playerGameStartSequenceToken=0;
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
- const token=String(g.current_round||0);
- const sequenceToken=++playerGameStartSequenceToken;
  await showScreen("gameCountdown");
  const root=el("gameCountdown");if(!root)return;
  root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">곧 게임이 시작됩니다.</div></div></div>';
- // 플레이어 화면에는 5~1 숫자 카운트다운을 표시하지 않습니다.
- // 스크린 카운트다운과 동일하게 15초 후 마지막 「게임 시작」만 표시합니다.
- await wait(15000);
- if(sequenceToken!==playerGameStartSequenceToken)return;
- const content=el("gameStartContent");if(!content)return;
- const latest=await settings();
- if(String(latest.current_round||0)!==token)return;
- content.innerHTML='<div class="gameStartTitle">게임 시작</div>';
- // 플레이어의 로그인/카드 선택 과정에서 확보한 오디오 권한으로 효과음을 재생합니다.
- await playSound("gameStart","player-game-start-"+token).catch(()=>{});
- await wait(4000);
- if(sequenceToken!==playerGameStartSequenceToken)return;
 }
 async function nextRound(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;stopAllAdminBgm();
@@ -5327,31 +4958,6 @@ async function startDeathNotificationWatcher(){
  check();
  deathNotificationTimer=setInterval(check,1000);
 }
-// v189: 플레이어 복귀 시 서버의 현재 phase를 즉시 재동기화
-let playerResumeSyncBusy=false;
-let playerResumeSyncTimer=null;
-async function syncPlayerOnResume(){
-  if(localStorage.getItem("wolf_game_admin_v7")==="1" || !playerId || playerResumeSyncBusy)return;
-  playerResumeSyncBusy=true;
-  try{
-    const p=await me().catch(()=>null);
-    if(!p)return;
-    const g=await settings().catch(()=>null);
-    if(!g)return;
-    // 복귀 시에는 realtime 이벤트를 기다리지 않고 현재 서버 상태를 기준으로 라우팅합니다.
-    await route();
-  }catch(e){console.warn("플레이어 복귀 화면 동기화 오류:",e);}
-  finally{playerResumeSyncBusy=false;}
-}
-function schedulePlayerResumeSync(){
-  if(playerResumeSyncTimer)clearTimeout(playerResumeSyncTimer);
-  playerResumeSyncTimer=setTimeout(()=>{playerResumeSyncTimer=null;syncPlayerOnResume();},80);
-}
-document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible")schedulePlayerResumeSync();
-});
-window.addEventListener("pageshow",()=>schedulePlayerResumeSync());
-
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
@@ -5409,9 +5015,7 @@ function realtime(){
   }
   lastRealtimePhase=g.phase;
   lastRealtimeRound=g.current_round;
-  const readyChanged=lastRealtimeReady!==null && Boolean(g.ready)!==Boolean(lastRealtimeReady);
-  lastRealtimeReady=g.ready;
-  if(phaseChanged || roundChanged || readyChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
+  if(phaseChanged || roundChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
     if(realtimeRouteTimer)clearTimeout(realtimeRouteTimer);
     realtimeRouteTimer=setTimeout(async()=>{
       realtimeRouteTimer=null;
@@ -5572,7 +5176,6 @@ async function boot(){
     throw new Error("Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
   }
   db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  window.__wolfGameDb=db;
   preloadSounds();
   realtime();
   startDeathNotificationWatcher();
