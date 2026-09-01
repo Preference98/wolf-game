@@ -2588,6 +2588,7 @@ const SOUND_FILES={
  death:"sounds/death.mp3",
  sabotage:"sounds/sabotage.mp3",
  nightAlert:"sounds/night-alert.mp3",
+ nightBgm:"sounds/night-bgm.mp3",
 };
 const audio={};
 let soundUnlocked=false;
@@ -3148,10 +3149,13 @@ async function renderLobby(p,g){
 }
 let nightPreTimer=null;
 async function startPlayerLoopBgm(key,volume=.42){
+ // 새 BGM을 시작하기 전에 현재 재생 중인 플레이어 BGM을 먼저 정지합니다.
+ stopPlayerAllBgm();
  const a=audio[key];if(!a)return;
- try{a.loop=true;a.volume=volume;await a.play();}catch(e){console.warn("BGM 재생 실패:",e);}
+ try{a.loop=true;a.volume=volume;a.currentTime=0;await a.play();}catch(e){console.warn("BGM 재생 실패:",e);}
 }
-function stopPlayerLoopBgm(key){try{const a=audio[key];if(a){a.pause();a.currentTime=0;}}catch(e){}}
+function stopPlayerLoopBgm(key){try{const a=audio[key];if(a){a.pause();a.currentTime=0;a.loop=false;}}catch(e){}}
+function stopPlayerAllBgm(){["nightBgm"].forEach(stopPlayerLoopBgm);}
 async function renderNightPreAlert(g){
  const raw=String(g.notice||"");
  if(!raw.startsWith("NIGHT_WARNING|"))return;
@@ -3427,7 +3431,10 @@ async function renderNight(p,g){
    if(nightPreTimer){clearInterval(nightPreTimer);nightPreTimer=null;}
    stopRoundTimer();
    stopMissionTimer();
+   // 실제 NIGHT 진입: 기존 BGM을 먼저 정지하고 밤 BGM을 시작합니다.
+   stopPlayerAllBgm();
    await showScreen("night");
+   await startPlayerLoopBgm("nightBgm",.42);
 
    if(el("nightSheepView"))el("nightSheepView").style.display=isWolf?"none":"flex";
    if(el("nightWolfView"))el("nightWolfView").style.display=isWolf?"block":"none";
