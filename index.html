@@ -714,6 +714,42 @@ button.secondary{border-color:#555;background:#111}
 #trial .trialMissionItem .state{color:#ddd}.trialAnnounceStage{background:radial-gradient(circle at 50% 35%,rgba(255,0,128,.3),transparent 28%),linear-gradient(180deg,#050005,#000)!important}
 @keyframes v175TrialBg{from{transform:scale(1.04) translate3d(0,0,0)}to{transform:scale(1.09) translate3d(-.4%,.3%,0)}}
 
+/* v175 trial announcement: same composition language as the screen trial intro */
+#trialAnnouncement .trialAnnounceStage{position:fixed!important;inset:0!important;overflow:hidden!important;background:#020202!important}
+#trialAnnouncement .trialAnnounceBackdrop{position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,0,2,.38),rgba(2,0,2,.72)),url('assets/trial_bg.jpg') center/cover no-repeat;filter:saturate(.72) contrast(1.08) brightness(.58);transform:scale(1.06);animation:v175TrialAnnounceBg 4s ease-out forwards}
+#trialAnnouncement .trialAnnounceBackdrop:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 34%,rgba(255,0,128,.28),transparent 26%),repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.025) 3px 4px)}
+#trialAnnouncement .trialAnnounceCards{position:absolute;left:50%;top:19%;transform:translateX(-50%);display:flex;gap:clamp(5px,1vw,14px);z-index:3}
+#trialAnnouncement .trialAnnounceCards div{width:clamp(54px,9vw,115px);height:clamp(76px,13vw,165px);display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#ff1684,#760038 58%,#19000a);border:3px solid #ff4aa4;box-shadow:0 0 28px rgba(255,0,120,.48),9px 12px 0 rgba(0,0,0,.55);font-size:clamp(38px,7vw,90px);font-weight:1000;color:#fff;text-shadow:3px 4px 0 #2b0016;opacity:0;animation:v175TrialCardIn .55s cubic-bezier(.12,.9,.18,1) forwards}
+#trialAnnouncement .trialAnnounceCards div:nth-child(1){transform:rotate(-8deg);animation-delay:.2s}#trialAnnouncement .trialAnnounceCards div:nth-child(2){transform:rotate(4deg);animation-delay:.38s}#trialAnnouncement .trialAnnounceCards div:nth-child(3){transform:rotate(-4deg);animation-delay:.56s}#trialAnnouncement .trialAnnounceCards div:nth-child(4){transform:rotate(8deg);animation-delay:.74s}
+#trialAnnouncement .trialAnnounceContent{position:absolute;left:5%;right:5%;bottom:13%;z-index:4;text-align:center}
+#trialAnnouncement .trialAnnounceContent h1{font-family:"Noto Sans KR",Arial,sans-serif!important;font-size:clamp(25px,5vw,58px)!important;font-weight:1000!important;color:#fff!important;text-shadow:3px 4px 0 #4b0030,0 0 28px #ff1590!important}
+#trialAnnouncement .trialAnnounceContent .subtext{margin-top:14px!important;font-size:clamp(14px,2.2vw,25px)!important;color:#ddd!important;letter-spacing:.08em}
+@keyframes v175TrialAnnounceBg{from{transform:scale(1.13);filter:saturate(.65) contrast(1.12) brightness(.4)}to{transform:scale(1.06);filter:saturate(.72) contrast(1.08) brightness(.58)}}
+@keyframes v175TrialCardIn{from{opacity:0;transform:translateY(-65px) scale(.45) rotate(0deg);filter:blur(8px)}60%{opacity:1;transform:translateY(8px) scale(1.05) rotate(var(--r,0deg));filter:blur(0)}to{opacity:1;transform:translateY(0) scale(1) rotate(var(--r,0deg))}}
+
+/* v181 — title/trial visual identity: same letter-by-letter cards and same typography */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap");
+:root{--wolf-title-font:"Noto Sans KR",Arial,sans-serif;--wolf-pink:#ff1684;--wolf-pink-bright:#ff4aa4;--wolf-dark:#050005}
+#trialAnnouncement .trialAnnounceStage{font-family:var(--wolf-title-font)!important;background:#050005!important}
+#trialAnnouncement .trialAnnounceBackdrop{background:
+ radial-gradient(circle at 50% 42%,rgba(255,0,106,.18),transparent 30%),
+ linear-gradient(135deg,#070006 0%,#19000e 48%,#020002 100%)!important;
+ filter:saturate(1.3)!important;transform:scale(1.08)!important;animation:v181TrialBackdrop 7s ease-in-out infinite alternate!important}
+#trialAnnouncement .trialAnnounceBackdrop:before{content:"";position:absolute;inset:-8%;background-image:url('assets/trial_bg.jpg');background-size:cover;background-position:center;opacity:.32;filter:blur(2px);transform:scale(1.12);animation:v181TrialArt 7s ease-in-out infinite alternate}
+#trialAnnouncement .trialAnnounceBackdrop:after{background:radial-gradient(circle,rgba(255,0,100,.28) 0 2%,transparent 3%),radial-gradient(circle,rgba(255,0,130,.22) 0 1%,transparent 2%)!important;background-size:40px 40px,67px 67px!important;mix-blend-mode:screen!important;opacity:.55!important}
+#trialAnnouncement .trialAnnounceCards{position:absolute!important;inset:0!important;left:0!important;top:0!important;transform:none!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(5px,1vw,18px)!important;z-index:3!important;transform:translateY(-3vh)!important}
+#trialAnnouncement .trialAnnounceCards div{position:relative!important;width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;display:flex!important;align-items:center!important;justify-content:center!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-family:var(--wolf-title-font)!important;font-size:clamp(58px,9vw,145px)!important;font-weight:900!important;color:#fff!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important;opacity:0!important;transform:translateY(70px) rotate(var(--rot)) scale(.55)!important;animation:v181TitleLetter .65s cubic-bezier(.12,.9,.18,1) forwards!important}
+#trialAnnouncement .trialAnnounceCards div:before{content:"";position:absolute;inset:-14px;z-index:-1;background:linear-gradient(25deg,transparent 15%,rgba(255,0,100,.45) 16% 19%,transparent 20% 35%,rgba(255,0,100,.35) 36% 40%,transparent 41%);filter:blur(3px)}
+#trialAnnouncement .trialAnnounceCards div:nth-child(1){--rot:-8deg;animation-delay:.15s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(2){--rot:4deg;animation-delay:.72s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(3){--rot:-5deg;animation-delay:1.29s!important}
+#trialAnnouncement .trialAnnounceCards div:nth-child(4){--rot:8deg;animation-delay:1.86s!important}
+#trialAnnouncement .trialAnnounceContent{bottom:8%!important;font-family:var(--wolf-title-font)!important}
+#trialAnnouncement .trialAnnounceContent h1{font-family:var(--wolf-title-font)!important;font-size:clamp(18px,2.3vw,34px)!important;letter-spacing:.20em!important;font-weight:900!important;color:#ddd!important;text-shadow:0 0 20px rgba(255,0,128,.35)!important}
+#trialAnnouncement .trialAnnounceContent .subtext{font-family:var(--wolf-title-font)!important;font-size:clamp(13px,1.8vw,24px)!important;letter-spacing:.08em!important;color:#aaa!important}
+@keyframes v181TitleLetter{0%{opacity:0;transform:translateY(70px) rotate(var(--rot)) scale(.55);filter:blur(9px)}58%{opacity:1;transform:translateY(-12px) rotate(var(--rot)) scale(1.08);filter:blur(0)}100%{opacity:1;transform:translateY(0) rotate(var(--rot)) scale(1)}}
+@keyframes v181TrialBackdrop{from{transform:scale(1.08)}to{transform:scale(1.15) translate3d(-1%,.7%,0)}}
+@keyframes v181TrialArt{from{transform:scale(1.12)}to{transform:scale(1.20) translate3d(-1%,.7%,0)}}
 /* 재판 본 화면도 타이틀과 같은 폰트/타이포그래피 */
 #trial .trialScreen,#trial .trialScreen *{font-family:var(--wolf-title-font)!important}
 #trial .trialDead h1,#trial .trialMissionList{letter-spacing:-.02em}
@@ -723,6 +759,9 @@ button.secondary{border-color:#555;background:#111}
 /* Reveal screen: same title-card language instead of a separate visual system. */
 #roleReveal .roleRevealFront h1{display:inline-block;padding:.08em .18em;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f);border:3px solid #ff4aa4;box-shadow:0 0 28px rgba(255,0,110,.5),8px 10px 0 rgba(25,0,15,.7);color:#fff!important}
 /* Trial announcement: exact same four-card title construction as the opening title. */
+#trialAnnouncement .trialAnnounceCards{gap:clamp(6px,1vw,18px)!important}
+#trialAnnouncement .trialAnnounceCards div{width:clamp(75px,10vw,170px)!important;height:clamp(105px,15vw,235px)!important;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f)!important;border:3px solid #ff4aa4!important;box-shadow:0 0 25px rgba(255,0,110,.55),8px 12px 0 rgba(25,0,15,.7)!important;font-family:var(--wolf-font)!important;font-size:clamp(58px,9vw,145px)!important;text-shadow:4px 5px 0 #25000f,0 0 25px #fff!important}
+#trialAnnouncement .trialAnnounceContent h1{font-family:var(--wolf-font)!important;font-weight:1000!important;letter-spacing:-.06em!important;text-shadow:4px 5px 0 #6b1643,0 0 24px rgba(255,0,135,.72)!important}
 /* Trial screen title cluster. */
 #trial .trialScreen h2{display:inline-block;padding:.06em .16em;background:linear-gradient(135deg,#ff1684,#9b003f 55%,#28000f);border:2px solid #ff4aa4;box-shadow:0 0 20px rgba(255,0,110,.4),7px 8px 0 rgba(25,0,15,.6);color:#fff!important}
 .trialTitleCluster{display:flex;justify-content:center;gap:clamp(4px,.7vw,10px);margin:18px auto 2px;position:relative;z-index:4}
@@ -868,6 +907,34 @@ button.secondary{border-color:#555;background:#111}
  filter:drop-shadow(0 0 5px rgba(255,0,110,.65));
 }
 
+/* v184 player 재판 연출 */
+.trialAnnouncementSimple,.trialCountdownStage{
+ position:fixed!important;inset:0!important;display:flex;align-items:center;justify-content:center;
+ background:#020002!important;text-align:center;z-index:2000;
+}
+.trialAnnouncementSimpleText{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(34px,6vw,82px)!important;font-weight:1000!important;color:#fff!important;
+ text-shadow:0 0 25px #ff1684,4px 5px 0 #3a071f!important;animation:v184IntroFade .45s ease both;
+}
+.trialCountdownNumber{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(140px,28vw,330px)!important;font-weight:1000!important;color:#fff!important;
+ text-shadow:0 0 35px #ff1684,0 0 90px rgba(255,0,128,.5)!important;
+ animation:v184Count .8s ease both;
+}
+.trialCenterNotice{
+ font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
+ font-size:clamp(30px,5vw,72px)!important;font-weight:1000!important;
+ color:#fff!important;text-shadow:0 0 28px rgba(255,0,128,.55),4px 5px 0 #3b0a24!important;
+}
+@keyframes wolfCardDeal{
+  0%{opacity:0;transform:translate3d(var(--from-x),var(--from-y),0) rotate(var(--from-r)) scale(.24);filter:blur(4px)}
+  18%{opacity:1}
+  68%{transform:translate3d(0,-12px,0) rotate(1deg) scale(1.04);filter:none}
+  100%{opacity:1;transform:translate3d(0,0,0) rotate(0deg) scale(1)}
+}
+
 /* v188: dark trial-hall player atmosphere */
 body{background:#020204!important}
 .nightPreAlertStage{background:linear-gradient(rgba(0,0,0,.50),rgba(20,0,5,.88)),url("assets/trial_bg.jpg") center/cover!important}
@@ -910,6 +977,10 @@ body{
 }
 .wrap{
  background:linear-gradient(rgba(0,0,0,.54),rgba(0,0,0,.76)),var(--wolf-bg) center/cover fixed!important;
+}
+#login,#lobby,#roleIntro,#roleReveal,#gameCountdown,#player,#mission,#nightPreAlert,#night,#investigation,#trialReadyAnnouncement,#trialAnnouncement,#trialCountdown,#trial,#trialLock,#deathConfirm,#deathCountdown,#deathWarning,#playerTrialResult,#sabotage,#victory{
+ background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.78)),var(--wolf-bg) center/cover fixed!important;
+ color:#eee!important;
 }
 #login{background:#000!important;}
 #login .card,#lobby .card{
@@ -955,6 +1026,10 @@ body{
 #lobby:not(.readyWaiting) .lobbyLogoutBtn{position:absolute!important;top:max(12px,env(safe-area-inset-top))!important;right:max(12px,env(safe-area-inset-right))!important;z-index:5!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:7px 11px!important;font-size:13px!important;line-height:1.2!important;}
 @media (max-height:560px){#lobby:not(.readyWaiting) .lobbyLogoutBtn{top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important;padding:6px 10px!important;font-size:12px!important;}}
 
+#login h1,#lobby h1,#roleIntro h1,#night h1,#trialReadyAnnouncement h1,#trial h1,#deathConfirm h1,#deathWarning h1{
+ font-family:var(--wolf-title-font)!important;
+ text-shadow:3px 4px 0 #30040a,0 0 22px rgba(180,0,30,.6)!important;
+}
 #nightPreAlert .nightPreAlertStage{
  background:linear-gradient(rgba(0,0,0,.68),rgba(20,0,5,.86)),var(--wolf-bg) center/cover!important;
 }
@@ -2078,6 +2153,7 @@ function bindCardSelectionV20(){
 #gameCountdown,
 #deathCountdown,
 #deathWarning,
+#trialReadyAnnouncement,
 #nightPreAlert,
 #victory,
 #playerTrialResult{
@@ -2189,7 +2265,7 @@ function bindCardSelectionV20(){
 <div class="lock"><div>
 <div class="symbol">🔎</div><h1>현장 조사</h1>
 <div id="investigationNotice" class="notice"></div>
-<div class="muted">재판 시작까지 남은 시간</div>
+<div class="muted">늑대재판까지 남은 시간</div>
 <div id="investigationTimer" class="timer roundTimer">05:00</div>
 <div id="myCompletedMissions"></div>
 </div></div>
@@ -2197,6 +2273,16 @@ function bindCardSelectionV20(){
 
 <section id="trialLock" class="screen">
 <div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>
+</section>
+<section id="trialAnnouncement" class="screen">
+ <div class="trialAnnounceStage trialAnnouncementSimple">
+  <div class="trialAnnouncementSimpleText">곧 늑대 재판이 시작됩니다.</div>
+ </div>
+</section>
+<section id="trialCountdown" class="screen">
+ <div class="trialCountdownStage">
+  <div class="trialCountdownNumber" id="trialCountdownNumber">5</div>
+ </div>
 </section>
 <section id="playerTrialResult" class="screen">
  <div class="playerResultStage">
@@ -4177,7 +4263,7 @@ async function transitionInvestigationToTrial(){
  // 재판은 관리자가 [재판 시작] 버튼을 누를 때만 시작합니다.
  const readyKey="trial-ready-"+String(g.current_round)+"-"+String(g.investigation_started_at||"");
  window.__trialReadyKey=readyKey;
- showScreen("investigation");
+ await showScreen("trialReadyAnnouncement");
  activateStageAudio().then(()=>playSound("trialStart",readyKey)).catch(()=>{});
 }
 
@@ -4230,7 +4316,7 @@ async function renderInvestigation(p,g){
      if(window.__trialReadyKey!==readyKey){
        window.__trialReadyKey=readyKey;
      }
-     showScreen("investigation");
+     await showScreen("trialReadyAnnouncement");
    }
  };
  await tick();
