@@ -510,7 +510,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .actionDock{z-index:150!important}
 .toast{z-index:300!important}
 
-/* v146: 시스템 알림이 고정 시체발견 메뉴 위에 표시 */
+/* v146: 시스템 알림이 고정 죽은 양 발견 메뉴 위에 표시 */
 .actionDock{z-index:150!important}
 .toast{z-index:300!important}
 .overlay{z-index:1000!important}
@@ -2238,7 +2238,7 @@ function bindCardSelectionV20(){
   <div class="broadcastEventBackdrop"></div>
   <div class="broadcastEventInner">
    <div class="broadcastEventIcon">☠</div>
-   <div class="broadcastEventTitle">시체발견</div>
+   <div class="broadcastEventTitle">죽은 양 발견</div>
    <div class="broadcastEventMain" id="investigationAnnouncementMain">누군가 사건 현장에서 늑대에게 잡아먹힌 양을 발견했습니다.</div>
    <div class="broadcastEventSub">현장조사 남은 시간</div>
    <div class="broadcastEventCount" id="investigationAnnouncementTimer">05:00</div>
@@ -2448,7 +2448,7 @@ function bindCardSelectionV20(){
   <div class="adminSectionTitle">🗺️ 장소 관리</div>
   <div class="adminTwoColumn">
     <div class="card">
-      <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">시체발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div>
+      <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">죽은 양 발견 장소</h2><button class="secondary" id="refreshDeathLocationsBtn" onclick="refreshDeathLocations()">새로고침</button></div>
       <p class="muted">죽은 양 발견 신고에서 사용하는 장소입니다. 장소 정보는 SQL에서 직접 수정하며, 이 화면에서는 현재 DB에 저장된 정보만 확인할 수 있습니다.</p>
       <div id="locationList"></div>
     </div>
@@ -3570,14 +3570,14 @@ async function renderActionDock(g,p){
    const now=gameNow(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
    const remain=active>0?active:cd;
    d.innerHTML=
-    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>'+
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">죽은 양 발견</span></button>'+
     '<button id="dockSabotage" class="dockItem sabotageItem danger" title="사보타지" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
       missionActionIcon("sabotage")+'<span class="dockLabel">사보타지</span>'+
       '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
     '<button class="dockItem deathItem danger" title="사망처리" onclick="closeActionDock();openWolfDeathList()">'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
-    '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">시체발견</span></button>';
+    '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">죽은 양 발견</span></button>';
  }else{
-   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'<span class="dockMainLabel">시체발견</span></button>';
+   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'<span class="dockMainLabel">죽은 양 발견</span></button>';
  }
 }
 
@@ -4244,7 +4244,7 @@ async function deadSheepFound(location){
  const done=dockMain?busy(dockMain,"신고 중..."):(()=>()=>{})();
  try{
   const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
-  if(!(await canDiscoverDeadSheep(g))){toast("사망처리가 완료되지 않아 시체발견을 할 수 없습니다.");return;}
+  if(!(await canDiscoverDeadSheep(g))){toast("사망처리가 완료되지 않아 죽은 양 발견을 할 수 없습니다.");return;}
   const investigationStartedAt=serverNowISO();
   await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
   toast("죽은 양 발견이 접수되었습니다.");
@@ -4276,7 +4276,7 @@ function showVisualEvent(type,opts={}){
  o.className="visualEventOverlay show "+(kind==="body"?"body":"sabotage");
  o.setAttribute("aria-hidden","false");
  el("visualEventIcon").textContent=kind==="body"?"☠":"⚠";
- el("visualEventTitle").textContent=kind==="body"?"시체발견":"늑대방해";
+ el("visualEventTitle").textContent=kind==="body"?"죽은 양 발견":"늑대방해";
  el("visualEventSub").textContent=kind==="body"
    ?"누군가 늑대에게 잡아먹힌 양을 발견했습니다."
    :"늑대가 미션을 방해하고 있습니다.";
@@ -4448,10 +4448,10 @@ async function refreshDeathLocations(){
  const done=busy(btn,"새로고침 중...");
  try{
    const ls=await locations();
-   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
-   toast("시체발견 장소 정보를 새로고침했습니다.");
+   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 죽은 양 발견 장소가 없습니다.</div>";
+   toast("죽은 양 발견 장소 정보를 새로고침했습니다.");
  }catch(e){
-   toast("시체발견 장소 새로고침 실패: "+(e.message||String(e)));
+   toast("죽은 양 발견 장소 새로고침 실패: "+(e.message||String(e)));
  }finally{done();}
 }
 
@@ -4501,7 +4501,7 @@ async function renderAdmin(){
       '</div>';
   }).join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
-  el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 시체발견 장소가 없습니다.</div>";
+  el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 죽은 양 발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
   el("missionLocationList").innerHTML=mls.length?'<div class="missionLocationInfoList">'+mls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><div><b>'+esc(x.name||"미지정 장소")+'</b></div><div class="muted" style="margin-top:4px">컨셉: '+(String(x.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐")+' · NFC: '+esc(x.nfc_tag||"미등록")+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>고정 미션 장소 10개가 DB에 없습니다.</div>";
   el("nfcBtn").textContent="NFC 기능: "+(g.nfc_enabled===false?"OFF":"ON");
