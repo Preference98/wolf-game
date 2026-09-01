@@ -2728,31 +2728,48 @@ function confirmAction(title,msg,action){pendingAdminAction=action;openOverlay("
 async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdminAction=null;await activateStageAudio();closeOverlay();if(a&&window[a])await window[a]();}
 
 window.__serverClockOffsetMs = Number(window.__serverClockOffsetMs)||0;
-function gameNow(){ return Date.now() + (Number(window.__serverClockOffsetMs)||0); }
-function syncGameClock(g){
- const candidates=[];
- // updated_at is the DB write timestamp and is the best common clock reference.
- if(g?.updated_at)candidates.push(g.updated_at);
- if(g?.round_started_at)candidates.push(g.round_started_at);
- if(String(g?.phase||"").toUpperCase()==="NIGHT"&&g?.night_started_at)candidates.push(g.night_started_at);
- if(String(g?.phase||"").toUpperCase()==="INVESTIGATION"&&g?.investigation_started_at)candidates.push(g.investigation_started_at);
- for(const value of candidates){
-   const stamp=Date.parse(value||"");
-   if(!Number.isFinite(stamp))continue;
-   const measured=stamp-Date.now();
-   if(Math.abs(measured)<120000){
-     window.__serverClockOffsetMs=measured;
-     break;
-   }
- }
- return g;
+window.__serverClockSyncedAt = Number(window.__serverClockSyncedAt)||0;
+window.__serverClockSyncPromise = null;
+async function ensureCentralServerClock(force=false){
+  const now=Date.now();
+  if(!force && window.__serverClockSyncedAt && now-window.__serverClockSyncedAt<30000)return;
+  if(window.__serverClockSyncPromise)return window.__serverClockSyncPromise;
+  window.__serverClockSyncPromise=(async()=>{
+    const samples=[];
+    for(let i=0;i<3;i++){
+      const t0=performance.now();
+      try{
+        const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1&_clock="+Date.now(),{
+          method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}
+        });
+        const t1=performance.now();
+        const serverDate=r.headers.get("date");
+        const serverMs=Date.parse(serverDate||"");
+        if(Number.isFinite(serverMs)){
+          const midpoint=Date.now()-(t1-t0)/2;
+          samples.push({rtt:t1-t0,offset:serverMs-midpoint});
+        }
+      }catch(e){}
+      if(i<2)await wait(30);
+    }
+    if(samples.length){
+      samples.sort((a,b)=>a.rtt-b.rtt);
+      window.__serverClockOffsetMs=Math.round(samples[0].offset);
+      window.__serverClockSyncedAt=Date.now();
+    }
+  })().finally(()=>{window.__serverClockSyncPromise=null;});
+  return window.__serverClockSyncPromise;
 }
+function gameNow(){ return Date.now() + (Number(window.__serverClockOffsetMs)||0); }
+function syncGameClock(g){ return g; }
 async function settings(){
  const r=await db.from("game_settings").select("*").eq("id",1).limit(1).maybeSingle();
  if(r.error)throw new Error("게임 설정 오류\n"+r.error.message);
  if(!r.data)throw new Error("게임 설정 오류\nid=1인 game_settings가 없습니다. Supabase의 game_settings에 id=1 행이 필요합니다.");
+ await ensureCentralServerClock();
  return syncGameClock(r.data);
 }
+function serverNowISO(){return new Date(gameNow()).toISOString();}
 const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_location_count:1,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_gauge_penalty:1,night_round_penalty_minutes:1};
 function rule(g,key){const n=Number(g?.[key]);return Number.isFinite(n)?n:GAME_RULE_DEFAULTS[key];}
 function getRoundRules(g){
@@ -3088,7 +3105,7 @@ async function routeCore(){
        return;
      }
      if(document.querySelector("#sabotage.screen.active"))return;
-     if(sabotageInterruptUntil>Date.now()){
+     if(sabotageInterruptUntil>gameNow()){
        if(!document.querySelector("#player.screen.active"))await showScreen("player");
        return;
      }
@@ -3369,7 +3386,7 @@ async function transitionToNight(){
    await renderNightPreAlert(g);
    return;
  }
- const warningStart=new Date().toISOString();
+ const warningStart=serverNowISO();
  const warningNotice="NIGHT_WARNING|"+warningStart;
  const r=await db.from("game_settings").update({
    notice:warningNotice
@@ -3388,7 +3405,7 @@ async function finishNight(){
  const r=await db.from("game_settings").update({
    phase:"PLAY",
    night_started_at:null,
-   round_started_at:new Date().toISOString(),
+   round_started_at:serverNowISO(),
    round_time_penalty_total:timePenalty+rules.nightRoundPenaltyMinutes,
    mission_gauge_penalty_total:currentPenalty+rules.nightGaugePenalty,
    notice:"낮이 시작되었습니다. 미션을 계속 수행하십시오."
@@ -3618,7 +3635,10 @@ async function openMissionObject(m,loc,p,g){
   el("answer").style.display=isPuzzle?"":"none";
   el("answerBtn").style.display=isPuzzle?"":"none";
 
-  missionEndAt=Date.now()+180000;
+  const missionStorageKey="wolf-mission-end:"+String(g.current_round)+":"+String(p.id)+":"+String(m.id);
+  const storedMissionEnd=Number(sessionStorage.getItem(missionStorageKey)||0);
+  missionEndAt=storedMissionEnd>gameNow()?storedMissionEnd:gameNow()+180000;
+  sessionStorage.setItem(missionStorageKey,String(missionEndAt));
   clearInterval(missionTimer);
   missionTimer=setInterval(tickMission,250);
   window.__wolfMissionTimerId=missionTimer;
@@ -3657,7 +3677,7 @@ async function completeCurrentMission(){
  if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
 }
 
-async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission||Date.now()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
+async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission||gameNow()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
 async function enableSound(){
  await unlockSound();
  toast("알림 소리가 활성화되었습니다.");
@@ -3926,7 +3946,7 @@ async function openSabotageScreen(){
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
 
- const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
+ const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
  // 지속시간(active)은 재사용 제한이 아닙니다.
  // 오직 sabotage_cooldown_seconds로 계산된 cooldownUntil만 사용을 제한합니다.
  if(st.cooldownUntil>now){
@@ -3959,7 +3979,7 @@ async function executeSelectedSabotage(){
  const p=await me(),g=await settings(),chosen=[...selectedSabotageLocationIds];
  if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 사보타지를 사용할 수 없습니다.");return;}
 
- const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=Date.now();
+ const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
  // 사보타지 "지속시간"과 "쿨타임"은 독립입니다.
  // 지속시간이 아직 남아 있어도 쿨타임이 끝났다면 다시 사용할 수 있습니다.
  if(st.cooldownUntil>now){
@@ -4008,7 +4028,7 @@ async function executeSelectedSabotage(){
 
  // 여기에는 오직 '쿨타임'만 들어갑니다. 지속시간은 절대 더하지/대체하지 않습니다.
  localSabotageEventId=responseEventId||null;
- localSabotageCooldownUntil=Date.now()+responseCooldown*1000;
+ localSabotageCooldownUntil=gameNow()+responseCooldown*1000;
 
  closeSabotageScreen();
  startSabotageUiWatcher();
@@ -4200,7 +4220,7 @@ async function deadSheepFound(location){
  try{
   const p=await me(),g=await settings();if(p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 신고할 수 없습니다.");return;}
   if(!(await canDiscoverDeadSheep(g))){toast("사망처리가 완료되지 않아 시체발견을 할 수 없습니다.");return;}
-  const investigationStartedAt=new Date().toISOString();
+  const investigationStartedAt=serverNowISO();
   await set({phase:"INVESTIGATION",dead_sheep_found:true,dead_sheep_location:location,investigation_started_at:investigationStartedAt,notice:"누군가 "+location+"에서 죽은 양을 발견했습니다."});
   toast("죽은 양 발견이 접수되었습니다.");
  }catch(e){toast("발견 처리 실패: "+e.message);}finally{done();}
@@ -4254,7 +4274,7 @@ async function renderInvestigation(p,g){
  el("investigationAnnouncementMain").textContent=`누군가 ${locationName}에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
  if(investigationTimer)clearInterval(investigationTimer);
  const tick=async()=>{
-   const remain=Math.max(0,end-Date.now());
+   const remain=Math.max(0,end-gameNow());
    const sec=Math.ceil(remain/1000);
    const mm=String(Math.floor(sec/60)).padStart(2,"0");
    const ss=String(sec%60).padStart(2,"0");
@@ -4486,7 +4506,7 @@ async function skipToGame(){
    const r=await db.from("players").update({role:i<wolfCount?"WOLF":"SHEEP",card_selected:true,card_position:i}).eq("id",shuffled[i].id);
    if(r.error)throw new Error("테스트 역할 선정 실패: "+r.error.message);
  }
- await set({started:true,phase:"PLAY",roles_selected:true,notice:"테스트 모드로 게임이 즉시 시작되었습니다.",winner:null,round_started_at:new Date().toISOString(),night_started_at:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null});
+ await set({started:true,phase:"PLAY",roles_selected:true,notice:"테스트 모드로 게임이 즉시 시작되었습니다.",winner:null,round_started_at:serverNowISO(),night_started_at:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null});
  try{await ensureRoundMissionSetup(g.current_round);}catch(e){console.error("즉시 테스트 미션 배정 실패:",e);toast("게임은 시작됐지만 미션 배정에 실패했습니다: "+e.message);}
  toast("즉시 게임 테스트가 시작되었습니다.");
  await renderAdmin();
@@ -4494,7 +4514,7 @@ async function skipToGame(){
 async function testNight(){
  const g=await settings();
  if(!["PLAY","INVESTIGATION","TRIAL"].includes(String(g.phase))){toast("게임 진행 중에만 밤 테스트를 사용할 수 있습니다.");return;}
- await set({phase:"NIGHT",night_started_at:new Date().toISOString(),notice:"밤 테스트가 시작되었습니다. 양은 안대를 착용하십시오."});
+ await set({phase:"NIGHT",night_started_at:serverNowISO(),notice:"밤 테스트가 시작되었습니다. 양은 안대를 착용하십시오."});
  toast("밤 테스트 시작");
  await renderAdmin();
 }
@@ -5154,7 +5174,7 @@ async function handleSabotageEvent(e){
 
  // 이벤트 중복 방지 플래그는 즉시 기록합니다.
  lastHandledSabotageEventId=eventId;
- sabotageInterruptUntil=Date.now()+2500;
+ sabotageInterruptUntil=gameNow()+2500;
 
  // 사보타지가 발생한 순간 화면을 먼저 끊습니다.
  // DB 조회/음원 재생을 기다리다가 미션/사보타지 메뉴가 남는 문제가 없도록 합니다.
@@ -5211,7 +5231,7 @@ function startSabotageUiWatcher(){
    const p=await me(),g=await settings();
    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){stopSabotageUiWatcher();return;}
 
-   const st=await getSabotageState(g.current_round),now=Date.now();
+   const st=await getSabotageState(g.current_round),now=gameNow();
 
    // 지속시간과 쿨타임을 완전히 별개의 타이머로 취급합니다.
    const activeRemain=Math.max(0,st.activeUntil-now);
@@ -5383,6 +5403,7 @@ async function syncPlayerOnResume(){
   try{
     const p=await me().catch(()=>null);
     if(!p)return;
+    await ensureCentralServerClock(true).catch(()=>{});
     const g=await settings().catch(()=>null);
     if(!g)return;
     // 복귀 시에는 realtime 이벤트를 기다리지 않고 현재 서버 상태를 기준으로 라우팅합니다.
@@ -5395,9 +5416,10 @@ function schedulePlayerResumeSync(){
   playerResumeSyncTimer=setTimeout(()=>{playerResumeSyncTimer=null;syncPlayerOnResume();},80);
 }
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible")schedulePlayerResumeSync();
+  if(document.visibilityState==="visible"){ensureCentralServerClock(true).catch(()=>{});schedulePlayerResumeSync();}
 });
-window.addEventListener("pageshow",()=>schedulePlayerResumeSync());
+window.addEventListener("pageshow",()=>{ensureCentralServerClock(true).catch(()=>{});schedulePlayerResumeSync();});
+setInterval(()=>{if(document.visibilityState==="visible")ensureCentralServerClock(true).catch(()=>{});},30000);
 
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
