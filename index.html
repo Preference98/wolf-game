@@ -5327,6 +5327,31 @@ async function startDeathNotificationWatcher(){
  check();
  deathNotificationTimer=setInterval(check,1000);
 }
+// v189: 플레이어 복귀 시 서버의 현재 phase를 즉시 재동기화
+let playerResumeSyncBusy=false;
+let playerResumeSyncTimer=null;
+async function syncPlayerOnResume(){
+  if(localStorage.getItem("wolf_game_admin_v7")==="1" || !playerId || playerResumeSyncBusy)return;
+  playerResumeSyncBusy=true;
+  try{
+    const p=await me().catch(()=>null);
+    if(!p)return;
+    const g=await settings().catch(()=>null);
+    if(!g)return;
+    // 복귀 시에는 realtime 이벤트를 기다리지 않고 현재 서버 상태를 기준으로 라우팅합니다.
+    await route();
+  }catch(e){console.warn("플레이어 복귀 화면 동기화 오류:",e);}
+  finally{playerResumeSyncBusy=false;}
+}
+function schedulePlayerResumeSync(){
+  if(playerResumeSyncTimer)clearTimeout(playerResumeSyncTimer);
+  playerResumeSyncTimer=setTimeout(()=>{playerResumeSyncTimer=null;syncPlayerOnResume();},80);
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible")schedulePlayerResumeSync();
+});
+window.addEventListener("pageshow",()=>schedulePlayerResumeSync());
+
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
