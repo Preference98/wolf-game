@@ -2166,6 +2166,58 @@ function bindCardSelectionV20(){
 }
 </style>
 
+
+<style id="dead-sheep-investigation-overlay-fix">
+#investigationAnnouncement{
+  position:fixed!important;
+  inset:0!important;
+  z-index:10000!important;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.68);
+  padding:20px;
+}
+#investigationAnnouncement.active{
+  display:flex!important;
+}
+#investigationAnnouncement .deadSheepNoticeCard{
+  width:min(88vw,520px);
+  padding:34px 26px 28px;
+  border-radius:24px;
+  background:#111;
+  border:2px solid rgba(255,255,255,.18);
+  box-shadow:0 20px 70px rgba(0,0,0,.55);
+  text-align:center;
+}
+#investigationAnnouncement .deadSheepNoticeIcon{
+  font-size:72px;
+  line-height:1;
+  margin-bottom:16px;
+}
+#investigationAnnouncement .deadSheepNoticeTitle{
+  font-size:34px;
+  font-weight:900;
+  margin-bottom:16px;
+}
+#investigationAnnouncement .deadSheepNoticeMain{
+  font-size:18px;
+  line-height:1.65;
+  margin-bottom:24px;
+}
+#investigationAnnouncement .deadSheepNoticeConfirm{
+  min-width:150px;
+  padding:12px 28px;
+  border:0;
+  border-radius:12px;
+  background:#fff;
+  color:#111;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -2240,15 +2292,11 @@ function bindCardSelectionV20(){
 </section>
 
 <section id="investigationAnnouncement" class="screen">
- <div class="broadcastEventStage eventBodyFound">
-  <div class="broadcastEventBackdrop"></div>
-  <div class="broadcastEventInner">
-   <div class="broadcastEventIcon">☠</div>
-   <div class="broadcastEventTitle">죽은 양 발견</div>
-   <div class="broadcastEventMain" id="investigationAnnouncementMain">누군가 사건 현장에서 늑대에게 잡아먹힌 양을 발견했습니다.</div>
-   <div class="broadcastEventSub">늑대재판까지 남은 시간</div>
-   <div class="broadcastEventCount" id="investigationAnnouncementTimer">05:00</div>
-  </div>
+ <div class="deadSheepNoticeCard">
+  <div class="deadSheepNoticeIcon">💀</div>
+  <div class="deadSheepNoticeTitle">죽은 양 발견</div>
+  <div id="investigationAnnouncementMain" class="deadSheepNoticeMain"></div>
+  <button id="investigationAnnouncementConfirm" class="deadSheepNoticeConfirm" type="button">확인</button>
  </div>
 </section>
 <section id="trialReadyAnnouncement" class="screen">
@@ -2264,7 +2312,7 @@ function bindCardSelectionV20(){
 <section id="investigation" class="screen">
 <div class="lock"><div>
 <div class="symbol">🔎</div><h1>현장 조사</h1>
-<div id="investigationNotice" class="notice">0층에서 죽은 양이 발견되었습니다.<br>사건 현장을 조사하십시오.</div>
+<div id="investigationNotice" class="notice"></div>
 <div class="muted">늑대재판까지 남은 시간</div>
 <div id="investigationTimer" class="timer roundTimer">05:00</div>
 <div id="myCompletedMissions"></div>
@@ -4301,8 +4349,10 @@ async function renderInvestigation(p,g){
  const started=Date.parse(g.investigation_started_at||"");
  const duration=Math.max(1,Number(g.investigation_duration_minutes)||5)*60*1000;
  const end=started?started+duration:gameNow()+duration;
- await showScreen("investigationAnnouncement");
+ await showScreen("investigation");
+  openDeadSheepAnnouncement();
  el("investigationAnnouncementMain").textContent=`누군가 ${locationName}에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
+  if(el("investigationNotice"))el("investigationNotice").innerHTML=`${esc(locationName)}에서 죽은 양이 발견되었습니다.<br>사건 현장을 조사하십시오.`;
  if(investigationTimer)clearInterval(investigationTimer);
  const tick=async()=>{
    const remain=Math.max(0,end-gameNow());
@@ -4310,14 +4360,12 @@ async function renderInvestigation(p,g){
    const mm=String(Math.floor(sec/60)).padStart(2,"0");
    const ss=String(sec%60).padStart(2,"0");
    el("investigationAnnouncementTimer").textContent=mm+":"+ss;
-   if(remain<=0){
-     clearInterval(investigationTimer);investigationTimer=null;
-     const readyKey="trial-ready-"+String(g.current_round)+"-"+String(g.investigation_started_at||"");
-     if(window.__trialReadyKey!==readyKey){
-       window.__trialReadyKey=readyKey;
-     }
-     await showScreen("trialReadyAnnouncement");
-   }
+    if(remain<=0){
+      clearInterval(investigationTimer);investigationTimer=null;
+      const readyKey="trial-ready-"+String(g.current_round)+"-"+String(g.investigation_started_at||"");
+      if(window.__trialReadyKey!==readyKey)window.__trialReadyKey=readyKey;
+      await showScreen("trialReadyAnnouncement");
+    }
  };
  await tick();
  investigationTimer=setInterval(()=>tick().catch(e=>console.error("조사 타이머 오류:",e)),250);
@@ -7122,5 +7170,28 @@ function miniTrace(r){
   };
 }
 </script>
+
+<script id="dead-sheep-announcement-controller">
+(function(){
+  window.openDeadSheepAnnouncement=function(){
+    const el=document.getElementById("investigationAnnouncement");
+    if(!el)return;
+    el.classList.add("active");
+    el.setAttribute("aria-hidden","false");
+  };
+  window.closeDeadSheepAnnouncement=function(){
+    const el=document.getElementById("investigationAnnouncement");
+    if(!el)return;
+    el.classList.remove("active");
+    el.setAttribute("aria-hidden","true");
+  };
+  document.addEventListener("click",function(e){
+    if(e.target && e.target.id==="investigationAnnouncementConfirm"){
+      closeDeadSheepAnnouncement();
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
