@@ -3413,7 +3413,22 @@ async function finishNight(){
  if(r.error)throw new Error("밤 종료 처리 실패: "+r.error.message);
  window.__activeNightKey=null;
 }
+
+async function startPlayerNightBgm(){
+  try{
+    if(typeof stopPlayerLoopBgm==="function") stopPlayerLoopBgm();
+    const a=audio.nightBgm;
+    if(!a) return;
+    a.pause();
+    a.currentTime=0;
+    a.loop=true;
+    await a.play();
+  }catch(e){
+    console.warn("플레이어 밤 BGM 재생 실패:",e);
+  }
+}
 async function renderNight(p,g){
+  await startPlayerNightBgm();
  const rules=getRoundRules(g);
  const startedMs=Date.parse(g.night_started_at||"");
  if(!Number.isFinite(startedMs))return;
