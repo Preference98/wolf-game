@@ -2160,6 +2160,12 @@ function bindCardSelectionV20(){
   overflow:hidden!important;
 }
 </style>
+<style id="dead-sheep-discovery-button-icon">
+.actionDock .discoveryIcon{
+  object-fit:contain;
+}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -3555,7 +3561,7 @@ function closeActionDock(){
  if(d)d.classList.remove("expanded");
 }
 function missionActionIcon(type){
- if(type==="discovery") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M32 7c-8 0-14 6-14 14v7c-7 3-11 9-11 17v12h50V45c0-8-4-14-11-17v-7C46 13 40 7 32 7zm-7 14c0-4 3-7 7-7s7 3 7 7v8H25v-8zm-8 16h30c3 2 5 5 5 9v6H12v-6c0-4 2-7 5-9zm4 17h22v5H21v-5z"/><path d="M20 35h24" stroke="#000" stroke-width="3" opacity=".8"/></svg>';
+ if(type==="discovery") return '<img class="dockIcon discoveryIcon" src="assets/sheep_dead.png" alt="">';
  if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M20 9l8 5 7-2 5-8 7 4-1 9 5 5 9-1 4 8-8 5-1 7 6 6-5 7-8-4-7 4-2 9-9 0-2-9-7-4-8 4-5-7 6-6-1-7-8-5 4-8 9 1 5-5-1-9 8-4zm12 15a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M13 50L50 13" stroke="#ef3340" stroke-width="7" stroke-linecap="round"/><path fill="currentColor" d="M42 9l13 7-4 5-13-7zM37 16l7 4-11 20-6-3zM30 39l7 4-7 12-8-4z"/><path d="M27 55l-5 4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>';
  if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 27C18 16 24 9 32 9s14 7 14 18v16c0 8-6 13-14 13s-14-5-14-13V27zm-8 6h8v7h-8v-7zm36 0h8v7h-8v-7z"/><circle cx="27" cy="30" r="3.5" fill="#000"/><circle cx="37" cy="30" r="3.5" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 12l8 8" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M49 20L35 34" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
  return "";
