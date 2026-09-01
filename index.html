@@ -3944,6 +3944,9 @@ async function handleSabotageNotification(n){
    }
  }
 
+ // 사망처리/사망확인 중인 플레이어에게는 사보타지 알림을 표시하지 않습니다.
+ if(deathProtected)return;
+
  // 플레이어 사보타지 알림은 기존 알림창 형식을 사용하고,
  // 자동으로 사라지지 않으며 사용자가 닫기 버튼으로 닫습니다.
  openOverlay(
@@ -4210,11 +4213,18 @@ function closeDeathWarning(){
 async function canDiscoverDeadSheep(g){
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
    .eq("game_round",Number(g.current_round)).eq("status","SUCCESS")
-   .order("id",{ascending:false}).limit(1);
+   .order("id",{ascending:false});
  if(r.error||!r.data?.length)return false;
- const victim=r.data[0].victim_player_id;
- const vr=await db.from("players").select("id,status").eq("id",victim).maybeSingle();
- return vr.data?.status==="DEAD";
+
+ const victimIds=[...new Set((r.data||[])
+   .map(x=>x?.victim_player_id)
+   .filter(Boolean)
+   .map(x=>String(x)))];
+ if(!victimIds.length)return false;
+
+ const vr=await db.from("players").select("id,status").in("id",victimIds);
+ if(vr.error)return false;
+ return (vr.data||[]).some(x=>String(x.status||"").toUpperCase()==="DEAD");
 }
 async function openLocationChoice(){
  closeActionDock();
