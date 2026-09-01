@@ -2218,6 +2218,21 @@ function bindCardSelectionV20(){
 }
 </style>
 
+
+<style id="investigation-text-size-fix">
+#investigationNotice{
+  font-size:clamp(20px,5vw,30px)!important;
+  line-height:1.6!important;
+  font-weight:800!important;
+  margin:18px 0 22px!important;
+}
+#investigation .muted{
+  font-size:clamp(17px,4vw,24px)!important;
+  line-height:1.5!important;
+  font-weight:800!important;
+}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -4342,34 +4357,51 @@ function showVisualEvent(type,opts={}){
  visualEventHideTimer=setTimeout(hideVisualEvent,kind==="body"?3200:1500);
 }
 async function renderInvestigation(p,g){
- stopMissionTimer();
- stopRoundTimer();
- closeOverlay();
- const locationName=String(g.dead_sheep_location||"사건 현장");
- const started=Date.parse(g.investigation_started_at||"");
- const duration=Math.max(1,Number(g.investigation_duration_minutes)||5)*60*1000;
- const end=started?started+duration:gameNow()+duration;
- await showScreen("investigation");
-  openDeadSheepAnnouncement();
- el("investigationAnnouncementMain").textContent=`누군가 ${locationName}에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
-  if(el("investigationNotice"))el("investigationNotice").innerHTML=`${esc(locationName)}에서 죽은 양이 발견되었습니다.<br>사건 현장을 조사하십시오.`;
- if(investigationTimer)clearInterval(investigationTimer);
- const tick=async()=>{
-   const remain=Math.max(0,end-gameNow());
-   const sec=Math.ceil(remain/1000);
-   const mm=String(Math.floor(sec/60)).padStart(2,"0");
-   const ss=String(sec%60).padStart(2,"0");
-   el("investigationAnnouncementTimer").textContent=mm+":"+ss;
+  stopAllTimers();
+  closeOverlay();
+
+  const locationName=String(g.dead_sheep_location||"사건 현장");
+  const started=Date.parse(g.investigation_started_at||"");
+  const durationMs=Math.max(1,Number(g.investigation_duration_minutes)||5)*60*1000;
+  const endAt=started?started+durationMs:gameNow()+durationMs;
+
+  // 실제 현장조사 화면을 먼저 표시하고, 죽은 양 발견 알림창은 그 위에 표시한다.
+  await showScreen("investigation");
+  if(el("investigationNotice")){
+    el("investigationNotice").innerHTML=
+      `${esc(locationName)}에서 죽은 양이 발견되었습니다.<br>사건 현장을 조사하십시오.`;
+  }
+
+  // 이전 조사 타이머가 있으면 정리
+  if(investigationTimer)clearInterval(investigationTimer);
+  investigationTimer=null;
+
+  // 중앙 서버 시각을 기준으로 MM:SS를 계산한다.
+  const tick=async()=>{
+    const remain=Math.max(0,endAt-gameNow());
+    const sec=Math.ceil(remain/1000);
+    const mm=String(Math.floor(sec/60)).padStart(2,"0");
+    const ss=String(sec%60).padStart(2,"0");
+
+    if(el("investigationTimer"))el("investigationTimer").textContent=mm+":"+ss;
+
     if(remain<=0){
-      clearInterval(investigationTimer);investigationTimer=null;
+      clearInterval(investigationTimer);
+      investigationTimer=null;
+
       const readyKey="trial-ready-"+String(g.current_round)+"-"+String(g.investigation_started_at||"");
-      if(window.__trialReadyKey!==readyKey)window.__trialReadyKey=readyKey;
+      if(window.__trialReadyKey!==readyKey){
+        window.__trialReadyKey=readyKey;
+      }
       await showScreen("trialReadyAnnouncement");
     }
- };
- await tick();
- investigationTimer=setInterval(()=>tick().catch(e=>console.error("조사 타이머 오류:",e)),250);
+  };
+
+  await tick();
+  investigationTimer=setInterval(()=>tick().catch(e=>console.error("현장조사 타이머 오류:",e)),250);
+  window.addEventListener("beforeunload",()=>clearInterval(investigationTimer),{once:true});
 }
+
 async function getLatestDeadSheep(round){
  const r=await db.from("wolf_attempts").select("id,victim_player_id,status")
    .eq("game_round",round).eq("status","SUCCESS").order("id",{ascending:false}).limit(1);
