@@ -907,34 +907,6 @@ button.secondary{border-color:#555;background:#111}
  filter:drop-shadow(0 0 5px rgba(255,0,110,.65));
 }
 
-/* v184 player 재판 연출 */
-.trialAnnouncementSimple,.trialCountdownStage{
- position:fixed!important;inset:0!important;display:flex;align-items:center;justify-content:center;
- background:#020002!important;text-align:center;z-index:2000;
-}
-.trialAnnouncementSimpleText{
- font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
- font-size:clamp(34px,6vw,82px)!important;font-weight:1000!important;color:#fff!important;
- text-shadow:0 0 25px #ff1684,4px 5px 0 #3a071f!important;animation:v184IntroFade .45s ease both;
-}
-.trialCountdownNumber{
- font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
- font-size:clamp(140px,28vw,330px)!important;font-weight:1000!important;color:#fff!important;
- text-shadow:0 0 35px #ff1684,0 0 90px rgba(255,0,128,.5)!important;
- animation:v184Count .8s ease both;
-}
-.trialCenterNotice{
- font-family:var(--wolf-font,"Noto Sans KR",sans-serif)!important;
- font-size:clamp(30px,5vw,72px)!important;font-weight:1000!important;
- color:#fff!important;text-shadow:0 0 28px rgba(255,0,128,.55),4px 5px 0 #3b0a24!important;
-}
-@keyframes wolfCardDeal{
-  0%{opacity:0;transform:translate3d(var(--from-x),var(--from-y),0) rotate(var(--from-r)) scale(.24);filter:blur(4px)}
-  18%{opacity:1}
-  68%{transform:translate3d(0,-12px,0) rotate(1deg) scale(1.04);filter:none}
-  100%{opacity:1;transform:translate3d(0,0,0) rotate(0deg) scale(1)}
-}
-
 /* v188: dark trial-hall player atmosphere */
 body{background:#020204!important}
 .nightPreAlertStage{background:linear-gradient(rgba(0,0,0,.50),rgba(20,0,5,.88)),url("assets/trial_bg.jpg") center/cover!important}
@@ -2273,16 +2245,6 @@ function bindCardSelectionV20(){
 
 <section id="trialLock" class="screen">
 <div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>
-</section>
-<section id="trialAnnouncement" class="screen">
- <div class="trialAnnounceStage trialAnnouncementSimple">
-  <div class="trialAnnouncementSimpleText">곧 늑대 재판이 시작됩니다.</div>
- </div>
-</section>
-<section id="trialCountdown" class="screen">
- <div class="trialCountdownStage">
-  <div class="trialCountdownNumber" id="trialCountdownNumber">5</div>
- </div>
 </section>
 <section id="playerTrialResult" class="screen">
  <div class="playerResultStage">
