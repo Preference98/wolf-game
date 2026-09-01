@@ -2233,6 +2233,19 @@ function bindCardSelectionV20(){
 }
 </style>
 
+
+<style id="dead-sheep-notice-final-fix">
+#investigationAnnouncement .deadSheepNoticeMain{
+  font-size:clamp(21px,5vw,30px)!important;
+  line-height:1.7!important;
+  font-weight:800!important;
+}
+#investigationAnnouncement .deadSheepLocationHighlight{
+  color:#35d878!important;
+  font-weight:900!important;
+}
+</style>
+
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -4367,9 +4380,14 @@ async function renderInvestigation(p,g){
 
   // 실제 현장조사 화면을 먼저 표시하고, 죽은 양 발견 알림창은 그 위에 표시한다.
   await showScreen("investigation");
+  openDeadSheepAnnouncement();
+  if(el("investigationAnnouncementMain")){
+    el("investigationAnnouncementMain").innerHTML=
+      `누군가 <span class="deadSheepLocationHighlight">${esc(locationName)}</span>에서 늑대에게 잡아먹힌 양을 발견했습니다.`;
+  }
   if(el("investigationNotice")){
     el("investigationNotice").innerHTML=
-      `${esc(locationName)}에서 죽은 양이 발견되었습니다.<br>사건 현장을 조사하십시오.`;
+      `잠시 후 늑대재판이 시작됩니다.<br>사건 현장을 조사하고 증거를 수집하십시오`;
   }
 
   // 이전 조사 타이머가 있으면 정리
