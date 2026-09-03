@@ -1623,7 +1623,9 @@ async function startScreenCardDealV18(){
 @keyframes trialIntroFinalIdle{0%{transform:translateY(0) scale(1);filter:brightness(1)}100%{transform:translateY(-8px) scale(1.035);filter:brightness(1.15)}}
 </style>
 
-<style id="vote-broadcast-v190">.voteBroadcastStage{position:absolute;inset:0;background:#020202;display:flex;align-items:center;justify-content:center;text-align:center}.voteBroadcastMessage{font-size:clamp(34px,6vw,88px);font-weight:1000;line-height:1.25;text-shadow:0 0 30px rgba(255,0,125,.5);animation:voteIn .7s ease both}.voteBroadcastTitle{display:flex;justify-content:center;gap:clamp(4px,1vw,14px)}.voteBroadcastTitle img{width:clamp(85px,12vw,190px);height:clamp(85px,12vw,190px);object-fit:contain;opacity:0;animation:voteTitle .55s cubic-bezier(.12,.9,.18,1) forwards}.voteBroadcastTitle img:nth-child(2){animation-delay:.18s}.voteBroadcastTitle img:nth-child(3){animation-delay:.36s}.voteBroadcastTitle img:nth-child(4){animation-delay:.54s}.voteBroadcastLead{margin-top:38px;font-size:clamp(30px,5vw,72px);font-weight:1000;opacity:0;animation:voteIn .7s .9s both}.voteBroadcastFinal{margin-top:24px;font-size:clamp(38px,7vw,96px);font-weight:1000;color:#ff477f;text-shadow:0 0 35px rgba(255,0,125,.8);opacity:0}.voteBroadcastFinal.show{animation:voteIn .6s both}.voteTallyStage{position:absolute;inset:0;background:#000e;display:flex;align-items:center;justify-content:center}.voteTallyText{font-size:clamp(40px,7vw,100px);font-weight:1000;animation:voteIn .6s both}.identityRevealStage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#55000b,#000 68%)}.identityRevealStage.sheep{background:radial-gradient(circle,#063d21,#000 68%)}.identityRevealCard{width:min(74vw,480px);padding:55px 30px;border:4px solid #b00012;background:#050505;box-shadow:0 0 70px rgba(176,0,18,.7);animation:voteIn .8s both}.identityRevealStage.sheep .identityRevealCard{border-color:#29a960;box-shadow:0 0 70px rgba(41,169,96,.65)}.identityRevealName{font-size:clamp(25px,4vw,50px);font-weight:900}.identityRevealRole{margin-top:25px;font-size:clamp(70px,15vw,190px);font-weight:1000;color:#ff3347;text-shadow:0 0 35px currentColor}.identityRevealStage.sheep .identityRevealRole{color:#58f39a}@keyframes voteIn{from{opacity:0;transform:translateY(28px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes voteTitle{from{opacity:0;transform:translateY(55px) scale(.55);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}</style></head>
+<style id="vote-broadcast-v190">.voteBroadcastStage{position:absolute;inset:0;background:#020202;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.voteBroadcastMessage{font-size:clamp(34px,6vw,88px);font-weight:1000;line-height:1.25;text-shadow:0 0 30px rgba(255,0,125,.5);animation:voteIn .7s ease both}.voteBroadcastTitle{display:flex;justify-content:center;gap:clamp(4px,1vw,14px)}.voteBroadcastTitle img{width:clamp(85px,12vw,190px);height:clamp(85px,12vw,190px);object-fit:contain;opacity:0;animation:voteTitle .55s cubic-bezier(.12,.9,.18,1) forwards}.voteBroadcastTitle img:nth-child(2){animation-delay:.18s}.voteBroadcastTitle img:nth-child(3){animation-delay:.36s}.voteBroadcastTitle img:nth-child(4){animation-delay:.54s}.voteBroadcastLead{margin-top:38px;font-size:clamp(30px,5vw,72px);font-weight:1000;opacity:0;animation:voteIn .7s .9s both}.voteBroadcastFinal{margin-top:24px;font-size:clamp(38px,7vw,96px);font-weight:1000;color:#ff477f;text-shadow:0 0 35px rgba(255,0,125,.8);opacity:0}.voteBroadcastFinal.show{animation:voteIn .6s both}.voteTallyStage{position:absolute;inset:0;background:#000e;display:flex;align-items:center;justify-content:center}.voteTallyText{font-size:clamp(40px,7vw,100px);font-weight:1000;animation:voteIn .6s both}.identityRevealStage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#55000b,#000 68%)}.identityRevealStage.sheep{background:radial-gradient(circle,#063d21,#000 68%)}.identityRevealCard{width:min(74vw,480px);padding:55px 30px;border:4px solid #b00012;background:#050505;box-shadow:0 0 70px rgba(176,0,18,.7);animation:voteIn .8s both}.identityRevealStage.sheep .identityRevealCard{border-color:#29a960;box-shadow:0 0 70px rgba(41,169,96,.65)}.identityRevealName{font-size:clamp(25px,4vw,50px);font-weight:900}.identityRevealRole{margin-top:25px;font-size:clamp(70px,15vw,190px);font-weight:1000;color:#ff3347;text-shadow:0 0 35px currentColor}.identityRevealStage.sheep .identityRevealRole{color:#58f39a}@keyframes voteIn{from{opacity:0;transform:translateY(28px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes voteTitle{from{opacity:0;transform:translateY(55px) scale(.55);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}<style id="vote-screen-board-v191">
+.screenVoteBoard{position:absolute;inset:0;background:#020202;display:grid;grid-template-rows:auto 1fr auto;align-items:center;padding:clamp(22px,3vh,42px) clamp(24px,3vw,60px) clamp(28px,4vh,52px);box-sizing:border-box;overflow:hidden;text-align:center}.screenVoteTitleCards{display:flex;justify-content:center;align-items:center;gap:clamp(3px,.6vw,10px);min-height:clamp(70px,10vh,130px)}.screenVoteTitleCards img{width:clamp(58px,7vw,105px);height:clamp(58px,7vw,105px);object-fit:contain;animation:voteTitleIn .55s cubic-bezier(.12,.9,.18,1) both,voteTitleIdle 1.8s 1.6s ease-in-out infinite alternate}.screenVoteTitleCards img:nth-child(2){animation-delay:.12s}.screenVoteTitleCards img:nth-child(3){animation-delay:.24s}.screenVoteTitleCards img:nth-child(4){animation-delay:.36s}.screenVoteCenter{align-self:center;font-size:clamp(34px,5vw,76px);font-weight:1000;line-height:1.2;text-shadow:0 0 28px rgba(255,0,125,.45)}.screenVotePlayers{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:clamp(10px,1.1vw,18px);align-items:end;width:100%;max-width:1800px;margin:0 auto}.screenVotePlayer{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;transition:opacity .35s,transform .35s}.screenVotePlayer.dim{opacity:.28}.screenVotePlayer.winner{transform:scale(1.05)}.screenVotePlayer img{width:clamp(48px,5.4vw,92px);height:clamp(48px,5.4vw,92px);object-fit:contain}.screenVotePlayerName{font-size:clamp(15px,1.5vw,27px);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.screenVoteCount{font-size:clamp(13px,1.3vw,22px);font-weight:800;opacity:.9}.voteNoExecutionStage{position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:28px}.voteNoExecutionTitle{font-size:clamp(45px,8vw,110px);font-weight:1000}.voteNoExecutionText{font-size:clamp(34px,5.5vw,78px);font-weight:900}.voteResultStage.noExecution{background:#000}@media(max-width:900px){.screenVotePlayers{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:14px}.screenVoteCenter{font-size:clamp(28px,5vw,58px)}}
+</style></style></head>
 <body class="wolf-v181-screen">
 <div class="stage" id="stage">
   <div class="screen active" id="s-idle"></div>
@@ -1705,7 +1707,7 @@ async function startScreenCardDealV18(){
 
   <div class="screen trialScene" id="s-trial"><img src="assets/trial_bg.jpg" alt=""></div>
 
-  <div class="screen" id="s-vote"><div class="voteBroadcastStage"><div class="voteBroadcastMessage">이번 재판에서 탈락시킬 양을 선택하세요</div></div></div><div class="screen" id="s-voteTally"><div class="voteTallyStage"><div class="voteTallyText">투표결과 집계 중...</div></div></div><div class="screen" id="s-voteResult"><div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div></div><div class="screen" id="s-identityReveal"><div class="identityRevealStage" id="screenIdentityRevealRoot"></div></div><div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
+  <div class="screen" id="s-vote"><div class="screenVoteBoard"><div class="screenVoteTitleCards" id="screenVoteTitleCards"></div><div class="screenVoteCenter">이번 재판에서 탈락시킬 양을 선택하세요</div><div class="screenVotePlayers" id="screenVotePlayers"></div></div></div><div class="screen" id="s-voteTally"><div class="voteTallyStage"><div class="voteTallyText">투표결과 집계 중...</div></div></div><div class="screen" id="s-voteResult"><div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div></div><div class="screen" id="s-identityReveal"><div class="identityRevealStage" id="screenIdentityRevealRoot"></div></div><div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
     <div class="broadcastEventBackdrop"></div>
     <div class="broadcastEventInner">
       <div class="broadcastEventCards"><span>늑</span><span>대</span><span>방</span><span>해</span></div>
@@ -1776,14 +1778,14 @@ async function renderScreenNight(g){
  await tick();
  if(screenNow()<endAt)screenNightTimerHandle=setInterval(()=>tick().catch(()=>{}),250);
 }
-const SCREEN_SOUND_FILES={"titleBgm":"sounds/title_bgm.mp3","title2Bgm":"sounds/title2_bgm.mp3","gameStartBgm":"sounds/game-start-bgm.mp3","trialBgm":"sounds/trial-bgm.mp3","nightBgm":"sounds/night-bgm.mp3","roleSelectionBgm":"sounds/role-selection-bgm.mp3","login":"sounds/login.mp3","button":"sounds/button.mp3","countdown5":"sounds/countdown-5.mp3","countdown4":"sounds/countdown-4.mp3","countdown3":"sounds/countdown-3.mp3","countdown2":"sounds/countdown-2.mp3","countdown1":"sounds/countdown-1.mp3","gameStart":"sounds/game-start.mp3","trialStart":"sounds/trial-start.mp3","sheepWin":"sounds/sheep-win.mp3","wolfWin":"sounds/wolf-win.mp3","deadSheepFound":"sounds/body-found.mp3","death":"sounds/death.mp3","sabotage":"sounds/sabotage.mp3","adminNotice":"sounds/admin-notice.mp3","nightAlert":"sounds/night-alert.mp3","morning":"sounds/morning.mp3"};
+const SCREEN_SOUND_FILES={"titleBgm":"sounds/title_bgm.mp3","title2Bgm":"sounds/title2_bgm.mp3","gameStartBgm":"sounds/game-start-bgm.mp3","trialBgm":"sounds/trial-bgm.mp3","nightBgm":"sounds/night-bgm.mp3","roleSelectionBgm":"sounds/role-selection-bgm.mp3","login":"sounds/login.mp3","button":"sounds/button.mp3","countdown5":"sounds/countdown-5.mp3","countdown4":"sounds/countdown-4.mp3","countdown3":"sounds/countdown-3.mp3","countdown2":"sounds/countdown-2.mp3","countdown1":"sounds/countdown-1.mp3","gameStart":"sounds/game-start.mp3","trialStart":"sounds/trial-start.mp3","sheepWin":"sounds/sheep-win.mp3","wolfWin":"sounds/wolf-win.mp3","deadSheepFound":"sounds/body-found.mp3","death":"sounds/death.mp3","sabotage":"sounds/sabotage.mp3","adminNotice":"sounds/admin-notice.mp3","nightAlert":"sounds/night-alert.mp3","morning":"sounds/morning.mp3","voteBgm":"sounds/vote_bgm.mp3"};
 const screenAudio={};
 let screenAudioUnlocked=false,screenLastSoundKey="",screenLastSoundAt=0;
 function preloadScreenSounds(){for(const [k,src] of Object.entries(SCREEN_SOUND_FILES)){const a=new Audio();a.preload="auto";a.src=src;screenAudio[k]=a;}}
 async function unlockScreenAudio(){if(screenAudioUnlocked)return;screenAudioUnlocked=true;try{const AC=window.AudioContext||window.webkitAudioContext;window.__screenAudioContext=window.__screenAudioContext||new AC();if(window.__screenAudioContext.state==='suspended')await window.__screenAudioContext.resume();}catch(_){} }
 async function playScreenSound(name,key="",loop=false,volume=.6){await unlockScreenAudio();const a=screenAudio[name];if(!a)return;const now=Date.now();if(key&&key===screenLastSoundKey&&now-screenLastSoundAt<1200)return;screenLastSoundKey=key||name;screenLastSoundAt=now;try{a.loop=loop;a.volume=volume;a.pause();a.currentTime=0;await a.play();}catch(_){} }
 function stopScreenSound(name){try{const a=screenAudio[name];if(a){a.pause();a.currentTime=0;a.loop=false;}}catch(_){}}
-function stopAllScreenBgm(){['titleBgm','title2Bgm','gameStartBgm','trialBgm','nightBgm','roleSelectionBgm'].forEach(stopScreenSound);}
+function stopAllScreenBgm(){['titleBgm','title2Bgm','gameStartBgm','trialBgm','nightBgm','roleSelectionBgm','voteBgm'].forEach(stopScreenSound);}
 preloadScreenSounds();
 
 async function playNightBgm(){await playScreenSound("nightBgm","night-bgm",true,.45)}
@@ -2360,13 +2362,71 @@ function subscribe(){
     }catch(e){}
   },1000);
 }
-// VOTE BROADCAST SYSTEM v190
-let screenVoteToken=0;
-async function screenPlayVoteBgm(){stopAllScreenBgm();const a=new Audio('sounds/vote_bgm.mp3');a.loop=true;a.volume=.55;window.__screenVoteBgm=a;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
-function stopScreenVoteBgm(){const a=window.__screenVoteBgm;if(a){try{a.pause();a.currentTime=0;}catch(_){}}window.__screenVoteBgm=null;}
-async function screenVoteSequence(g){const token=++screenVoteToken;await screenPlayVoteBgm();show('s-vote');await wait(3000);if(token!==screenVoteToken)return;}
-async function screenVoteResultData(round){const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)===String(round))return d;}catch(_){} }return null;}
-async function screenVoteResultSequence(g){const token=++screenVoteToken;stopScreenVoteBgm();show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const d=await screenVoteResultData(g.current_round);if(!d)return;show('s-voteResult');const t=document.getElementById('screenVoteTitle'),l=document.getElementById('screenVoteLead'),f=document.getElementById('screenVoteFinal');t.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;t.appendChild(i);});l.textContent=(d.name||'')+' 양은...';f.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;f.textContent='처형되었습니다';f.classList.add('show');}
+// VOTE BROADCAST SYSTEM v191
+let screenVoteToken=0,screenVoteBoardTimer=null;
+async function screenPlayVoteBgm(){
+ stopScreenSound('trialBgm');
+ stopAllScreenBgm();
+ const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');
+ screenAudio.voteBgm=a;
+ a.loop=true;a.volume=.55;
+ try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}
+}
+function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
+async function screenVoteData(round,eventId){
+ const r=await db.from('notifications').select('message').eq('notification_type','TRIAL_VOTE').limit(2000);
+ if(r.error)return new Map();
+ const m=new Map();
+ for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;m.set(String(d.voter_id),d);}catch(_){}}
+ return m;
+}
+function screenVoteEvent(g){const m=String(g.notice||'').match(/^VOTE\|(.+)$/);return m?m[1]:'';}
+async function renderScreenVoteBoard(g,finalData=null){
+ const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');
+ if(playersR.error)return;
+ const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE' || (finalData&&String(x.id)===String(finalData.player_id)));
+ const votes=finalData?new Map(Object.entries(finalData.counts||{})):await screenVoteData(g.current_round,screenVoteEvent(g));
+ const counts=finalData?new Map(Object.entries(finalData.counts||{})):(()=>{const m=new Map();for(const d of votes.values())m.set(String(d.candidate_id),(m.get(String(d.candidate_id))||0)+1);return m;})();
+ const total=finalData?Number(finalData.total||players.length):players.length;
+ const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';
+ const title=$('screenVoteTitleCards');
+ if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}
+ const root=$('screenVotePlayers');if(!root)return;
+ root.innerHTML=players.map(p=>{
+   const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;
+   return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';
+ }).join('');
+}
+async function screenVoteSequence(g){
+ const token=++screenVoteToken;
+ stopAllScreenBgm();
+ await screenPlayVoteBgm();
+ show('s-vote');
+ await renderScreenVoteBoard(g);
+ if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);
+ screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(_){}} ,700);
+ if(token!==screenVoteToken)return;
+}
+async function screenVoteResultData(round){const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)===String(round))return d;}catch(_){}}return null;}
+async function screenVoteResultSequence(g){
+ const token=++screenVoteToken;
+ if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}
+ stopScreenVoteBgm();
+ const d=await screenVoteResultData(g.current_round);
+ if(d?.no_execution){
+   show('s-voteResult');
+   const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';
+   await wait(5000);
+   return;
+ }
+ show('s-voteTally');
+ await wait(3000);
+ if(token!==screenVoteToken)return;
+ if(!d)return;
+ show('s-vote');
+ await renderScreenVoteBoard(g,d);
+ await wait(5000);
+}
 async function screenIdentityRevealSequence(g){
  const token=++screenVoteToken;
  stopScreenVoteBgm();
@@ -2381,10 +2441,9 @@ async function screenIdentityRevealSequence(g){
  root.className='identityRevealStage '+(role==='WOLF'?'wolf':'sheep');
  root.innerHTML='<div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div>';
  show('s-identityReveal');
+ // 정체 공개 후 자동으로 본게임으로 복귀하지 않습니다. 관리자가 다음 라운드를 진행합니다.
  await wait(10000);
  if(token!==screenVoteToken)return;
- const latest=await getSettings();
- if(String(latest.phase).toUpperCase()==='IDENTITY_REVEAL')show('s-main');
 }
 
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
