@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>늑대게임 Screen v189</title>
+<title>늑대게임 Screen v190 · 투표 시스템</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>:root{--wolf-font:"Noto Sans KR",Arial,sans-serif;--wolf-pink:#ff1585;--wolf-pink2:#ff62b7;--wolf-deep:#27000f;--wolf-steel1:#666b69;--wolf-steel2:#191b1b;--wolf-red:#ff2946} 
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:Arial,"Noto Sans KR",sans-serif;overflow:hidden}body{cursor:none}.stage{position:fixed;inset:0;background:#000;overflow:hidden}.screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000}.screen.active{display:flex}.center{text-align:center}.sub{margin-top:18px;color:#aaa;font-size:clamp(14px,2vw,28px);letter-spacing:.18em}.screenStatus{position:absolute;right:12px;top:10px;font-size:10px;color:#333;z-index:999}
@@ -1028,11 +1028,11 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 <style>
 /* 준비완료 이후 대기화면: wolf_game_title.png + 배경 + idle */
 #s-title{background:#000!important;overflow:hidden!important;position:absolute!important;inset:0!important;}
-#s-title .waitingScreenBackdrop{position:absolute!important;inset:-5%!important;z-index:0!important;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.72)),url('assets/trial_bg.jpg') center/cover no-repeat!important;filter:saturate(.82) contrast(1.06) brightness(.72)!important;transform:scale(1.06);animation:readyScreenBgIdle 7s ease-in-out 1.9s infinite alternate!important;}
-#s-title .waitingScreenTitle{display:block!important;visibility:visible!important;position:absolute!important;z-index:2!important;width:min(78vw,900px)!important;height:auto!important;max-width:none!important;left:50%!important;top:50%!important;margin:0!important;opacity:0;transform:translate(-50%,-50%) scale(.62);filter:drop-shadow(0 0 28px rgba(255,0,130,.52))!important;animation:readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate!important;}
+#s-title .waitingScreenBackdrop{position:absolute!important;inset:0!important;z-index:0!important;background:url('assets/trial_bg.jpg') center center/cover no-repeat!important;filter:none!important;transform:scale(1.10)!important;animation:readyScreenBgIdle 4s ease-in-out infinite alternate!important;}
+#s-title .waitingScreenTitle{display:block!important;visibility:visible!important;position:absolute!important;z-index:2!important;width:min(78vw,900px)!important;height:auto!important;max-width:none!important;left:50%!important;top:46%!important;margin:0!important;opacity:0;transform:translate(-50%,-50%) scale(.62);filter:drop-shadow(0 0 28px rgba(255,0,130,.52))!important;animation:readyScreenTitleIn 1.9s cubic-bezier(.12,.9,.18,1) .15s forwards,readyScreenTitleIdle 4s ease-in-out 2.05s infinite alternate!important;}
 @keyframes readyScreenTitleIn{0%{opacity:0;transform:translate(-50%,-50%) translateY(80px) scale(.62)}65%{opacity:1;transform:translate(-50%,-50%) translateY(-8px) scale(1.04)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes readyScreenTitleIdle{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.018) translateY(-5px)}}
-@keyframes readyScreenBgIdle{from{transform:scale(1.06) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-.7%,.6%,0)}}
+@keyframes readyScreenBgIdle{0%{transform:scale(1.08) translate3d(7%,5%,0)}50%{transform:scale(1.22) translate3d(-4%,-3%,0)}100%{transform:scale(1.38) translate3d(-9%,7%,0)}}
 
 /* FIX: 재판 시작 타이틀은 active 상태에서만 존재해야 합니다.
    기존 .trialIntroImageStage{display:flex!important}가 .screen의 display:none을 덮어써
@@ -1066,23 +1066,23 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 
 /* 각 글자의 최종 위치 */
 #s-title .waitingTitleCard1{
-  left:clamp(14%,calc(50% - 320px),27%)!important;
-  top:clamp(8%,calc(50% - 145px),24%)!important;
+  left:calc(clamp(14%,calc(50% - 320px),27%) - 30px)!important;
+  top:clamp(2%,calc(50% - 205px),18%)!important;
   width:clamp(145px,19vw,300px)!important;
 }
 #s-title .waitingTitleCard2{
-  left:calc(clamp(26%,calc(50% - 235px),38%) + 18px)!important;
-  top:clamp(12%,calc(50% - 125px),28%)!important;
+  left:calc(clamp(26%,calc(50% - 235px),38%) + 8px)!important;
+  top:clamp(6%,calc(50% - 185px),22%)!important;
   width:clamp(115px,15vw,235px)!important;
 }
 #s-title .waitingTitleCard3{
-  left:clamp(41%,calc(50% - 30px),51%)!important;
-  top:clamp(15%,calc(50% - 100px),31%)!important;
+  left:calc(clamp(41%,calc(50% - 30px),51%) + 10px)!important;
+  top:clamp(9%,calc(50% - 160px),25%)!important;
   width:clamp(110px,14.5vw,225px)!important;
 }
 #s-title .waitingTitleCard4{
-  left:clamp(58%,calc(50% + 140px),66%)!important;
-  top:clamp(10%,calc(50% - 130px),26%)!important;
+  left:calc(clamp(58%,calc(50% + 140px),66%) + 30px)!important;
+  top:clamp(4%,calc(50% - 190px),20%)!important;
   width:clamp(135px,17vw,270px)!important;
 }
 
@@ -1143,10 +1143,10 @@ html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cu
 
 /* 모바일/좁은 스크린에서도 타이틀이 겹치지 않도록 전체 크기를 함께 축소 */
 @media (max-width:900px){
-  #s-title .waitingTitleCard1{left:12%!important;top:24%!important;width:27vw!important}
-  #s-title .waitingTitleCard2{left:calc(31% + 18px)!important;top:27%!important;width:22vw!important}
-  #s-title .waitingTitleCard3{left:48%!important;top:29%!important;width:21vw!important}
-  #s-title .waitingTitleCard4{left:68%!important;top:25%!important;width:25vw!important}
+  #s-title .waitingTitleCard1{left:calc(12% - 15px)!important;top:15%!important;width:27vw!important}
+  #s-title .waitingTitleCard2{left:calc(31% + 13px)!important;top:18%!important;width:22vw!important}
+  #s-title .waitingTitleCard3{left:calc(48% + 5px)!important;top:20%!important;width:21vw!important}
+  #s-title .waitingTitleCard4{left:calc(68% + 15px)!important;top:16%!important;width:25vw!important}
 }
 
 </style>
@@ -1623,7 +1623,7 @@ async function startScreenCardDealV18(){
 @keyframes trialIntroFinalIdle{0%{transform:translateY(0) scale(1);filter:brightness(1)}100%{transform:translateY(-8px) scale(1.035);filter:brightness(1.15)}}
 </style>
 
-</head>
+<style id="vote-broadcast-v190">.voteBroadcastStage{position:absolute;inset:0;background:#020202;display:flex;align-items:center;justify-content:center;text-align:center}.voteBroadcastMessage{font-size:clamp(34px,6vw,88px);font-weight:1000;line-height:1.25;text-shadow:0 0 30px rgba(255,0,125,.5);animation:voteIn .7s ease both}.voteBroadcastTitle{display:flex;justify-content:center;gap:clamp(4px,1vw,14px)}.voteBroadcastTitle img{width:clamp(85px,12vw,190px);height:clamp(85px,12vw,190px);object-fit:contain;opacity:0;animation:voteTitle .55s cubic-bezier(.12,.9,.18,1) forwards}.voteBroadcastTitle img:nth-child(2){animation-delay:.18s}.voteBroadcastTitle img:nth-child(3){animation-delay:.36s}.voteBroadcastTitle img:nth-child(4){animation-delay:.54s}.voteBroadcastLead{margin-top:38px;font-size:clamp(30px,5vw,72px);font-weight:1000;opacity:0;animation:voteIn .7s .9s both}.voteBroadcastFinal{margin-top:24px;font-size:clamp(38px,7vw,96px);font-weight:1000;color:#ff477f;text-shadow:0 0 35px rgba(255,0,125,.8);opacity:0}.voteBroadcastFinal.show{animation:voteIn .6s both}.voteTallyStage{position:absolute;inset:0;background:#000e;display:flex;align-items:center;justify-content:center}.voteTallyText{font-size:clamp(40px,7vw,100px);font-weight:1000;animation:voteIn .6s both}.identityRevealStage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#55000b,#000 68%)}.identityRevealStage.sheep{background:radial-gradient(circle,#063d21,#000 68%)}.identityRevealCard{width:min(74vw,480px);padding:55px 30px;border:4px solid #b00012;background:#050505;box-shadow:0 0 70px rgba(176,0,18,.7);animation:voteIn .8s both}.identityRevealStage.sheep .identityRevealCard{border-color:#29a960;box-shadow:0 0 70px rgba(41,169,96,.65)}.identityRevealName{font-size:clamp(25px,4vw,50px);font-weight:900}.identityRevealRole{margin-top:25px;font-size:clamp(70px,15vw,190px);font-weight:1000;color:#ff3347;text-shadow:0 0 35px currentColor}.identityRevealStage.sheep .identityRevealRole{color:#58f39a}@keyframes voteIn{from{opacity:0;transform:translateY(28px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes voteTitle{from{opacity:0;transform:translateY(55px) scale(.55);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}</style></head>
 <body class="wolf-v181-screen">
 <div class="stage" id="stage">
   <div class="screen active" id="s-idle"></div>
@@ -1705,7 +1705,7 @@ async function startScreenCardDealV18(){
 
   <div class="screen trialScene" id="s-trial"><img src="assets/trial_bg.jpg" alt=""></div>
 
-  <div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
+  <div class="screen" id="s-vote"><div class="voteBroadcastStage"><div class="voteBroadcastMessage">이번 재판에서 탈락시킬 양을 선택하세요</div></div></div><div class="screen" id="s-voteTally"><div class="voteTallyStage"><div class="voteTallyText">투표결과 집계 중...</div></div></div><div class="screen" id="s-voteResult"><div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div></div><div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
     <div class="broadcastEventBackdrop"></div>
     <div class="broadcastEventInner">
       <div class="broadcastEventCards"><span>늑</span><span>대</span><span>방</span><span>해</span></div>
@@ -1814,7 +1814,7 @@ async function ensureCentralServerClock(force=false){
   for(let i=0;i<3;i++){
    const t0=performance.now();
    try{
-    const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1,{method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+    const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1",{method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
     const t1=performance.now();
     const serverMs=Date.parse(r.headers.get("date")||"");
     if(Number.isFinite(serverMs))samples.push({rtt:t1-t0,offset:serverMs-(Date.now()-(t1-t0)/2)});
@@ -1928,7 +1928,7 @@ async function titleSequence(){
  if(bg){
    bg.style.animation='none';
    void bg.offsetWidth;
-   bg.style.animation='readyScreenBgIdle 7s ease-in-out 0s infinite alternate';
+   bg.style.animation='readyScreenBgIdle 3.6s ease-in-out 0s infinite alternate';
  }
 
  stopAllScreenBgm();
@@ -2231,6 +2231,11 @@ async function handlePhase(g,initial=false){
  const prev=lastPhase,prevReady=lastReady;
  lastPhase=phase;lastReady=!!g.ready;seqToken++;
 
+ // TRIAL 연출은 phase가 TRIAL이 아니게 되는 즉시 완전히 종료합니다.
+ // 특히 게임 초기화(LOBBY) 시 fixed overlay인 trialIntroFinal이 남아
+ // 초기화된 s-idle 화면을 가리는 일이 없도록 먼저 정리합니다.
+ if(phase!=='TRIAL')stopTrialIntroSequence();
+
  if(phase==='NEXT_ROUND_PREP'){await renderNextRoundPrepScreen(g);return;}
  if(phase==='LOBBY'){
    stopAllScreenBgm();
@@ -2277,7 +2282,9 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
   return;
 }
  if(phase==='TRIAL'){trialReadyRound=null;startScreenTrialStartBgm();await trialIntroSequence(g);return;}
- if(phase!=='TRIAL' && previousPhase==='TRIAL'){stopTrialIntroSequence();}
+ if(phase==='VOTE'){await screenVoteSequence(g);return;}
+ if(phase==='VOTE_RESULT'){await screenVoteResultSequence(g);return;}
+ if(phase==='IDENTITY_REVEAL'){await screenIdentityRevealSequence(g);return;}
  if(phase==='FINISHED'){
    stopAllScreenBgm();
    const winner=String(g.winner||'').toUpperCase();
@@ -2290,40 +2297,8 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
 }
 
 let screenTrialResultWatcherStarted=false;
-let screenTrialResultNotificationMinId=0;
-function startScreenTrialResultWatcher(){
- if(screenTrialResultWatcherStarted)return;
- screenTrialResultWatcherStarted=true;
- const check=async()=>{
-   if(!unlocked)return;
-   try{
-     const r=await db.from('notifications').select('*')
-       .is('target_player',null)
-       .eq('notification_type','TRIAL_RESULT')
-       .order('id',{ascending:false})
-       .limit(5);
-     if(r.error)return;
-     const rows=(r.data||[]).sort((a,b)=>Number(a.id)-Number(b.id));
-     for(const n of rows){
-       const nid=Number(n.id)||0;
-       if(nid<=screenTrialResultNotificationMinId)continue;
-       screenTrialResultNotificationMinId=nid;
-       if(seenNotificationIds.has(n.id))continue;
-       seenNotificationIds.add(n.id);
-       try{
-         const d=JSON.parse(n.message||'{}');
-         if(String(d.round||'')!==String(window.__screenLatestSettings?.current_round||d.round||''))continue;
-         await resultSequence(d);
-       }catch(e){console.warn('스크린 재판 결과 표시 오류:',e);}
-     }
-   }catch(e){console.warn('스크린 재판 결과 확인 오류:',e);}
- };
- check();
- setInterval(check,700);
-}
-
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
-async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_RESULT'||type==='SCREEN_TRIAL_RESULT'){try{const d=JSON.parse(n.message||'{}');await resultSequence(d)}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
+async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_IDENTITY'){try{await screenIdentityRevealSequence(await getSettings())}catch(e){console.warn(e)}return} if(type==='VOTE_RESULT'){try{await screenVoteResultSequence(await getSettings())}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
 function subscribe(){
   db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>{
     const next=payload.new||{};
@@ -2385,14 +2360,17 @@ function subscribe(){
     }catch(e){}
   },1000);
 }
+// VOTE BROADCAST SYSTEM v190
+let screenVoteToken=0;
+async function screenPlayVoteBgm(){stopAllScreenBgm();const a=new Audio('sounds/vote_bgm.mp3');a.loop=true;a.volume=.55;window.__screenVoteBgm=a;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
+function stopScreenVoteBgm(){const a=window.__screenVoteBgm;if(a){try{a.pause();a.currentTime=0;}catch(_){}}window.__screenVoteBgm=null;}
+async function screenVoteSequence(g){const token=++screenVoteToken;await screenPlayVoteBgm();show('s-vote');await wait(3000);if(token!==screenVoteToken)return;}
+async function screenVoteResultData(round){const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)===String(round))return d;}catch(_){} }return null;}
+async function screenVoteResultSequence(g){const token=++screenVoteToken;stopScreenVoteBgm();show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const d=await screenVoteResultData(g.current_round);if(!d)return;show('s-voteResult');const t=document.getElementById('screenVoteTitle'),l=document.getElementById('screenVoteLead'),f=document.getElementById('screenVoteFinal');t.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;t.appendChild(i);});l.textContent=(d.name||'')+' 양은...';f.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;f.textContent='처형되었습니다';f.classList.add('show');}
+async function screenIdentityRevealSequence(g){const token=++screenVoteToken;stopScreenVoteBgm();const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_IDENTITY').order('id',{ascending:false}).limit(20);if(r.error)return;let d=null;for(const n of r.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(g.current_round)){d=x;break;}}catch(_){} }if(!d)return;const role=String(d.role||'').toUpperCase();const root=document.getElementById('s-voteResult');show('s-voteResult');root.innerHTML='<div class="identityRevealStage '+(role==='WOLF'?'wolf':'sheep')+'"><div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div></div>';await wait(10000);if(token!==screenVoteToken)return;const latest=await getSettings();if(String(latest.phase).toUpperCase()==='IDENTITY_REVEAL')show('s-main');}
+function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 $('unlockBtn').addEventListener('click',async()=>{
   await unlock();
-  // 시작 버튼 이전에 쌓여 있던 재판 결과 알림은 새 스크린 시작 이벤트로 취급하지 않습니다.
-  try{
-    const r=await db.from('notifications').select('id').is('target_player',null).eq('notification_type','TRIAL_RESULT').order('id',{ascending:false}).limit(1);
-    screenTrialResultNotificationMinId=Number(r.data?.[0]?.id||0);
-  }catch(_){}
-  startScreenTrialResultWatcher();
 });
 subscribe();
 </script>
