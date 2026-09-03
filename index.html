@@ -5739,6 +5739,12 @@ async function renderVoteResultPlayer(p,g){
  if(token!==voteRenderToken)return;
  fin.textContent="처형되었습니다";
  fin.classList.add("show");
+ // "처형되었습니다" 문구가 등장하는 정확한 순간에 탈락 처리합니다.
+ // death.mp3는 탈락 대상 플레이어의 기기에서만 재생합니다.
+ if(String(p.id)===String(d.player_id)){
+   const dead=await db.from("players").update({status:"DEAD"}).eq("id",p.id).eq("status","ALIVE");
+   if(!dead.error) await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
+ }
 }
 async function autoNextRoundNoWinner(g){
  const next=Number(g.current_round||0)+1;
