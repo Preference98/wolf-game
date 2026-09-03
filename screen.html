@@ -1705,7 +1705,7 @@ async function startScreenCardDealV18(){
 
   <div class="screen trialScene" id="s-trial"><img src="assets/trial_bg.jpg" alt=""></div>
 
-  <div class="screen" id="s-vote"><div class="voteBroadcastStage"><div class="voteBroadcastMessage">이번 재판에서 탈락시킬 양을 선택하세요</div></div></div><div class="screen" id="s-voteTally"><div class="voteTallyStage"><div class="voteTallyText">투표결과 집계 중...</div></div></div><div class="screen" id="s-voteResult"><div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div></div><div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
+  <div class="screen" id="s-vote"><div class="voteBroadcastStage"><div class="voteBroadcastMessage">이번 재판에서 탈락시킬 양을 선택하세요</div></div></div><div class="screen" id="s-voteTally"><div class="voteTallyStage"><div class="voteTallyText">투표결과 집계 중...</div></div></div><div class="screen" id="s-voteResult"><div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div></div><div class="screen" id="s-identityReveal"><div class="identityRevealStage" id="screenIdentityRevealRoot"></div></div><div class="screen broadcastEventStage eventSabotage" id="s-sabotage">
     <div class="broadcastEventBackdrop"></div>
     <div class="broadcastEventInner">
       <div class="broadcastEventCards"><span>늑</span><span>대</span><span>방</span><span>해</span></div>
@@ -2367,7 +2367,26 @@ function stopScreenVoteBgm(){const a=window.__screenVoteBgm;if(a){try{a.pause();
 async function screenVoteSequence(g){const token=++screenVoteToken;await screenPlayVoteBgm();show('s-vote');await wait(3000);if(token!==screenVoteToken)return;}
 async function screenVoteResultData(round){const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)===String(round))return d;}catch(_){} }return null;}
 async function screenVoteResultSequence(g){const token=++screenVoteToken;stopScreenVoteBgm();show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const d=await screenVoteResultData(g.current_round);if(!d)return;show('s-voteResult');const t=document.getElementById('screenVoteTitle'),l=document.getElementById('screenVoteLead'),f=document.getElementById('screenVoteFinal');t.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;t.appendChild(i);});l.textContent=(d.name||'')+' 양은...';f.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;f.textContent='처형되었습니다';f.classList.add('show');}
-async function screenIdentityRevealSequence(g){const token=++screenVoteToken;stopScreenVoteBgm();const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_IDENTITY').order('id',{ascending:false}).limit(20);if(r.error)return;let d=null;for(const n of r.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(g.current_round)){d=x;break;}}catch(_){} }if(!d)return;const role=String(d.role||'').toUpperCase();const root=document.getElementById('s-voteResult');show('s-voteResult');root.innerHTML='<div class="identityRevealStage '+(role==='WOLF'?'wolf':'sheep')+'"><div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div></div>';await wait(10000);if(token!==screenVoteToken)return;const latest=await getSettings();if(String(latest.phase).toUpperCase()==='IDENTITY_REVEAL')show('s-main');}
+async function screenIdentityRevealSequence(g){
+ const token=++screenVoteToken;
+ stopScreenVoteBgm();
+ const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_IDENTITY').order('id',{ascending:false}).limit(20);
+ if(r.error)return;
+ let d=null;
+ for(const n of r.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(g.current_round)){d=x;break;}}catch(_){} }
+ if(!d)return;
+ const role=String(d.role||'').toUpperCase();
+ const root=document.getElementById('screenIdentityRevealRoot');
+ if(!root)return;
+ root.className='identityRevealStage '+(role==='WOLF'?'wolf':'sheep');
+ root.innerHTML='<div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div>';
+ show('s-identityReveal');
+ await wait(10000);
+ if(token!==screenVoteToken)return;
+ const latest=await getSettings();
+ if(String(latest.phase).toUpperCase()==='IDENTITY_REVEAL')show('s-main');
+}
+
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 $('unlockBtn').addEventListener('click',async()=>{
   await unlock();
