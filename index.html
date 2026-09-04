@@ -5690,10 +5690,8 @@ async function tallyVotes(g){
  if(lock.error)return false;
  const ins=await db.from("notifications").insert({message:JSON.stringify(result),target_player:null,notification_type:"VOTE_RESULT"});
  if(ins.error)return false;
- // 처형 결과가 있는 경우 VOTE_RESULT 진입과 동시에 즉시 탈락 처리합니다.
- if(winner){
-   await db.from("players").update({status:"DEAD"}).eq("id",winner.id).eq("status","ALIVE");
- }
+ // 중요: 투표 집계 완료 시점에는 탈락 처리하지 않습니다.
+ // "처형되었습니다" 문구가 실제 표시되는 순간 대상 플레이어 클라이언트에서만 DEAD 처리합니다.
  return true;
 }
 let voteCompletionTimer=null;
@@ -5718,7 +5716,11 @@ async function renderVoteResultPlayer(p,g){
  await showScreen("voteTally");
  await wait(3000);
  if(token!==voteRenderToken)return;
- const d=await latestVoteResult(g.current_round);
+ let d=null;
+ for(let i=0;i<8 && !d;i++){
+   d=await latestVoteResult(g.current_round);
+   if(!d)await wait(250);
+ }
  if(!d)return;
  const resultRoot=el("voteResult");
  if(!resultRoot)return;
@@ -5756,10 +5758,8 @@ async function autoNextRoundNoWinner(g){
 }
 
 async function confirmIdentity(){const g=await settings();if(String(g.phase).toUpperCase()!=="VOTE_RESULT"){toast("투표 결과 공개 후 정체확인을 눌러 주세요.");return;}const d=await latestVoteResult(g.current_round);if(!d?.player_id){toast("처형할 양이 없습니다. 다음 라운드로 진행됩니다.");return;}const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}const payload={round:Number(g.current_round||0),event_id:d.event_id,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id}).eq("id",1).eq("phase","VOTE_RESULT");if(lock.error){toast("정체 공개 단계 전환 실패: "+lock.error.message);return;}const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});if(ins.error){toast("정체 공개 전송 실패: "+ins.error.message);return;}toast(r.data.name+"의 정체를 공개합니다.");
-  setTimeout(async()=>{
-    const latest=await settings().catch(()=>null);
-    if(latest&&String(latest.phase).toUpperCase()==="IDENTITY_REVEAL")await db.from("players").update({status:"DEAD"}).eq("id",r.data.id).eq("status","ALIVE");
-  },10000);
+  // 정체확인 단계에서도 탈락 처리는 하지 않습니다.
+  // 탈락 처리는 투표결과 화면에서 "처형되었습니다"가 표시되는 정확한 시점에 수행합니다.
   await renderAdmin();}
 async function latestIdentity(round){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","TRIAL_IDENTITY").order("id",{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(round))return d;}catch(_){}}return null;}
 async function renderIdentityRevealPlayer(p,g){const token=++voteRenderToken;stopAllTimers();await showScreen("identityReveal");const d=await latestIdentity(g.current_round);if(!d)return;const role=String(d.role||"").toUpperCase();el("identityReveal").innerHTML=`<div class="identityRevealStage ${role==="WOLF"?"wolf":"sheep"}"><div class="identityRevealCard"><div class="identityRevealName">${esc(d.name||"")} 양</div><div class="identityRevealRole">${role==="WOLF"?"늑대":"양"}</div></div></div>`;await wait(10000);if(token!==voteRenderToken)return;/* 정체 공개 후 PLAY로 자동 전환하지 않습니다. 관리자가 다음 라운드를 눌러야 합니다. */}
