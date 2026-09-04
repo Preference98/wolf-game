@@ -1784,6 +1784,7 @@ let screenAudioUnlocked=false,screenLastSoundKey="",screenLastSoundAt=0;
 function preloadScreenSounds(){for(const [k,src] of Object.entries(SCREEN_SOUND_FILES)){const a=new Audio();a.preload="auto";a.src=src;screenAudio[k]=a;}}
 async function unlockScreenAudio(){if(screenAudioUnlocked)return;screenAudioUnlocked=true;try{const AC=window.AudioContext||window.webkitAudioContext;window.__screenAudioContext=window.__screenAudioContext||new AC();if(window.__screenAudioContext.state==='suspended')await window.__screenAudioContext.resume();}catch(_){} }
 async function playScreenSound(name,key="",loop=false,volume=.6){await unlockScreenAudio();const a=screenAudio[name];if(!a)return;const now=Date.now();if(key&&key===screenLastSoundKey&&now-screenLastSoundAt<1200)return;screenLastSoundKey=key||name;screenLastSoundAt=now;try{a.loop=loop;a.volume=volume;a.pause();a.currentTime=0;await a.play();}catch(_){} }
+async function playScreenSoundUntilEnded(name,key="",volume=.6){await unlockScreenAudio();const a=screenAudio[name];if(!a)return false;const now=Date.now();if(key&&key===screenLastSoundKey&&now-screenLastSoundAt<1200)return false;screenLastSoundKey=key||name;screenLastSoundAt=now;return new Promise(async resolve=>{let done=false;const finish=()=>{if(done)return;done=true;a.removeEventListener("ended",finish);resolve(true)};try{a.loop=false;a.volume=volume;a.pause();a.currentTime=0;a.addEventListener("ended",finish,{once:true});await a.play();if(a.ended)finish();}catch(_){a.removeEventListener("ended",finish);resolve(false);}})}
 function stopScreenSound(name){try{const a=screenAudio[name];if(a){a.pause();a.currentTime=0;a.loop=false;}}catch(_){}}
 function stopAllScreenBgm(){try{if(typeof window.stopScreenTrialBgmFlow==='function')window.stopScreenTrialBgmFlow();}catch(_){} ['titleBgm','title2Bgm','gameStartBgm','trialBgm','nightBgm','roleSelectionBgm','voteBgm'].forEach(stopScreenSound);}
 preloadScreenSounds();
@@ -2402,8 +2403,9 @@ async function screenIdentityRevealSequence(g){
   await wait(1500); if(token!==screenVoteToken)return;
   if(qEl)qEl.style.opacity='1';
   await wait(1500); if(token!==screenVoteToken)return;
-  // 공개 연출: tension.mp3 1회 재생. 약 5초 동안 5회 반복하며 점점 빨라집니다.
-  await playScreenSound('tension','identity-tension-'+key,false,.95);
+  // 공개 연출: tension.mp3를 먼저 시작하고, 이미지 전환 연출은 음원 길이에 맞춰 진행합니다.
+  // 음원이 실제로 끝난 순간에만 공개 단계로 넘어갑니다.
+  const tensionPromise=playScreenSoundUntilEnded('tension','identity-tension-'+key,.95);
   const pairs=[900,700,550,400,250];
   for(const baseMs of pairs){
     if(token!==screenVoteToken)return;
@@ -2412,12 +2414,18 @@ async function screenIdentityRevealSequence(g){
     if(sheep)sheep.classList.remove('dim');
   }
   if(token!==screenVoteToken)return;
+  // 연출 애니메이션이 먼저 끝나더라도 tension.mp3의 실제 종료까지 기다립니다.
+  await tensionPromise;
+  if(token!==screenVoteToken)return;
   // tension 종료 직후 실제 정체 공개
   if(role==='WOLF'){if(sheep)sheep.classList.add('dim');if(wolf)wolf.classList.add('revealed');}
   else{if(wolf)wolf.classList.add('dim');if(sheep)sheep.classList.add('revealed');}
   if(qEl)qEl.textContent='정체는?';
-  root.querySelector('.identityRevealName').textContent=(d.name||'')+'의';
-  const roleEl=document.createElement('div'); roleEl.className='identityRevealQuestion'; roleEl.textContent=role==='WOLF'?'늑대':'양';
+  const roleText=role==='WOLF'?'늑대':'양';
+  const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
+  const particle=hasBatchim(d.name)?'은':'는';
+  root.querySelector('.identityRevealName').textContent=(d.name||'')+particle+' '+roleText+(role==='WOLF'?'였습니다.':'이었습니다.');
+  const roleEl=document.createElement('div'); roleEl.className='identityRevealQuestion'; roleEl.textContent='';
   if(qEl&&qEl.parentNode){qEl.replaceWith(roleEl);}
   await playScreenSound('roleRevealedBgm','role-revealed-bgm-'+key,true,.6);
 }
