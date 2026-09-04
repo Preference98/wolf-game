@@ -2364,6 +2364,26 @@ function subscribe(){
     if(String(g?.phase||'').toUpperCase()!=='PLAY')return;
     sabotageSequence(payload.new||{});
   }).subscribe();
+  // 사보타지 Realtime 이벤트가 순간적으로 누락되는 경우를 대비해 현재 라운드의 활성 이벤트를 주기적으로 확인합니다.
+  // 같은 event_id는 sabotageSequence 내부의 중복 방지로 한 번만 연출합니다.
+  if(window.__screenSabotagePollTimer)clearInterval(window.__screenSabotagePollTimer);
+  window.__screenSabotagePollTimer=setInterval(async()=>{
+    if(!unlocked || Date.now()<screenStartupLockUntil)return;
+    try{
+      const g=await getSettings();
+      if(String(g?.phase||'').toUpperCase()!=='PLAY')return;
+      const r=await db.from('sabotage_events').select('*').eq('game_round',g.current_round).order('id',{ascending:false}).limit(20);
+      if(r.error)return;
+      const now=screenNow();
+      for(const ev of (r.data||[])){
+        const started=Date.parse(ev.started_at||ev.starts_at||ev.created_at||'');
+        const ends=Date.parse(ev.ends_at||'');
+        const duration=Math.max(5,Number(ev.duration_seconds)||Number(g.sabotage_duration_seconds)||30);
+        const end=Number.isFinite(ends)?ends:(Number.isFinite(started)?started+duration*1000:0);
+        if(end>now){ sabotageSequence(ev); break; }
+      }
+    }catch(e){console.warn('스크린 늑대방해 폴백 확인 오류:',e);}
+  },500);
   setInterval(async()=>{
     if(!unlocked)return;
     try{
