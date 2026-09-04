@@ -2481,6 +2481,11 @@ async function screenIdentityRevealSequence(g){
   const roleEl=document.createElement('div'); roleEl.className='identityRevealQuestion'; roleEl.textContent='';
   if(qEl&&qEl.parentNode){qEl.replaceWith(roleEl);}
   await wait(3000); if(token!==screenVoteToken)return; await playScreenSound('roleRevealedBgm','role-revealed-bgm-'+key,true,.6);
+  if(token!==screenVoteToken)return;
+  try{
+    const noticePayload={round:Number(d.round||g.current_round||0),event_id:String(d.event_id||key),player_id:d.player_id||'',name:d.name||'',role:role};
+    await db.from('notifications').insert({message:JSON.stringify(noticePayload),target_player:null,notification_type:'ROLE_REVEALED'});
+  }catch(err){console.warn('플레이어 정체 공개 완료 알림 전송 오류:',err);}
 }
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 $('unlockBtn').addEventListener('click',async()=>{

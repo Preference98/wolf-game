@@ -2246,7 +2246,17 @@ function bindCardSelectionV20(){
 }
 </style>
 
-<style id="trial-voting-v190">.trialAdminGroup{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.voteScreenWrap{min-height:100vh;padding:34px 18px 50px;background:radial-gradient(circle at 50% 20%,#260006,#070707 55%,#000);text-align:center}.voteScreenWrap h1{font-size:clamp(25px,6vw,42px);margin:18px 0 8px}.votePlayerGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:24px auto}.votePlayerBtn{min-height:70px;padding:12px 8px;border:1px solid #6d1a22;border-radius:12px;background:linear-gradient(145deg,#171717,#070707);color:#fff;font-size:clamp(15px,3vw,22px);font-weight:900}.votePlayerBtn:hover{border-color:#ff2b91;box-shadow:0 0 20px rgba(255,0,125,.25)}.voteResultStage{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#050005;overflow:hidden}.voteResultStage:before{content:"";position:absolute;inset:-10%;background:radial-gradient(circle at 50% 45%,rgba(255,0,125,.18),transparent 25%),url('assets/trial_bg.jpg') center/cover no-repeat;opacity:.25;filter:brightness(.5) saturate(.8)}.voteResultTitle,.voteResultLead,.voteResultFinal{position:relative;z-index:2}.voteResultTitle{display:flex;gap:clamp(4px,1vw,14px);justify-content:center}.voteResultTitle img{width:clamp(70px,10vw,150px);height:clamp(70px,10vw,150px);object-fit:contain;opacity:0;animation:voteTitleIn .55s cubic-bezier(.12,.9,.18,1) forwards,voteTitleIdle 1.8s 1.6s ease-in-out infinite alternate}.voteResultTitle img:nth-child(2){animation-delay:.18s}.voteResultTitle img:nth-child(3){animation-delay:.36s}.voteResultTitle img:nth-child(4){animation-delay:.54s}.voteResultLead{margin-top:35px;font-size:clamp(28px,5vw,68px);font-weight:1000;opacity:0;animation:voteTextIn .65s .9s both}.voteResultFinal{margin-top:28px;font-size:clamp(34px,6vw,82px);font-weight:1000;color:#ff477f;text-shadow:0 0 35px rgba(255,0,125,.8);opacity:0}.voteResultFinal.show{animation:voteTextIn .6s both}.identityRevealStage{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#55000b,#000 68%)}.identityRevealStage.sheep{background:radial-gradient(circle,#063d21,#000 68%)}.identityRevealCard{width:min(74vw,480px);padding:55px 30px;border:4px solid #b00012;background:#050505;box-shadow:0 0 70px rgba(176,0,18,.7);animation:identityIn .8s cubic-bezier(.18,.8,.2,1) both}.identityRevealStage.sheep .identityRevealCard{border-color:#29a960;box-shadow:0 0 70px rgba(41,169,96,.65)}.identityRevealName{font-size:clamp(25px,4vw,50px);font-weight:900}.identityRevealRole{margin-top:25px;font-size:clamp(70px,15vw,190px);font-weight:1000;color:#ff3347;text-shadow:0 0 35px currentColor}.identityRevealStage.sheep .identityRevealRole{color:#58f39a}@keyframes voteTitleIn{from{opacity:0;transform:translateY(55px) scale(.55);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes voteTitleIdle{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-8px) scale(1.035);filter:brightness(1.12)}}@keyframes voteTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes identityIn{from{opacity:0;transform:scale(.65);filter:brightness(2)}to{opacity:1;transform:none;filter:none}}@media(max-width:520px){.votePlayerGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.trialAdminGroup{grid-template-columns:1fr}}</style></head>
+<style id="trial-voting-v190">.trialAdminGroup{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.voteScreenWrap{min-height:100vh;padding:34px 18px 50px;background:radial-gradient(circle at 50% 20%,#260006,#070707 55%,#000);text-align:center}.voteScreenWrap h1{font-size:clamp(25px,6vw,42px);margin:18px 0 8px}.votePlayerGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:24px auto}.votePlayerBtn{min-height:70px;padding:12px 8px;border:1px solid #6d1a22;border-radius:12px;background:linear-gradient(145deg,#171717,#070707);color:#fff;font-size:clamp(15px,3vw,22px);font-weight:900}.votePlayerBtn:hover{border-color:#ff2b91;box-shadow:0 0 20px rgba(255,0,125,.25)}.voteResultStage{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#050005;overflow:hidden}.voteResultStage:before{content:"";position:absolute;inset:-10%;background:radial-gradient(circle at 50% 45%,rgba(255,0,125,.18),transparent 25%),url('assets/trial_bg.jpg') center/cover no-repeat;opacity:.25;filter:brightness(.5) saturate(.8)}.voteResultTitle,.voteResultLead,.voteResultFinal{position:relative;z-index:2}.voteResultTitle{display:flex;gap:clamp(4px,1vw,14px);justify-content:center}.voteResultTitle img{width:clamp(70px,10vw,150px);height:clamp(70px,10vw,150px);object-fit:contain;opacity:0;animation:voteTitleIn .55s cubic-bezier(.12,.9,.18,1) forwards,voteTitleIdle 1.8s 1.6s ease-in-out infinite alternate}.voteResultTitle img:nth-child(2){animation-delay:.18s}.voteResultTitle img:nth-child(3){animation-delay:.36s}.voteResultTitle img:nth-child(4){animation-delay:.54s}.voteResultLead{margin-top:35px;font-size:clamp(28px,5vw,68px);font-weight:1000;opacity:0;animation:voteTextIn .65s .9s both}.voteResultFinal{margin-top:28px;font-size:clamp(34px,6vw,82px);font-weight:1000;color:#ff477f;text-shadow:0 0 35px rgba(255,0,125,.8);opacity:0}.voteResultFinal.show{animation:voteTextIn .6s both}.identityRevealStage{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#55000b,#000 68%)}.identityRevealStage.sheep{background:radial-gradient(circle,#063d21,#000 68%)}.identityRevealCard{width:min(74vw,480px);padding:55px 30px;border:4px solid #b00012;background:#050505;box-shadow:0 0 70px rgba(176,0,18,.7);animation:identityIn .8s cubic-bezier(.18,.8,.2,1) both}.identityRevealStage.sheep .identityRevealCard{border-color:#29a960;box-shadow:0 0 70px rgba(41,169,96,.65)}.identityRevealName{font-size:clamp(25px,4vw,50px);font-weight:900}.identityRevealRole{margin-top:25px;font-size:clamp(70px,15vw,190px);font-weight:1000;color:#ff3347;text-shadow:0 0 35px currentColor}.identityRevealStage.sheep .identityRevealRole{color:#58f39a}@keyframes voteTitleIn{from{opacity:0;transform:translateY(55px) scale(.55);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes voteTitleIdle{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-8px) scale(1.035);filter:brightness(1.12)}}@keyframes voteTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}@keyframes identityIn{from{opacity:0;transform:scale(.65);filter:brightness(2)}to{opacity:1;transform:none;filter:none}}@media(max-width:520px){.votePlayerGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.trialAdminGroup{grid-template-columns:1fr}}</style><style id="role-revealed-player-v1">
+.roleRevealedPlayerStage{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:#000;text-align:center;padding:30px;box-sizing:border-box}
+.roleRevealedPlayerResult{width:min(94vw,1100px)}
+.roleRevealedPlayerSentence{font-size:clamp(32px,6.2vw,82px);font-weight:1000;line-height:1.25;letter-spacing:.02em;word-break:keep-all;text-shadow:0 0 24px rgba(255,255,255,.18)}
+.roleRevealedPlayerName{color:#ffd92f!important}
+.roleRevealedPlayerWhite{color:#fff!important}
+.roleRevealedPlayerRole.sheep{color:#22c55e!important}
+.roleRevealedPlayerRole.wolf{color:#ef3340!important}
+.roleRevealedPlayerNext{margin-top:42px;font-size:clamp(22px,3.5vw,46px);font-weight:900;line-height:1.35;color:#fff!important;word-break:keep-all}
+</style>
+</head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
 <main>
@@ -5615,8 +5625,20 @@ function realtime(){
    if(String(n.notification_type||"").toUpperCase().startsWith("SCREEN_"))return;
    if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
    const currentPlayer=playerId?await me().catch(()=>null):null;
-   if(!currentPlayer || currentPlayer.status!=="ALIVE")return;
+   if(!currentPlayer)return;
    if(n.target_player && n.target_player!==playerId)return;
+   if(String(n.notification_type||"").toUpperCase()==="ROLE_REVEALED"){
+     try{
+       const g=await settings();
+       if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;
+       const d=JSON.parse(n.message||"{}");
+       const currentEvent=String(g.notice||"").replace(/^IDENTITY_REVEAL\|/,"");
+       if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;
+       await renderRoleRevealedPlayer(d,g);
+     }catch(err){console.warn("정체 공개 완료 표시 오류:",err);}
+     return;
+   }
+   if(currentPlayer.status!=="ALIVE")return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="SABOTAGE"){
      if(!claimSabotageNotification(n))return;
@@ -5760,6 +5782,27 @@ async function renderIdentityRevealPlayer(p,g){
   const root=el('identityReveal');
   if(!root)return;
   root.innerHTML='<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;text-align:center"><div style="font-size:clamp(48px,9vw,110px);font-weight:1000;letter-spacing:.08em;text-shadow:0 0 28px rgba(255,255,255,.35)">정체공개</div></div>';
+}
+
+async function renderRoleRevealedPlayer(d,g){
+  const token=++voteRenderToken;
+  stopAllTimers();
+  await showScreen('identityReveal');
+  const root=el('identityReveal');
+  if(!root || token!==voteRenderToken)return;
+  const name=String(d?.name||'');
+  const role=String(d?.role||'').toUpperCase()==='WOLF'?'WOLF':'SHEEP';
+  const roleText=role==='WOLF'?'늑대':'양';
+  const ending=role==='WOLF'?'였습니다.':'이었습니다.';
+  const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
+  const particle=hasBatchim(name)?'은':'는';
+  const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
+  root.innerHTML='<div class="roleRevealedPlayerStage">'+
+    '<div class="roleRevealedPlayerResult">'+
+      '<div class="roleRevealedPlayerSentence"><span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span></div>'+
+      '<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 시작됩니다.</div>'+
+    '</div>'+
+  '</div>';
 }
 async function boot(){
  try{
