@@ -5626,8 +5626,8 @@ function realtime(){
      return;
    }
    if(["TRIAL_VOTE","SCREEN_VOTE"].includes(String(n.notification_type||"").toUpperCase()))return;
-   if(n.notification_type==="TRIAL_IDENTITY"){try{await renderIdentityRevealPlayer(await me(),await settings());}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
-   if(n.notification_type==="VOTE_RESULT"){try{await renderVoteResultPlayer(await me(),await settings());}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
+   if(n.notification_type==="TRIAL_IDENTITY"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;const d=JSON.parse(n.message||"{}");const currentEvent=String(g.notice||"").replace(/^IDENTITY_REVEAL\|/,"");if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderIdentityRevealPlayer(await me(),g);}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
+   if(n.notification_type==="VOTE_RESULT"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="VOTE_RESULT")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderVoteResultPlayer(await me(),g);}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
    if(n.notification_type==="NIGHT_WARNING"){
      const current=await settings();
      if(current.phase==="PLAY" && String(current.notice||"").startsWith("NIGHT_WARNING|"))await renderNightPreAlert(current);
