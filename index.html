@@ -5753,7 +5753,14 @@ async function confirmIdentity(){const g=await settings();if(String(g.phase).toU
   // 탈락 처리는 투표결과 화면에서 "처형되었습니다"가 표시되는 정확한 시점에 수행합니다.
   await renderAdmin();}
 async function latestIdentity(round){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","TRIAL_IDENTITY").order("id",{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(round))return d;}catch(_){}}return null;}
-async function renderIdentityRevealPlayer(p,g){const token=++voteRenderToken;stopAllTimers();await showScreen("identityReveal");const d=await latestIdentity(g.current_round);if(!d)return;const role=String(d.role||"").toUpperCase();el("identityReveal").innerHTML=`<div class="identityRevealStage ${role==="WOLF"?"wolf":"sheep"}"><div class="identityRevealCard"><div class="identityRevealName">${esc(d.name||"")} 양</div><div class="identityRevealRole">${role==="WOLF"?"늑대":"양"}</div></div></div>`;await wait(10000);if(token!==voteRenderToken)return;/* 정체 공개 후 PLAY로 자동 전환하지 않습니다. 관리자가 다음 라운드를 눌러야 합니다. */}
+async function renderIdentityRevealPlayer(p,g){
+  const token=++voteRenderToken;
+  stopAllTimers();
+  await showScreen('identityReveal');
+  const root=el('identityReveal');
+  if(!root)return;
+  root.innerHTML='<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;text-align:center"><div style="font-size:clamp(48px,9vw,110px);font-weight:1000;letter-spacing:.08em;text-shadow:0 0 28px rgba(255,255,255,.35)">정체공개</div></div>';
+}
 async function boot(){
  try{
   // 초기 로그인 화면은 Supabase 연결과 관계없이 항상 표시합니다.
