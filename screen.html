@@ -1785,7 +1785,7 @@ function preloadScreenSounds(){for(const [k,src] of Object.entries(SCREEN_SOUND_
 async function unlockScreenAudio(){if(screenAudioUnlocked)return;screenAudioUnlocked=true;try{const AC=window.AudioContext||window.webkitAudioContext;window.__screenAudioContext=window.__screenAudioContext||new AC();if(window.__screenAudioContext.state==='suspended')await window.__screenAudioContext.resume();}catch(_){} }
 async function playScreenSound(name,key="",loop=false,volume=.6){await unlockScreenAudio();const a=screenAudio[name];if(!a)return;const now=Date.now();if(key&&key===screenLastSoundKey&&now-screenLastSoundAt<1200)return;screenLastSoundKey=key||name;screenLastSoundAt=now;try{a.loop=loop;a.volume=volume;a.pause();a.currentTime=0;await a.play();}catch(_){} }
 function stopScreenSound(name){try{const a=screenAudio[name];if(a){a.pause();a.currentTime=0;a.loop=false;}}catch(_){}}
-function stopAllScreenBgm(){['titleBgm','title2Bgm','gameStartBgm','trialBgm','nightBgm','roleSelectionBgm','voteBgm'].forEach(stopScreenSound);}
+function stopAllScreenBgm(){try{if(typeof window.stopScreenTrialBgmFlow==='function')window.stopScreenTrialBgmFlow();}catch(_){} ['titleBgm','title2Bgm','gameStartBgm','trialBgm','nightBgm','roleSelectionBgm','voteBgm'].forEach(stopScreenSound);}
 preloadScreenSounds();
 
 async function playNightBgm(){await playScreenSound("nightBgm","night-bgm",true,.45)}
@@ -2267,7 +2267,7 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
    return;
  }
  if(phase==='PLAY'){
-   stopScreenSound('gameStartBgm');stopScreenSound('trialBgm');
+   stopScreenSound('gameStartBgm');stopScreenSound('trialBgm');stopScreenSound('voteBgm');
    if(String(g.notice||'').startsWith('NIGHT_WARNING|')){await screenNightWarning(g);return;}
    window.__screenNightWarningKey=null;
    show('s-main');updateScreenRoundTimer(g);await playTitle2();return;
@@ -2366,7 +2366,7 @@ function subscribe(){
 let screenVoteToken=0,screenVoteBoardTimer=null,screenLiveVoteEvent="",screenLiveVotes=new Map(),screenVoteResultCache=new Map();
 function screenVoteEvent(g){const m=String(g.notice||"").match(/^VOTE\|(.+)$/);return m?m[1]:"";}
 function screenVoteResultEvent(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/);return m?m[1]:"";}
-async function screenPlayVoteBgm(){stopAllScreenBgm();const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');screenAudio.voteBgm=a;a.loop=true;a.volume=.55;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
+async function screenPlayVoteBgm(){const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');screenAudio.voteBgm=a;a.loop=true;a.volume=.55;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
 function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
 async function screenVoteData(round,eventId){const r=await db.from('notifications').select('id,message').eq('notification_type','TRIAL_VOTE').order('id',{ascending:false}).limit(5000);if(r.error){console.warn('스크린 투표 데이터 조회 실패:',r.error.message);return new Map();}const m=new Map();for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;const voter=String(d.voter_id||'');if(voter&&!m.has(voter))m.set(voter,d);}catch(_){}}return m;}
 function screenApplyVoteEvent(d){const ev=String(d?.event_id||'');if(!ev)return;if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const voter=String(d.voter_id||'');if(voter)screenLiveVotes.set(voter,d);}
