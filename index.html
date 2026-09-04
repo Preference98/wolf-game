@@ -5629,6 +5629,8 @@ function realtime(){
    if(n.target_player && n.target_player!==playerId)return;
    if(String(n.notification_type||"").toUpperCase()==="ROLE_REVEALED"){
      try{
+       // 탈락한 플레이어는 정체 공개 완료 문구를 받지 않습니다.
+       if(String(currentPlayer.status||"").toUpperCase()!=="ALIVE")return;
        const g=await settings();
        if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;
        const d=JSON.parse(n.message||"{}");
