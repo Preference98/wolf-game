@@ -2300,7 +2300,7 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
 
 let screenTrialResultWatcherStarted=false;
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
-async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_VOTE'){try{const g=await getSettings();if(String(g.phase).toUpperCase()==='VOTE')await renderScreenVoteBoard(g);}catch(e){console.warn(e)}return;} if(type==='TRIAL_IDENTITY'){try{await screenIdentityRevealSequence(await getSettings())}catch(e){console.warn(e)}return} if(type==='VOTE_RESULT'){try{await screenVoteResultSequence(await getSettings())}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
+async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_VOTE'||type==='SCREEN_VOTE'){try{const d=JSON.parse(n.message||'{}');screenApplyVoteEvent(d);const g=await getSettings();if(String(g.phase).toUpperCase()==='VOTE')await renderScreenVoteBoard(g);}catch(e){console.warn('스크린 실시간 투표 이벤트 처리 오류:',e)}return;} if(type==='TRIAL_IDENTITY'){try{await screenIdentityRevealSequence(await getSettings())}catch(e){console.warn(e)}return} if(type==='VOTE_RESULT'){try{const d=JSON.parse(n.message||'{}');if(d.event_id)screenVoteResultCache.set(String(d.event_id),d);await screenVoteResultSequence(await getSettings())}catch(e){console.warn('스크린 투표결과 표시 오류:',e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
 function subscribe(){
   db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>{
     const next=payload.new||{};
@@ -2362,119 +2362,20 @@ function subscribe(){
     }catch(e){}
   },1000);
 }
-// VOTE BROADCAST SYSTEM v191
-let screenVoteToken=0,screenVoteBoardTimer=null;
-async function screenPlayVoteBgm(){
- stopScreenSound('trialBgm');
- stopAllScreenBgm();
- const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');
- screenAudio.voteBgm=a;
- a.loop=true;a.volume=.55;
- try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}
-}
+// VOTE BROADCAST SYSTEM v193
+let screenVoteToken=0,screenVoteBoardTimer=null,screenLiveVoteEvent="",screenLiveVotes=new Map(),screenVoteResultCache=new Map();
+function screenVoteEvent(g){const m=String(g.notice||"").match(/^VOTE\|(.+)$/);return m?m[1]:"";}
+function screenVoteResultEvent(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/);return m?m[1]:"";}
+async function screenPlayVoteBgm(){stopAllScreenBgm();const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');screenAudio.voteBgm=a;a.loop=true;a.volume=.55;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
 function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
-async function screenVoteData(round,eventId){
- const r=await db.from('notifications').select('id,message').eq('notification_type','TRIAL_VOTE').order('id',{ascending:false}).limit(5000);
- if(r.error)return new Map();
- const m=new Map();
- for(const n of r.data||[]){
-   try{
-     const d=JSON.parse(n.message||'{}');
-     if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;
-     const voter=String(d.voter_id||'');
-     if(!voter || m.has(voter))continue;
-     m.set(voter,d);
-   }catch(_){}
- }
- return m;
-}
-function screenVoteEvent(g){const m=String(g.notice||'').match(/^VOTE\|(.+)$/);return m?m[1]:'';}
-async function renderScreenVoteBoard(g,finalData=null){
- const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');
- if(playersR.error)return;
- const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE' || (finalData&&String(x.id)===String(finalData.player_id)));
- const votes=finalData?new Map(Object.entries(finalData.counts||{})):await screenVoteData(g.current_round,screenVoteEvent(g));
- const counts=finalData?new Map(Object.entries(finalData.counts||{})):(()=>{const m=new Map();for(const d of votes.values())m.set(String(d.candidate_id),(m.get(String(d.candidate_id))||0)+1);return m;})();
- const total=finalData?Number(finalData.total||players.length):players.length;
- const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';
- const title=$('screenVoteTitleCards');
- if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}
- const root=$('screenVotePlayers');if(!root)return;
- root.innerHTML=players.map(p=>{
-   const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;
-   return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';
- }).join('');
-}
-async function screenVoteSequence(g){
- const token=++screenVoteToken;
- stopAllScreenBgm();
- await screenPlayVoteBgm();
- show('s-vote');
- await renderScreenVoteBoard(g);
- if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);
- screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(_){}} ,700);
- if(token!==screenVoteToken)return;
-}
-async function screenVoteResultData(round){const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)===String(round))return d;}catch(_){}}return null;}
-async function screenVoteResultSequence(g){
- const token=++screenVoteToken;
- if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}
- stopScreenVoteBgm();
- // 투표 결과 데이터가 DB에 기록되는 시점과 phase 변경 시점의 순서 차이와 관계없이
- // 모든 경우에 먼저 '투표결과 집계 중...'을 정확히 3초간 보여줍니다.
- show('s-voteTally');
- await wait(3000);
- if(token!==screenVoteToken)return;
- let d=null;
- for(let i=0;i<20 && !d;i++){
-   d=await screenVoteResultData(g.current_round);
-   if(!d)await wait(250);
- }
- if(token!==screenVoteToken)return;
- if(!d)return;
- if(d.no_execution){
-   show('s-voteResult');
-   const root=document.getElementById('s-voteResult');
-   root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';
-   await wait(5000);
-   return;
- }
- show('s-voteResult');
- const root=document.getElementById('s-voteResult');
- root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';
- const title=document.getElementById('screenVoteTitle');
- const lead=document.getElementById('screenVoteLead');
- const fin=document.getElementById('screenVoteFinal');
- title.innerHTML='';
- ['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});
- lead.textContent=(d.name||'')+' 양은...';
- fin.textContent='';
- fin.classList.remove('show');
- await wait(2500);
- if(token!==screenVoteToken)return;
- fin.textContent='처형되었습니다';
- fin.classList.add('show');
- await wait(5000);
-}
-
-async function screenIdentityRevealSequence(g){
- const token=++screenVoteToken;
- stopScreenVoteBgm();
- const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_IDENTITY').order('id',{ascending:false}).limit(20);
- if(r.error)return;
- let d=null;
- for(const n of r.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(g.current_round)){d=x;break;}}catch(_){} }
- if(!d)return;
- const role=String(d.role||'').toUpperCase();
- const root=document.getElementById('screenIdentityRevealRoot');
- if(!root)return;
- root.className='identityRevealStage '+(role==='WOLF'?'wolf':'sheep');
- root.innerHTML='<div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div>';
- show('s-identityReveal');
- // 정체 공개 후 자동으로 본게임으로 복귀하지 않습니다. 관리자가 다음 라운드를 진행합니다.
- await wait(10000);
- if(token!==screenVoteToken)return;
-}
+async function screenVoteData(round,eventId){const r=await db.from('notifications').select('id,message').eq('notification_type','TRIAL_VOTE').order('id',{ascending:false}).limit(5000);if(r.error){console.warn('스크린 투표 데이터 조회 실패:',r.error.message);return new Map();}const m=new Map();for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;const voter=String(d.voter_id||'');if(voter&&!m.has(voter))m.set(voter,d);}catch(_){}}return m;}
+function screenApplyVoteEvent(d){const ev=String(d?.event_id||'');if(!ev)return;if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const voter=String(d.voter_id||'');if(voter)screenLiveVotes.set(voter,d);}
+async function renderScreenVoteBoard(g,finalData=null){const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');if(playersR.error){console.warn('스크린 투표 플레이어 조회 실패:',playersR.error.message);return;}const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE'||(finalData&&String(x.id)===String(finalData.player_id)));const ev=screenVoteEvent(g);if(!finalData&&ev){if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const fetched=await screenVoteData(g.current_round,ev);for(const [v,d] of fetched)screenLiveVotes.set(v,d);}const counts=new Map();if(finalData){for(const [id,c] of Object.entries(finalData.counts||{}))counts.set(String(id),Number(c)||0);}else{for(const d of screenLiveVotes.values()){const candidate=String(d.candidate_id||'');if(candidate)counts.set(candidate,(counts.get(candidate)||0)+1);}}const total=finalData?Number(finalData.total||players.length):players.length;const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';const title=$('screenVoteTitleCards');if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}const root=$('screenVotePlayers');if(!root)return;root.innerHTML=players.map(p=>{const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';}).join('');}
+async function screenVoteSequence(g){const token=++screenVoteToken;screenLiveVoteEvent=screenVoteEvent(g);screenLiveVotes=new Map();stopAllScreenBgm();await screenPlayVoteBgm();show('s-vote');await renderScreenVoteBoard(g);if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(e){console.warn('스크린 실시간 투표 갱신 오류:',e);}},700);if(token!==screenVoteToken)return;}
+async function screenVoteResultData(round,eventId){if(eventId&&screenVoteResultCache.has(eventId))return screenVoteResultCache.get(eventId);const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(50);if(r.error){console.warn('스크린 투표결과 조회 실패:',r.error.message);return null;}for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round))continue;if(eventId&&String(d.event_id)!==String(eventId))continue;if(d.event_id)screenVoteResultCache.set(String(d.event_id),d);return d;}catch(_){}}return null;}
+async function screenVoteResultSequence(g){const token=++screenVoteToken;if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const eventId=screenVoteResultEvent(g);let d=null;for(let i=0;i<40&&!d;i++){d=await screenVoteResultData(g.current_round,eventId);if(!d)await wait(250);}if(token!==screenVoteToken||!d)return;if(d.no_execution){show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';await wait(5000);if(token!==screenVoteToken)return;await screenAutoNextRoundNoWinner(g);return;}show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';const title=document.getElementById('screenVoteTitle'),lead=document.getElementById('screenVoteLead'),fin=document.getElementById('screenVoteFinal');title.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});lead.textContent=(d.name||'')+' 양은...';fin.textContent='';fin.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;fin.textContent='처형되었습니다';fin.classList.add('show');await wait(5000);}
+async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
+async function screenIdentityRevealSequence(g){const token=++screenVoteToken;const eventId=String(g.notice||'').replace(/^IDENTITY_REVEAL\|/,'');const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','TRIAL_IDENTITY').order('id',{ascending:false}).limit(50);if(r.error)return;let d=null;for(const n of r.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)!==String(g.current_round))continue;if(eventId&&String(x.event_id)!==eventId)continue;d=x;break;}catch(_){}}if(!d)return;const role=String(d.role||'').toUpperCase();const root=document.getElementById('screenIdentityRevealRoot');if(!root)return;root.className='identityRevealStage '+(role==='WOLF'?'wolf':'sheep');root.innerHTML='<div class="identityRevealCard"><div class="identityRevealName">'+screenEsc(d.name||'')+' 양</div><div class="identityRevealRole">'+(role==='WOLF'?'늑대':'양')+'</div></div>';show('s-identityReveal');await wait(10000);if(token!==screenVoteToken)return;}
 
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 $('unlockBtn').addEventListener('click',async()=>{

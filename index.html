@@ -5625,7 +5625,7 @@ function realtime(){
      }catch(err){console.warn("늑대방해 알림 처리 오류:",err);}
      return;
    }
-   if(String(n.notification_type||"").toUpperCase()==="TRIAL_VOTE")return;
+   if(["TRIAL_VOTE","SCREEN_VOTE"].includes(String(n.notification_type||"").toUpperCase()))return;
    if(n.notification_type==="TRIAL_IDENTITY"){try{await renderIdentityRevealPlayer(await me(),await settings());}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
    if(n.notification_type==="VOTE_RESULT"){try{await renderVoteResultPlayer(await me(),await settings());}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
    if(n.notification_type==="NIGHT_WARNING"){
@@ -5658,41 +5658,31 @@ async function votePlayers(){const r=await db.from("players").select("id,name,st
 function voteEvent(g){const m=String(g.notice||"").match(/^VOTE\\|(.+)$/);return m?m[1]:"";}
 async function myVote(g,pid){const ev=voteEvent(g);if(!ev)return null;const r=await db.from("notifications").select("id,message").eq("notification_type","TRIAL_VOTE").eq("target_player",String(pid)).order("id",{ascending:false}).limit(30);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(g.current_round)&&String(d.event_id)===ev)return d;}catch(_){}}return null;}
 async function submitVote(id,name){const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||String(g.phase).toUpperCase()!=="VOTE"){toast("현재는 투표할 수 없습니다.");return;}if(await myVote(g,p.id)){await renderVote(p,g);return;}const html=`<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button class="danger" style="flex:1" onclick="confirmVote('${esc(String(id))}','${esc(String(name))}')">처형</button></div>`;openOverlay("⚖️","처형 확인",String(name)+" 양을 처형할까요?","",html);}
-async function confirmVote(id,name){closeOverlay();const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||String(g.phase).toUpperCase()!=="VOTE"){toast("현재는 투표할 수 없습니다.");return;}if(await myVote(g,p.id)){await renderVote(p,g);return;}const ins=await db.from("notifications").insert({message:JSON.stringify({round:Number(g.current_round||0),event_id:voteEvent(g),voter_id:p.id,candidate_id:id,candidate_name:name}),target_player:String(p.id),notification_type:"TRIAL_VOTE"});if(ins.error){toast("투표 저장 실패: "+ins.error.message);return;}await renderVote(p,await settings());await tallyVotes(await settings());}
+async function confirmVote(id,name){closeOverlay();const p=await me(),g=await settings();if(!p||p.status!=="ALIVE"||String(g.phase).toUpperCase()!=="VOTE"){toast("현재는 투표할 수 없습니다.");return;}if(await myVote(g,p.id)){await renderVote(p,g);return;}const votePayload={round:Number(g.current_round||0),event_id:voteEvent(g),voter_id:p.id,candidate_id:id,candidate_name:name};
+ const ins=await db.from("notifications").insert({message:JSON.stringify(votePayload),target_player:String(p.id),notification_type:"TRIAL_VOTE"});if(ins.error){toast("투표 저장 실패: "+ins.error.message);return;}
+ await db.from("notifications").insert({message:JSON.stringify(votePayload),target_player:null,notification_type:"SCREEN_VOTE"});
+ await renderVote(p,await settings());await tallyVotes(await settings());}
 async function tallyVotes(g){
  if(String(g.phase).toUpperCase()!=="VOTE")return false;
  const ev=voteEvent(g),players=await votePlayers();
  if(!ev||!players.length)return false;
- const r=await db.from("notifications").select("message").eq("notification_type","TRIAL_VOTE").limit(2000);
+ const voterIds=new Set(players.map(p=>String(p.id)));
+ const r=await db.from("notifications").select("id,message").eq("notification_type","TRIAL_VOTE").limit(5000);
  if(r.error)return false;
  const votes=new Map();
- for(const n of r.data||[]){
-   try{
-     const d=JSON.parse(n.message||"{}");
-     if(String(d.round)!==String(g.current_round)||String(d.event_id)!==ev)continue;
-     if(!players.some(p=>String(p.id)===String(d.voter_id)))continue;
-     votes.set(String(d.voter_id),d);
-   }catch(_){}
- }
+ for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)!==String(g.current_round)||String(d.event_id)!==ev)continue;const voter=String(d.voter_id||"");if(!voterIds.has(voter))continue;votes.set(voter,d);}catch(_){}}
  if(votes.size<players.length)return false;
  const counts=new Map();
- for(const d of votes.values())counts.set(String(d.candidate_id),(counts.get(String(d.candidate_id))||0)+1);
- let max=0,winners=[];
- for(const p of players){
-   const c=counts.get(String(p.id))||0;
-   if(c>max){max=c;winners=[p];}
-   else if(c===max && c>0)winners.push(p);
- }
- const hasWinner=max>0 && winners.length===1;
- const winner=hasWinner?winners[0]:null;
+ for(const d of votes.values()){const candidate=String(d.candidate_id||"");if(voterIds.has(candidate))counts.set(candidate,(counts.get(candidate)||0)+1);}
+ let max=0,winners=[];for(const p of players){const c=counts.get(String(p.id))||0;if(c>max){max=c;winners=[p];}else if(c===max&&c>0)winners.push(p);}
+ const hasWinner=max>0&&winners.length===1,winner=hasWinner?winners[0]:null;
  const result={round:Number(g.current_round||0),event_id:ev,player_id:winner?.id||null,name:winner?.name||"",votes:hasWinner?max:0,total:players.length,counts:Object.fromEntries(counts),no_execution:!hasWinner};
- const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev}).eq("id",1).eq("phase","VOTE");
- if(lock.error)return false;
+ const existing=await db.from("notifications").select("id,message").is("target_player",null).eq("notification_type","VOTE_RESULT").order("id",{ascending:false}).limit(50);
+ if(!existing.error){for(const n of existing.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(result.round)&&String(d.event_id)===ev)return true;}catch(_){}}}
  const ins=await db.from("notifications").insert({message:JSON.stringify(result),target_player:null,notification_type:"VOTE_RESULT"});
  if(ins.error)return false;
- // 중요: 투표 집계 완료 시점에는 탈락 처리하지 않습니다.
- // "처형되었습니다" 문구가 실제 표시되는 순간 대상 플레이어 클라이언트에서만 DEAD 처리합니다.
- return true;
+ const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev}).eq("id",1).eq("phase","VOTE");
+ return !lock.error;
 }
 let voteCompletionTimer=null;
 function ensureVoteCompletionWatcher(){
@@ -5709,16 +5699,17 @@ function ensureVoteCompletionWatcher(){
 ensureVoteCompletionWatcher();
 
 async function renderVote(p,g){stopAllTimers();closeOverlay();await showScreen("vote");const grid=el("votePlayerGrid"),status=el("voteStatus"),players=await votePlayers(),mine=await myVote(g,p.id);if(mine){grid.innerHTML="";status.className="notice success";status.textContent=(mine.candidate_name||"선택된 플레이어")+" 양 ✅\n다른 플레이어의 선택을 기다리고 있습니다.";await tallyVotes(g);return;}status.className="notice";status.textContent="탈락시킬 플레이어를 선택해 주세요.";grid.innerHTML=players.map(x=>`<button class="votePlayerBtn" onclick="submitVote('${esc(String(x.id))}','${esc(x.name||"")}')">${esc(x.name||"이름 없음")}</button>`).join("");await tallyVotes(g);}
-async function latestVoteResult(round){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","VOTE_RESULT").order("id",{ascending:false}).limit(30);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(round))return d;}catch(_){}}return null;}
+async function latestVoteResult(round,eventId=""){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","VOTE_RESULT").order("id",{ascending:false}).limit(50);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)!==String(round))continue;if(eventId&&String(d.event_id)!==String(eventId))continue;return d;}catch(_){}}return null;}
 async function renderVoteResultPlayer(p,g){
  if(String(g.phase).toUpperCase()!=="VOTE_RESULT")return;
  const token=++voteRenderToken;stopAllTimers();
  await showScreen("voteTally");
  await wait(3000);
  if(token!==voteRenderToken)return;
+ const eventId=(String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/)||[])[1]||"";
  let d=null;
- for(let i=0;i<8 && !d;i++){
-   d=await latestVoteResult(g.current_round);
+ for(let i=0;i<20 && !d;i++){
+   d=await latestVoteResult(g.current_round,eventId);
    if(!d)await wait(250);
  }
  if(!d)return;
