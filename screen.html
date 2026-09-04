@@ -2300,7 +2300,7 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
 
 let screenTrialResultWatcherStarted=false;
 function isScreenNoticeType(type){return ['BODY_FOUND','DEAD_SHEEP_FOUND','CORPSE_FOUND','SABOTAGE','SYSTEM_SABOTAGE','SCREEN_SABOTAGE'].includes(type)}
-async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_IDENTITY'){try{await screenIdentityRevealSequence(await getSettings())}catch(e){console.warn(e)}return} if(type==='VOTE_RESULT'){try{await screenVoteResultSequence(await getSettings())}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
+async function onNotification(n){if(!unlocked||Date.now()<screenStartupLockUntil||!n||seenNotificationIds.has(n.id))return;seenNotificationIds.add(n.id);const type=String(n.notification_type||'').toUpperCase();if(type==='ADMIN'){await playScreenEffect('sounds/admin-notice.mp3','admin-notice-'+String(n.id)).catch(()=>{});return;} if(type==='DEATH'){await playScreenEffect('sounds/death.mp3','death-'+String(n.id)).catch(()=>{});return;} if(type==='TRIAL_VOTE'){try{const g=await getSettings();if(String(g.phase).toUpperCase()==='VOTE')await renderScreenVoteBoard(g);}catch(e){console.warn(e)}return;} if(type==='TRIAL_IDENTITY'){try{await screenIdentityRevealSequence(await getSettings())}catch(e){console.warn(e)}return} if(type==='VOTE_RESULT'){try{await screenVoteResultSequence(await getSettings())}catch(e){console.warn(e)}return}if(isScreenNoticeType(type)){try{const msg=String(n.message||'');if(type.includes('SABOTAGE'))await sabotageSequence({id:n.id});else{const g=await getSettings();if(String(g.phase).toUpperCase()==='INVESTIGATION')await investigationSequence(g);}}catch(e){console.warn(e)}}}
 function subscribe(){
   db.channel('wolf-game-screen-settings-v174').on('postgres_changes',{event:'UPDATE',schema:'public',table:'game_settings',filter:'id=eq.1'},payload=>{
     const next=payload.new||{};
@@ -2374,10 +2374,18 @@ async function screenPlayVoteBgm(){
 }
 function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
 async function screenVoteData(round,eventId){
- const r=await db.from('notifications').select('message').eq('notification_type','TRIAL_VOTE').limit(2000);
+ const r=await db.from('notifications').select('id,message').eq('notification_type','TRIAL_VOTE').order('id',{ascending:false}).limit(5000);
  if(r.error)return new Map();
  const m=new Map();
- for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;m.set(String(d.voter_id),d);}catch(_){}}
+ for(const n of r.data||[]){
+   try{
+     const d=JSON.parse(n.message||'{}');
+     if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;
+     const voter=String(d.voter_id||'');
+     if(!voter || m.has(voter))continue;
+     m.set(voter,d);
+   }catch(_){}
+ }
  return m;
 }
 function screenVoteEvent(g){const m=String(g.notice||'').match(/^VOTE\|(.+)$/);return m?m[1]:'';}
@@ -2412,21 +2420,43 @@ async function screenVoteResultSequence(g){
  const token=++screenVoteToken;
  if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}
  stopScreenVoteBgm();
- const d=await screenVoteResultData(g.current_round);
- if(d?.no_execution){
-   show('s-voteResult');
-   const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';
-   await wait(5000);
-   return;
- }
+ // 투표 결과 데이터가 DB에 기록되는 시점과 phase 변경 시점의 순서 차이와 관계없이
+ // 모든 경우에 먼저 '투표결과 집계 중...'을 정확히 3초간 보여줍니다.
  show('s-voteTally');
  await wait(3000);
  if(token!==screenVoteToken)return;
+ let d=null;
+ for(let i=0;i<20 && !d;i++){
+   d=await screenVoteResultData(g.current_round);
+   if(!d)await wait(250);
+ }
+ if(token!==screenVoteToken)return;
  if(!d)return;
- show('s-vote');
- await renderScreenVoteBoard(g,d);
+ if(d.no_execution){
+   show('s-voteResult');
+   const root=document.getElementById('s-voteResult');
+   root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';
+   await wait(5000);
+   return;
+ }
+ show('s-voteResult');
+ const root=document.getElementById('s-voteResult');
+ root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';
+ const title=document.getElementById('screenVoteTitle');
+ const lead=document.getElementById('screenVoteLead');
+ const fin=document.getElementById('screenVoteFinal');
+ title.innerHTML='';
+ ['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});
+ lead.textContent=(d.name||'')+' 양은...';
+ fin.textContent='';
+ fin.classList.remove('show');
+ await wait(2500);
+ if(token!==screenVoteToken)return;
+ fin.textContent='처형되었습니다';
+ fin.classList.add('show');
  await wait(5000);
 }
+
 async function screenIdentityRevealSequence(g){
  const token=++screenVoteToken;
  stopScreenVoteBgm();
