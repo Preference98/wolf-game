@@ -2307,7 +2307,7 @@ function bindCardSelectionV20(){
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
-<div id="actionDock" class="actionDock"></div><button id="emergencyReportFloat" class="emergencyReportFloat" type="button" onclick="openEmergencyReport()">🚨 긴급신고</button>
+<div id="actionDock" class="actionDock"></div><button id="emergencyReportFloat" class="emergencyReportFloat" type="button" onclick="window.openEmergencyReport()">🚨 긴급신고</button>
 </section>
 
 <section id="deathConfirm" class="screen">
@@ -3615,7 +3615,7 @@ function stopEmergencyNfcScan(){
  try{if(emergencyNfcAbortController)emergencyNfcAbortController.abort();}catch(_){ }
  emergencyNfcAbortController=null;emergencyNfcReader=null;emergencyNfcHandled=false;
 }
-async function openEmergencyReport(){
+window.openEmergencyReport=async function(){
  const p=await me().catch(()=>null),g=await settings().catch(()=>null);
  if(!p||p.status!=="ALIVE"){toast("현재는 긴급신고를 사용할 수 없습니다.");return;}
  if(!emergencyReportAllowed(g)){toast("현재는 긴급신고를 사용할 수 없습니다.");return;}
@@ -3641,7 +3641,7 @@ async function openEmergencyReport(){
    toast("NFC 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
  }
 }
-function cancelEmergencyNfc(){closeOverlay();stopEmergencyNfcScan();}
+window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();}
 async function submitEmergencyReport(event){
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||!emergencyReportAllowed(g)){closeOverlay();stopEmergencyNfcScan();toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");return;}
