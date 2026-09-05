@@ -373,6 +373,12 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .actionDock .dockMain .chev{font-size:11px;display:block;line-height:10px}
 @media(max-width:600px){.actionDock{right:14px;bottom:14px}.actionDock .dockMain,.actionDock .dockItem{width:58px;height:58px}}
 
+/* 긴급신고: 왼쪽 하단 독립 플로팅 버튼 */
+.emergencyReportFloat{position:fixed;left:18px;bottom:18px;z-index:9001;display:none;align-items:center;justify-content:center;min-width:112px;height:52px;padding:0 18px;border-radius:999px;border:2px solid rgba(255,255,255,.28);background:#b91c1c;color:#fff;font-weight:1000;font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.48);cursor:pointer}
+.emergencyReportFloat.show{display:flex}
+@media(max-width:600px){.emergencyReportFloat{left:14px;bottom:14px;min-width:104px;height:48px;font-size:15px}}
+
+
 .trialScreen{min-height:100vh;padding:22px 18px 40px;background:radial-gradient(circle at 50% 20%,#260006,#070707 55%,#000);color:#fff}
 .trialGauge{position:sticky;top:0;z-index:3;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);padding:12px 16px;border-bottom:1px solid #5d1218}
 .trialGaugeBar{height:14px;background:#251014;border-radius:999px;overflow:hidden;margin-top:7px}
@@ -2301,7 +2307,7 @@ function bindCardSelectionV20(){
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
-<div id="actionDock" class="actionDock"></div>
+<div id="actionDock" class="actionDock"></div><button id="emergencyReportFloat" class="emergencyReportFloat" type="button" onclick="openEmergencyReport()">🚨 긴급신고</button>
 </section>
 
 <section id="deathConfirm" class="screen">
@@ -2518,6 +2524,7 @@ function bindCardSelectionV20(){
         <button onclick="saveGameRules()">게임 규칙 저장</button><span id="rulesSaveStatus" class="small muted"></span>
       </div>
       <div class="notice" style="margin-top:10px">활성 장소 수는 별도 설정하지 않고 양 1인당 미션 수와 동일하게 결정됩니다. 늑대방해는 늑대 전체가 공유합니다.</div>
+      <div class="adminField" style="margin-top:14px"><label class="small">🚨 긴급신고 NFC 태그명</label><input id="emergencyNfcTag" type="text" maxlength="100" placeholder="예: 긴급신고"><div class="small muted" style="margin-top:4px">플레이어가 긴급신고 버튼을 누른 뒤 태그할 NFC의 태그명(NDEF 텍스트)을 입력합니다.</div></div>
     </div>
 
     <div class="card">
@@ -2607,6 +2614,8 @@ let localSabotageCooldownUntil=0,localSabotageEventId=null;
 let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageEnd=0;
 let sabotageNotificationTimer=null,sabotageNotificationMinId=0,sabotageNotificationStarted=false;
 let sabotageBoardRefreshTimer=null;
+let emergencyInterruptUntil=0;
+let emergencyNfcReader=null,emergencyNfcAbortController=null,emergencyNfcHandled=false;
 
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
@@ -3191,12 +3200,16 @@ async function routeCore(){
    case "IDENTITY_REVEAL":
      playerGameStartSequenceToken++;
      await renderIdentityRevealPlayer(p,g);return;
+   case "EMERGENCY_OUTCOME":
+     playerGameStartSequenceToken++;
+     await renderEmergencyOutcomePlayer(p,g);return;
    case "FINISHED":
      playerGameStartSequenceToken++;
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
      return;
    case "PLAY":
      playerGameStartSequenceToken++;
+     if(String(g.notice||"").startsWith("EMERGENCY_REPORT|")){await renderEmergencyTrialReady(p,g);return;}
      if(String(g.notice||"").startsWith("NIGHT_WARNING|")){
        await renderNightPreAlert(g);
        return;
@@ -3552,12 +3565,162 @@ async function renderNight(p,g){
  tick();
  if(gameNow()<endMs)window.__nightLocalTimer=setInterval(tick,250);
 }
+function emergencyNoticeData(g){
+ const raw=String(g?.notice||"");
+ const m=raw.match(/^EMERGENCY_REPORT\|([^|]+)$/);
+ return m?{eventId:m[1]}:null;
+}
+async function hasEmergencyReportThisRound(round){
+ const r=await db.from("notifications").select("id,message").eq("notification_type","EMERGENCY_REPORT").order("id",{ascending:false}).limit(100);
+ if(r.error)return false;
+ for(const n of r.data||[]){
+   try{const d=JSON.parse(n.message||"{}");if(Number(d.round)===Number(round))return true;}catch(_){ }
+ }
+ return false;
+}
+function emergencyReportAllowed(g){
+ if(!g||String(g.phase).toUpperCase()!=="PLAY")return false;
+ if(String(g.notice||"").startsWith("EMERGENCY_REPORT|"))return false;
+ if(String(g.notice||"").startsWith("NIGHT_WARNING|"))return false;
+ const started=Date.parse(g.round_started_at||"");
+ const elapsed=Number.isFinite(started)?Math.max(0,gameNow()-started):Infinity;
+ const durationMinutes=Number(g.round_duration_minutes)||15;
+ return durationMinutes<5 || elapsed>=5*60*1000;
+}
+async function updateEmergencyButton(g){
+ const b=el("emergencyReportFloat");
+ if(!b)return;
+ let sabotageActive=false;
+ try{const st=await getSabotageState(g.current_round);sabotageActive=!!st?.active;}catch(_){ }
+ const allowed=emergencyReportAllowed(g) && !sabotageActive && !(await hasEmergencyReportThisRound(g.current_round));
+ b.classList.toggle("show",allowed);
+ b.disabled=!allowed;
+}
+function emergencyTagMatches(event, configuredTag){
+ const records=event?.message?.records||[];let values=[];
+ for(const rec of records){
+   try{
+     if(rec.recordType==="text" || rec.recordType==="url" || rec.recordType==="absolute-url" || rec.recordType==="unknown"){
+       values.push(new TextDecoder(rec.encoding||"utf-8").decode(rec.data));
+     }
+   }catch(_){ }
+ }
+ const normalized=s=>String(s||"").trim().replace(/\s+/g," ").toUpperCase();
+ const configured=normalized(configuredTag||"긴급신고");
+ const combined=values.map(normalized).join("|");
+ if(configured && combined.includes(configured))return true;
+ return combined.includes("EMERGENCY_REPORT");
+}
+function stopEmergencyNfcScan(){
+ try{if(emergencyNfcAbortController)emergencyNfcAbortController.abort();}catch(_){ }
+ emergencyNfcAbortController=null;emergencyNfcReader=null;emergencyNfcHandled=false;
+}
+async function openEmergencyReport(){
+ const p=await me().catch(()=>null),g=await settings().catch(()=>null);
+ if(!p||p.status!=="ALIVE"){toast("현재는 긴급신고를 사용할 수 없습니다.");return;}
+ if(!emergencyReportAllowed(g)){toast("현재는 긴급신고를 사용할 수 없습니다.");return;}
+ if(await hasEmergencyReportThisRound(g.current_round)){toast("이번 라운드의 긴급신고는 이미 사용되었습니다.");await updateEmergencyButton(g);return;}
+ const sabotageState=await getSabotageState(g.current_round).catch(()=>({active:false}));
+ if(sabotageState?.active){toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");return;}
+ if(!("NDEFReader" in window)){toast("이 브라우저에서는 NFC 긴급신고를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.");return;}
+ emergencyNfcHandled=false;
+ openOverlay("🚨","긴급신고","신고를 원하시면 태그 해주세요.","alarm",'<button class="secondary" style="width:100%" onclick="cancelEmergencyNfc()">취소</button>');
+ try{
+   const reader=new NDEFReader(); emergencyNfcReader=reader;
+   emergencyNfcAbortController=new AbortController();
+   reader.onreadingerror=()=>toast("NFC 태그를 읽지 못했습니다. 다시 태그해 주세요.");
+   reader.onreading=async(event)=>{
+     if(emergencyNfcHandled)return;
+     if(!emergencyTagMatches(event,g.emergency_nfc_tag)){toast("긴급신고용 NFC 태그가 아닙니다.");return;}
+     emergencyNfcHandled=true;
+     await submitEmergencyReport(event).catch(e=>{emergencyNfcHandled=false;toast("긴급신고 처리 실패: "+(e.message||String(e)));});
+   };
+   await reader.scan({signal:emergencyNfcAbortController.signal});
+ }catch(e){
+   closeOverlay();stopEmergencyNfcScan();
+   toast("NFC 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
+ }
+}
+function cancelEmergencyNfc(){closeOverlay();stopEmergencyNfcScan();}
+async function submitEmergencyReport(event){
+ const p=await me(),g=await settings();
+ if(!p||p.status!=="ALIVE"||!emergencyReportAllowed(g)){closeOverlay();stopEmergencyNfcScan();toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");return;}
+ if(await hasEmergencyReportThisRound(g.current_round)){closeOverlay();stopEmergencyNfcScan();toast("이번 라운드의 긴급신고는 이미 접수되었습니다.");return;}
+ const sabotageState=await getSabotageState(g.current_round).catch(()=>({active:false}));
+ if(sabotageState?.active){closeOverlay();stopEmergencyNfcScan();toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");return;}
+ const eventId="emergency-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+ const emergencyStartedAt=serverNowISO();
+ const payload={round:Number(g.current_round||0),event_id:eventId,reporter_id:p.id,reporter_name:p.name||"",emergency_started_at:emergencyStartedAt,round_started_at_before:g.round_started_at||null};
+ const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId}).eq("id",1).eq("phase","PLAY").eq("notice",String(g.notice||"")).select("id");
+ if(lock.error||!lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
+ const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"EMERGENCY_REPORT"});
+ if(ins.error){await db.from("game_settings").update({notice:g.notice||""}).eq("id",1).eq("phase","PLAY").eq("notice","EMERGENCY_REPORT|"+eventId);throw new Error("긴급신고 알림 저장 실패: "+ins.error.message);}
+ closeOverlay();stopEmergencyNfcScan();emergencyInterruptUntil=gameNow()+120000;stopAllTimers();await renderEmergencyTrialReady(await me(),await settings());
+}
+async function renderEmergencyTrialReady(p,g,showPopup=true){
+ emergencyInterruptUntil=gameNow()+120000;
+ stopAllTimers();closeOverlay();
+ await showScreen("trialReadyAnnouncement");
+ const root=el("trialReadyAnnouncement");
+ if(root)root.innerHTML='<div class="lock"><div><div class="symbol">🚨</div><h1>긴급신고</h1><p style="font-size:24px;font-weight:900;line-height:1.6">잠시 후 늑대재판이 시작됩니다.</p><p class="muted">관리자가 재판시작을 누를 때까지 기다려 주세요.</p></div></div>';
+ if(showPopup){
+   openOverlay("🚨","긴급신고","누군가 늑대로 의심되는 양을 발견했습니다\n잠시 후 늑대재판이 시작됩니다.","alarm",'<button onclick="closeOverlay()">확인</button>');
+ }
+}
+async function finishEmergencyNoExecution(g){
+ const outcomeId="emergency-outcome-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+ const lock=await db.from("game_settings").update({phase:"EMERGENCY_OUTCOME",notice:"EMERGENCY_OUTCOME|"+outcomeId+"|FAIL"}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0)).select("id");
+ if(lock.error)return false;
+ const ins=await db.from("notifications").insert({message:JSON.stringify({round:Number(g.current_round||0),event_id:outcomeId,success:false,no_execution:true}),target_player:null,notification_type:"EMERGENCY_OUTCOME"});
+ if(ins.error)console.warn("긴급신고 무처형 결과 알림 저장 실패:",ins.error.message);
+ setTimeout(async()=>{try{await resumeEmergencyRound(await settings());}catch(e){console.error("긴급신고 무처형 후 게임 재개 오류:",e);}},5000);
+ return true;
+}
+
+function adjustEmergencyMissionTimers(g){
+ const raw=String(g?.notice||'');
+ const m=raw.match(/^EMERGENCY_RESUME\|([0-9]+)\|(.+)$/);
+ if(!m)return;
+ const key='wolf-emergency-timer-shift:'+String(g.current_round)+'|'+m[2];
+ if(sessionStorage.getItem(key)==='1')return;
+ const shift=Math.max(0,Number(m[1])||0);
+ if(shift>0){
+   const prefix='wolf-mission-end:'+String(g.current_round)+':'+String(playerId)+':';
+   for(let i=0;i<sessionStorage.length;i++){
+     const k=sessionStorage.key(i);if(!k||!k.startsWith(prefix))continue;
+     const v=Number(sessionStorage.getItem(k)||0);if(Number.isFinite(v)&&v>0)sessionStorage.setItem(k,String(v+shift));
+   }
+ }
+ sessionStorage.setItem(key,'1');
+}
+
+async function resumeEmergencyRound(g){
+ const reportR=await db.from("notifications").select("message").eq("notification_type","EMERGENCY_REPORT").order("id",{ascending:false}).limit(100);
+ let report=null;
+ for(const n of reportR.data||[]){try{const d=JSON.parse(n.message||"{}");if(Number(d.round)===Number(g.current_round)){report=d;break;}}catch(_){}}
+ const resumeAt=serverNowISO();
+ let adjusted=g.round_started_at||null;
+ let pausedMs=0;
+ if(report?.round_started_at_before&&report?.emergency_started_at){
+   const base=Date.parse(report.round_started_at_before),paused=Date.parse(report.emergency_started_at),now=Date.parse(resumeAt);
+   if(Number.isFinite(base)&&Number.isFinite(paused)&&Number.isFinite(now)){pausedMs=Math.max(0,now-paused);adjusted=new Date(base+pausedMs).toISOString();}
+ }
+ await db.from("wolf_attempts").delete().eq("game_round",Number(g.current_round||0));
+ const resumeKey=Date.now()+"-"+Math.random().toString(36).slice(2,7);
+ const r=await db.from("game_settings").update({phase:"PLAY",notice:"EMERGENCY_RESUME|"+String(pausedMs)+"|"+resumeKey,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:adjusted||resumeAt}).eq("id",1).eq("phase","EMERGENCY_OUTCOME").eq("current_round",Number(g.current_round||0)).select("id");
+ if(r.error)throw new Error("게임 재개 실패: "+r.error.message);
+ emergencyInterruptUntil=0;
+ await route();
+}
+
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
+  if(emergencyInterruptUntil>gameNow())return;
   stopGameStartBgm();
   stopMissionTimer();
   const p=await me(),g=await settings();
   window.__lastSettings=g;
+  adjustEmergencyMissionTimers(g);
 
   if(!p||p.status!=="ALIVE"){await route();return;}
 
@@ -3623,6 +3786,7 @@ async function renderPlayerCore(){
   // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
+  await updateEmergencyButton(g);
 
   showScreen("player");
   startSabotageUiWatcher();
@@ -4584,7 +4748,7 @@ async function renderAdmin(){
     :[];
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
-  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
+  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
   if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=p.length?p.map((x,i)=>{
     const removed=String(x.status||"").toUpperCase()==="REMOVED";
@@ -4608,10 +4772,10 @@ async function renderAdmin(){
   if(roleBtn)roleBtn.disabled=g.phase!=="LOBBY";
   if(skipBtn)skipBtn.disabled=!g.ready || !["LOBBY","ROLE_REVEAL"].includes(String(g.phase));
   if(nightBtn)nightBtn.disabled=!["PLAY","INVESTIGATION","TRIAL"].includes(String(g.phase));
-  if(trialBtn)trialBtn.disabled=!['INVESTIGATION','TRIAL'].includes(String(g.phase));
+  if(trialBtn)trialBtn.disabled=!(['INVESTIGATION','TRIAL'].includes(String(g.phase)) || (String(g.phase)==='PLAY' && String(g.notice||'').startsWith('EMERGENCY_REPORT|')));
   if(voteBtn)voteBtn.disabled=String(g.phase)!=="TRIAL";
   if(identityBtn)identityBtn.disabled=String(g.phase)!=="VOTE_RESULT";
-  if(el("trialFlowStatus"))el("trialFlowStatus").textContent={TRIAL:"재판 진행 중 · 투표시작을 눌러 투표를 시작할 수 있습니다.",VOTE:"투표 진행 중 · 모든 플레이어의 투표를 기다리는 중입니다.",VOTE_RESULT:"투표 결과 공개 완료 · 정체확인을 눌러 정체를 공개합니다.",IDENTITY_REVEAL:"탈락자 정체 공개 중입니다."}[String(g.phase)]||"현재 재판 단계가 아닙니다.";
+  if(el("trialFlowStatus"))el("trialFlowStatus").textContent={TRIAL:"재판 진행 중 · 투표시작을 눌러 투표를 시작할 수 있습니다.",VOTE:"투표 진행 중 · 모든 플레이어의 투표를 기다리는 중입니다.",VOTE_RESULT:"투표 결과 공개 완료 · 정체확인을 눌러 정체를 공개합니다.",IDENTITY_REVEAL:"탈락자 정체 공개 중입니다."}[String(g.phase)]||((String(g.phase)==="PLAY"&&String(g.notice||"").startsWith("EMERGENCY_REPORT|"))?"긴급신고 접수 · 재판시작을 기다리는 중입니다.":"현재 재판 단계가 아닙니다.");
   showScreen("admin");
  }catch(e){console.error(e);showError("playerList",e.message||String(e));}
 }
@@ -4812,11 +4976,13 @@ async function nextRound(){
 }
 async function startTrial(){
  const g=await settings();
+ const emergency=String(g.notice||"").startsWith("EMERGENCY_REPORT|");
  if(["LOBBY","ROLE_INTRO","ROLE_REVEAL","COUNTDOWN"].includes(String(g.phase))){
    toast("게임이 아직 시작되지 않았습니다.");return;
  }
+ if(!emergency && !["INVESTIGATION","TRIAL"].includes(String(g.phase))){toast("현재 상태에서는 재판을 시작할 수 없습니다.");return;}
  stopAllAdminBgm();
- await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
+ await set({phase:"TRIAL",notice:emergency?"TRIAL|EMERGENCY":"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
  toast("재판 시작 알림을 전송했습니다.");
  await renderAdmin();
 }
@@ -4932,7 +5098,11 @@ async function saveGameRules(){
    const nightSeconds=Math.floor(Number(el("nightSeconds").value));
    const gaugePenalty=Math.floor(Number(el("nightGaugePenalty").value));
    const roundPenalty=Math.floor(Number(el("nightRoundPenaltyMinutes").value));
+   const emergencyNfcTag=String(el("emergencyNfcTag")?.value||"").trim();
 
+   if(!emergencyNfcTag){
+     toast("긴급신고 NFC 태그명을 입력해 주세요.");return;
+   }
    if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=Math.max(2,players.length)){
      toast("늑대 수가 현재 인원에 맞지 않습니다.");return;
    }
@@ -4966,7 +5136,8 @@ async function saveGameRules(){
      sabotage_cooldown_seconds:sabotageCooldown,
      night_duration_seconds:nightSeconds,
      night_gauge_penalty:gaugePenalty,
-     night_round_penalty_minutes:roundPenalty
+     night_round_penalty_minutes:roundPenalty,
+     emergency_nfc_tag:emergencyNfcTag
    };
    const r=await db.from("game_settings").update(payload).eq("id",1);
    if(r.error){
@@ -4980,7 +5151,7 @@ async function saveGameRules(){
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
    if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
-   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty};
+   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
    for(const [key,want] of Object.entries(verifyPairs)){
      if(Number(verify.data[key])!==Number(want)){
        throw new Error("저장 확인 실패: DB의 "+key+" 값이 "+verify.data[key]+"로 확인되었습니다. 입력값 "+want+"가 저장되지 않았습니다.");
@@ -5642,6 +5813,16 @@ function realtime(){
    }
    if(currentPlayer.status!=="ALIVE")return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
+   if(n.notification_type==="EMERGENCY_REPORT"){
+     try{
+       const g=await settings();
+       if(Number(g.current_round)!==Number(JSON.parse(n.message||"{}").round))return;
+       emergencyInterruptUntil=gameNow()+120000;
+       await renderEmergencyTrialReady(currentPlayer,g);
+       await playSound("deadSheepFound","emergency-report-"+String(n.id)).catch(()=>{});
+     }catch(err){console.warn("긴급신고 알림 처리 오류:",err);}
+     return;
+   }
    if(n.notification_type==="SABOTAGE"){
      if(!claimSabotageNotification(n))return;
      try{
@@ -5650,6 +5831,9 @@ function realtime(){
      return;
    }
    if(["TRIAL_VOTE","SCREEN_VOTE"].includes(String(n.notification_type||"").toUpperCase()))return;
+   if(n.notification_type==="EMERGENCY_OUTCOME"){
+     try{const g=await settings();if(String(g.phase).toUpperCase()!=="EMERGENCY_OUTCOME")return;await renderEmergencyOutcomePlayer(currentPlayer,g);}catch(err){console.warn("긴급신고 결과 표시 오류:",err);}return;
+   }
    if(n.notification_type==="TRIAL_IDENTITY"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;const d=JSON.parse(n.message||"{}");const currentEvent=String(g.notice||"").replace(/^IDENTITY_REVEAL\|/,"");if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderIdentityRevealPlayer(await me(),g);}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
    if(n.notification_type==="VOTE_RESULT"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="VOTE_RESULT")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderVoteResultPlayer(await me(),g);}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
    if(n.notification_type==="NIGHT_WARNING"){
@@ -5677,7 +5861,7 @@ function realtime(){
 // TRIAL VOTING SYSTEM v190
 let voteRenderToken=0;
 function voteEventId(){return 'vote-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);}
-async function startVote(){const g=await settings();if(String(g.phase).toUpperCase()!=="TRIAL"){toast("재판 화면에서만 투표를 시작할 수 있습니다.");return;}const id=voteEventId();const r=await db.from("game_settings").update({phase:"VOTE",notice:"VOTE|"+id}).eq("id",1).eq("phase","TRIAL");if(r.error){toast("투표 시작 실패: "+r.error.message);return;}toast("투표를 시작했습니다.");await renderAdmin();}
+async function startVote(){const g=await settings();if(String(g.phase).toUpperCase()!=="TRIAL"){toast("재판 화면에서만 투표를 시작할 수 있습니다.");return;}const id=voteEventId();const emergency=String(g.notice||"")==="TRIAL|EMERGENCY" || await hasEmergencyReportThisRound(g.current_round);const r=await db.from("game_settings").update({phase:"VOTE",notice:"VOTE|"+(emergency?"EMERGENCY|":"")+id}).eq("id",1).eq("phase","TRIAL");if(r.error){toast("투표 시작 실패: "+r.error.message);return;}toast("투표를 시작했습니다.");await renderAdmin();}
 async function votePlayers(){const r=await db.from("players").select("id,name,status").eq("status","ALIVE").order("created_at").order("id");if(r.error)throw new Error("투표 대상 조회 실패: "+r.error.message);return r.data||[];}
 function voteEvent(g){const m=String(g.notice||"").match(/^VOTE\\|(.+)$/);return m?m[1]:"";}
 async function myVote(g,pid){const ev=voteEvent(g);if(!ev)return null;const r=await db.from("notifications").select("id,message").eq("notification_type","TRIAL_VOTE").eq("target_player",String(pid)).order("id",{ascending:false}).limit(30);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(g.current_round)&&String(d.event_id)===ev)return d;}catch(_){}}return null;}
@@ -5705,7 +5889,8 @@ async function tallyVotes(g){
  if(!existing.error){for(const n of existing.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(result.round)&&String(d.event_id)===ev)return true;}catch(_){}}}
  const ins=await db.from("notifications").insert({message:JSON.stringify(result),target_player:null,notification_type:"VOTE_RESULT"});
  if(ins.error)return false;
- const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev}).eq("id",1).eq("phase","VOTE");
+ const emergency=String(g.notice||"").startsWith("VOTE|EMERGENCY|");
+ const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+(emergency?"EMERGENCY|":"")+ev}).eq("id",1).eq("phase","VOTE");
  return !lock.error;
 }
 let voteCompletionTimer=null;
@@ -5744,7 +5929,7 @@ async function renderVoteResultPlayer(p,g){
    await showScreen("voteResult");
    await wait(5000);
    if(token!==voteRenderToken)return;
-   await autoNextRoundNoWinner(g);
+   if(String(g.notice||"").startsWith("VOTE_RESULT|EMERGENCY|")){await finishEmergencyNoExecution(g);}else{await autoNextRoundNoWinner(g);}
    return;
  }
  await showScreen("voteResult");
@@ -5772,10 +5957,40 @@ async function autoNextRoundNoWinner(g){
  try{await db.rpc("reset_round_mission_progress",{p_game_round:Number(g.current_round||0)});}catch(_){}
 }
 
-async function confirmIdentity(){const g=await settings();if(String(g.phase).toUpperCase()!=="VOTE_RESULT"){toast("투표 결과 공개 후 정체확인을 눌러 주세요.");return;}const d=await latestVoteResult(g.current_round);if(!d?.player_id){toast("처형할 양이 없습니다. 다음 라운드로 진행됩니다.");return;}const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}const payload={round:Number(g.current_round||0),event_id:d.event_id,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id}).eq("id",1).eq("phase","VOTE_RESULT");if(lock.error){toast("정체 공개 단계 전환 실패: "+lock.error.message);return;}const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});if(ins.error){toast("정체 공개 전송 실패: "+ins.error.message);return;}toast(r.data.name+"의 정체를 공개합니다.");
-  // 정체확인 단계에서도 탈락 처리는 하지 않습니다.
-  // 탈락 처리는 투표결과 화면에서 "처형되었습니다"가 표시되는 정확한 시점에 수행합니다.
-  await renderAdmin();}
+async function confirmIdentity(){
+ const g=await settings();
+ if(String(g.phase).toUpperCase()!=="VOTE_RESULT"){toast("투표 결과 공개 후 정체확인을 눌러 주세요.");return;}
+ const d=await latestVoteResult(g.current_round);
+ if(!d?.player_id){toast("처형할 양이 없습니다. 다음 라운드로 진행됩니다.");return;}
+ const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();
+ if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}
+ const emergency=String(g.notice||"").startsWith("VOTE_RESULT|EMERGENCY|");
+ if(emergency){
+   const wolves=(await db.from("players").select("id,status").eq("role","WOLF").eq("status","ALIVE")).data||[];
+   const success=wolves.length===0;
+   const outcomeId="emergency-outcome-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+   const lock=await db.from("game_settings").update({phase:"EMERGENCY_OUTCOME",notice:"EMERGENCY_OUTCOME|"+outcomeId+"|"+(success?"SUCCESS":"FAIL")}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0)).select("id");
+   if(lock.error||!lock.data?.length){toast("긴급신고 결과 전환에 실패했습니다.");return;}
+   const ins=await db.from("notifications").insert({message:JSON.stringify({round:Number(g.current_round||0),event_id:outcomeId,success,player_id:r.data.id,name:r.data.name||""}),target_player:null,notification_type:"EMERGENCY_OUTCOME"});
+   if(ins.error)console.warn("긴급신고 결과 알림 저장 실패:",ins.error.message);
+   toast(success?"늑대를 모두 발견했습니다.":"늑대가 남아 있어 게임을 재개합니다.");
+   await renderAdmin();
+   if(success){
+     setTimeout(()=>nextRound().catch(e=>console.error("긴급신고 성공 후 다음 라운드 전환 실패:",e)),3500);
+   }else{
+     setTimeout(async()=>{try{await resumeEmergencyRound(await settings());}catch(e){console.error("긴급신고 실패 후 게임 재개 오류:",e);}},5000);
+   }
+   return;
+ }
+ const payload={round:Number(g.current_round||0),event_id:d.event_id,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
+ const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id}).eq("id",1).eq("phase","VOTE_RESULT");
+ if(lock.error){toast("정체 공개 단계 전환 실패: "+lock.error.message);return;}
+ const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});
+ if(ins.error){toast("정체 공개 전송 실패: "+ins.error.message);return;}
+ toast(r.data.name+"의 정체를 공개합니다.");
+ await renderAdmin();
+}
+
 async function latestIdentity(round){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","TRIAL_IDENTITY").order("id",{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(round))return d;}catch(_){}}return null;}
 async function renderIdentityRevealPlayer(p,g){
   const token=++voteRenderToken;
@@ -5784,6 +5999,15 @@ async function renderIdentityRevealPlayer(p,g){
   const root=el('identityReveal');
   if(!root)return;
   root.innerHTML='<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;text-align:center"><div style="font-size:clamp(48px,9vw,110px);font-weight:1000;letter-spacing:.08em;text-shadow:0 0 28px rgba(255,255,255,.35)">정체공개</div></div>';
+}
+
+async function renderEmergencyOutcomePlayer(p,g){
+ const raw=String(g.notice||"");
+ const success=raw.includes("|SUCCESS|");
+ stopAllTimers();
+ await showScreen("identityReveal");
+ const root=el("identityReveal");if(!root)return;
+ root.innerHTML='<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;text-align:center;padding:30px"><div><div style="font-size:clamp(42px,7vw,86px);font-weight:1000;line-height:1.35;color:#fff">'+(success?'축하합니다. 늑대를 발견했습니다.':'5초 뒤 게임이 재개됩니다.')+'</div>'+(!success?'<div style="margin-top:24px;font-size:clamp(22px,3vw,40px);font-weight:900;color:#fff">잠시 후 본게임으로 돌아갑니다.</div>':'<div style="margin-top:24px;font-size:clamp(22px,3vw,40px);font-weight:900;color:#fff">잠시 후 다음 라운드가 시작됩니다.</div>')+'</div></div>';
 }
 
 async function renderRoleRevealedPlayer(d,g){
