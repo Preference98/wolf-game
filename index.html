@@ -3691,19 +3691,9 @@ async function updateEmergencyButton(g,p){
   if(!g){finish(false);return;}
   window.__lastSettings=g;
 
-  // 늑대방해가 실제로 진행 중인 동안에는 긴급신고 버튼을 비활성화합니다.
-  // 쿨타임은 무관하며, 현재 늑대방해 지속시간만 확인합니다.
-  let sabotageActive=false;
-  try{
-    const sabotageState=await getSabotageState(g.current_round);
-    sabotageActive=!!sabotageState?.active;
-  }catch(e){
-    // 상태를 확인할 수 없는 경우에는 기존 긴급신고 버튼을 임의로 활성화하지 않습니다.
-    console.warn("긴급신고 버튼의 늑대방해 상태 확인 실패:",e);
-    finish(false);
-    return;
-  }
-
+  // 늑대방해 상태는 별도로 서버에 다시 조회하지 않습니다.
+  // 10개 미션과 동일하게 공용 늑대방해 감시기가 갱신해 둔 현재 상태를 사용합니다.
+  const sabotageActive=window.__sabotageActiveNow===true;
   finish(emergencyReportAllowed(g) && !sabotageActive);
 }
 window.emergencyReportButtonPressed=function(){
@@ -4027,6 +4017,9 @@ async function getSabotagedLocationIds(round){
 
 let selectedSabotageLocationIds=new Set();
 let sabotageInterruptUntil=0;
+// 미션과 긴급신고가 함께 사용하는 현재 늑대방해 상태입니다.
+// 서버를 별도로 반복 조회하지 않고 startSabotageUiWatcher가 갱신합니다.
+window.__sabotageActiveNow=false;
 async function getGloballyCompletedLocationIds(round){
  try{
    return await getCompletedLocationIds(round);
@@ -5336,6 +5329,7 @@ async function renderVictory(winner){
 async function autoLobbyAfterVictory(){ return; }
 
 function stopSabotageUiWatcher(){
+ window.__sabotageActiveNow=false;
  if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}
  if(sabotageEventTimer){clearInterval(sabotageEventTimer);sabotageEventTimer=null;}
  if(sabotageNotificationTimer){clearInterval(sabotageNotificationTimer);sabotageNotificationTimer=null;}
@@ -5386,6 +5380,8 @@ async function handleSabotageEvent(e){
  // 이벤트 중복 방지 플래그는 즉시 기록합니다.
  lastHandledSabotageEventId=eventId;
  sabotageInterruptUntil=gameNow()+2500;
+ // 늑대방해 발생을 알게 된 즉시 공용 상태를 활성화합니다.
+ window.__sabotageActiveNow=true;
 
  // 늑대방해가 발생한 순간 화면을 먼저 끊습니다.
  // DB 조회/음원 재생을 기다리다가 미션/늑대방해 메뉴가 남는 문제가 없도록 합니다.
@@ -5448,6 +5444,8 @@ function startSabotageUiWatcher(){
    const activeRemain=Math.max(0,st.activeUntil-now);
    const cooldownRemain=Math.max(0,st.cooldownUntil-now);
    const active=activeRemain>0;
+   // 미션과 긴급신고가 동일한 늑대방해 상태를 사용하도록 공용 상태를 갱신합니다.
+   window.__sabotageActiveNow=active;
    const cooldownTotal=Math.max(1000,Number(st.cooldownSeconds||60)*1000);
    const locationEnds=st.activeLocationEnds||new Map();
 
