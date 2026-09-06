@@ -2520,6 +2520,7 @@ function bindCardSelectionV20(){
         <div class="adminField"><label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30"></div>
         <div class="adminField"><label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1"></div>
         <div class="adminField"><label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1"></div>
+        <div class="adminField"><label class="small">🚨 긴급신고 NFC 태그명</label><input id="emergencyNfcTag" type="text" maxlength="100" placeholder="예: 긴급신고"><div class="small muted" style="margin-top:4px">긴급신고 버튼을 누른 뒤 인식할 NFC 태그의 NDEF 텍스트입니다.</div></div>
       </div>
       <div class="row" style="align-items:center;gap:10px;margin-top:14px">
         <button onclick="saveGameRules()">게임 규칙 저장</button><span id="rulesSaveStatus" class="small muted"></span>
@@ -3312,6 +3313,10 @@ async function routeCore(){
        await renderNightPreAlert(g);
        return;
      }
+     if(String(g.notice||"").startsWith("EMERGENCY_REPORT|")){
+       await renderEmergencyTrialReady(p,g,false,emergencyNoticeData(g)?.eventId||"");
+       return;
+     }
      if(document.querySelector("#sabotage.screen.active"))return;
      if(sabotageInterruptUntil>gameNow()){
        if(!document.querySelector("#player.screen.active"))await showScreen("player");
@@ -3663,6 +3668,39 @@ async function renderNight(p,g){
  tick();
  if(gameNow()<endMs)window.__nightLocalTimer=setInterval(tick,250);
 }
+let emergencyNfcReader=null;
+let emergencyNfcAbortController=null;
+let emergencyNfcHandled=false;
+let emergencyPopupEventId=null;
+
+function emergencyNoticeData(g){
+  const m=String(g?.notice||"").match(/^EMERGENCY_REPORT\|([^|]+)$/);
+  return m?{eventId:m[1]}:null;
+}
+
+function emergencyTagMatches(event, configuredTag){
+  const records=event?.message?.records||[];
+  const values=[];
+  for(const rec of records){
+    try{
+      const type=String(rec.recordType||"").toLowerCase();
+      if(type==="text"||type==="url"||type==="absolute-url"||type==="unknown")
+        values.push(new TextDecoder(rec.encoding||"utf-8").decode(rec.data));
+    }catch(_){}
+  }
+  const normalized=v=>String(v||"").trim().replace(/\s+/g," " ).toUpperCase();
+  const combined=values.map(normalized).join("|");
+  const configured=normalized(configuredTag||"긴급신고");
+  return (!!configured && combined.includes(configured)) || combined.includes("EMERGENCY_REPORT");
+}
+
+function stopEmergencyNfcScan(){
+  try{if(emergencyNfcAbortController)emergencyNfcAbortController.abort();}catch(_){}
+  emergencyNfcAbortController=null;
+  emergencyNfcReader=null;
+  emergencyNfcHandled=false;
+}
+
 function emergencyReportAllowed(g){
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY") return false;
   const duration=Number(g.round_duration_minutes);
@@ -3696,11 +3734,113 @@ async function updateEmergencyButton(g,p){
   const sabotageActive=window.__sabotageActiveNow===true;
   finish(emergencyReportAllowed(g) && !sabotageActive);
 }
-window.emergencyReportButtonPressed=function(){
+window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
   if(!b || b.disabled)return;
-  toast("긴급신고 기능은 새로 설계 중입니다.");
+  const p=await me().catch(()=>null);
+  const g=await settings().catch(()=>null);
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !g || !emergencyReportAllowed(g)){
+    toast("현재는 긴급신고를 사용할 수 없습니다.");
+    return;
+  }
+  if(window.__sabotageActiveNow===true){
+    toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");
+    return;
+  }
+  if(!("NDEFReader" in window)){
+    toast("이 브라우저에서는 NFC 긴급신고를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.");
+    return;
+  }
+
+  stopEmergencyNfcScan();
+  emergencyNfcHandled=false;
+  openOverlay("🚨","긴급신고","신고 장소로 이동하여 태그 해주세요","alarm",
+    '<button class="secondary" style="width:100%" onclick="cancelEmergencyNfc()">취소</button>');
+  try{
+    const reader=new NDEFReader();
+    emergencyNfcReader=reader;
+    emergencyNfcAbortController=new AbortController();
+    reader.onreadingerror=()=>toast("NFC 태그를 읽지 못했습니다. 다시 태그해 주세요.");
+    reader.onreading=async event=>{
+      if(emergencyNfcHandled)return;
+      if(!emergencyTagMatches(event,g.emergency_nfc_tag)){
+        toast("긴급신고용 NFC 태그가 아닙니다.");
+        return;
+      }
+      emergencyNfcHandled=true;
+      try{
+        await submitEmergencyReport(event);
+      }catch(e){
+        emergencyNfcHandled=false;
+        toast("긴급신고 처리 실패: "+(e.message||String(e)));
+      }
+    };
+    await reader.scan({signal:emergencyNfcAbortController.signal});
+  }catch(e){
+    closeOverlay();
+    stopEmergencyNfcScan();
+    toast("NFC 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
+  }
 };
+window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();};
+
+async function submitEmergencyReport(event){
+  const p=await me(),g=await settings();
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !emergencyReportAllowed(g)){
+    closeOverlay();stopEmergencyNfcScan();
+    toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");
+    return;
+  }
+  if(window.__sabotageActiveNow===true){
+    closeOverlay();stopEmergencyNfcScan();
+    toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");
+    return;
+  }
+
+  const eventId="emergency-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+  const payload={
+    round:Number(g.current_round||0),
+    event_id:eventId,
+    reporter_id:p.id,
+    reporter_name:p.name||"",
+    emergency_started_at:serverNowISO(),
+    round_started_at_before:g.round_started_at||null
+  };
+
+  // 같은 순간 두 명이 태그해도 첫 번째 신고만 접수되도록 서버에서 잠급니다.
+  const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId})
+    .eq("id",1).eq("phase","PLAY").eq("notice",String(g.notice||"")).select("id");
+  if(lock.error || !lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
+
+  const ins=await db.from("notifications").insert({
+    message:JSON.stringify(payload),target_player:null,notification_type:"EMERGENCY_REPORT"
+  });
+  if(ins.error){
+    await db.from("game_settings").update({notice:g.notice||""})
+      .eq("id",1).eq("phase","PLAY").eq("notice","EMERGENCY_REPORT|"+eventId);
+    throw new Error("긴급신고 접수 알림 저장 실패: "+ins.error.message);
+  }
+
+  closeOverlay();
+  stopEmergencyNfcScan();
+  emergencyInterruptUntil=gameNow()+120000;
+  stopAllTimers();
+  await renderEmergencyTrialReady(await me(),await settings(),false,eventId);
+}
+
+async function renderEmergencyTrialReady(p,g,showPopup=true,eventId=""){
+  emergencyInterruptUntil=gameNow()+120000;
+  stopAllTimers();
+  closeOverlay();
+  // 기존 재판준비 화면을 그대로 사용합니다. 별도의 긴급신고 전용 화면으로 바꾸지 않습니다.
+  await showScreen("trialReadyAnnouncement");
+  if(showPopup){
+    const key=eventId||emergencyNoticeData(g)?.eventId||"";
+    if(key && emergencyPopupEventId===key)return;
+    emergencyPopupEventId=key||emergencyPopupEventId;
+    openOverlay("🚨","긴급신고 접수","긴급신고가 접수되었습니다.\n잠시 후 늑대재판이 시작됩니다.","alarm",'<button onclick="closeOverlay()">확인</button>');
+  }
+}
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
   stopGameStartBgm();
@@ -4730,7 +4870,7 @@ async function renderAdmin(){
     :[];
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
-  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
+  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;if(el("emergencyNfcTag"))el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
   if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=renderAdminPlayerList(p);
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
@@ -5070,6 +5210,7 @@ async function saveGameRules(){
    const nightSeconds=Math.floor(Number(el("nightSeconds").value));
    const gaugePenalty=Math.floor(Number(el("nightGaugePenalty").value));
    const roundPenalty=Math.floor(Number(el("nightRoundPenaltyMinutes").value));
+   const emergencyNfcTag=String(el("emergencyNfcTag")?.value||"긴급신고").trim();
    if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=Math.max(2,players.length)){
      toast("늑대 수가 현재 인원에 맞지 않습니다.");return;
    }
@@ -5094,6 +5235,7 @@ async function saveGameRules(){
    if(!Number.isInteger(roundPenalty)||roundPenalty<0||roundPenalty>30){
      toast("밤 시간 감소량은 0~30분이어야 합니다.");return;
    }
+   if(!emergencyNfcTag){toast("긴급신고 NFC 태그명을 입력해 주세요.");return;}
 
    const payload={
      wolf_count:wolfCount,
@@ -5104,6 +5246,7 @@ async function saveGameRules(){
      night_duration_seconds:nightSeconds,
      night_gauge_penalty:gaugePenalty,
      night_round_penalty_minutes:roundPenalty,
+     emergency_nfc_tag:emergencyNfcTag,
    };
    const r=await db.from("game_settings").update(payload).eq("id",1);
    if(r.error){
@@ -5117,7 +5260,7 @@ async function saveGameRules(){
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
    if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
-   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty};
+   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
    for(const [key,want] of Object.entries(verifyPairs)){
      if(Number(verify.data[key])!==Number(want)){
        throw new Error("저장 확인 실패: DB의 "+key+" 값이 "+verify.data[key]+"로 확인되었습니다. 입력값 "+want+"가 저장되지 않았습니다.");
@@ -5793,6 +5936,18 @@ function realtime(){
    }
    if(currentPlayer.status!=="ALIVE")return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
+   if(n.notification_type==="EMERGENCY_REPORT"){
+     try{
+       const d=JSON.parse(n.message||"{}");
+       const g=await settings();
+       if(Number(g.current_round)!==Number(d.round))return;
+       const eventId=String(d.event_id||emergencyNoticeData(g)?.eventId||"");
+       emergencyInterruptUntil=gameNow()+120000;
+       await renderEmergencyTrialReady(currentPlayer,g,true,eventId);
+       await playSound("deadSheepFound","emergency-report-"+String(n.id)).catch(()=>{});
+     }catch(err){console.warn("긴급신고 접수 알림 처리 오류:",err);}
+     return;
+   }
    if(n.notification_type==="SABOTAGE"){
      if(!claimSabotageNotification(n))return;
      try{
