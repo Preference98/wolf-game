@@ -3687,24 +3687,36 @@ function emergencyReportAllowed(g){
  if(!g||String(g.phase).toUpperCase()!=="PLAY")return false;
  if(String(g.notice||"").startsWith("EMERGENCY_REPORT|"))return false;
  if(String(g.notice||"").startsWith("NIGHT_WARNING|"))return false;
+ const durationMinutes=Number(g.round_duration_minutes);
+ // 라운드 시간이 5분 이하로 설정되어 있으면 라운드 시작 즉시 긴급신고가 가능합니다.
+ if(Number.isFinite(durationMinutes) && durationMinutes>0 && durationMinutes<=5)return true;
  const started=Date.parse(g.round_started_at||"");
- const elapsed=Number.isFinite(started)?Math.max(0,gameNow()-started):Infinity;
- const durationMinutes=Number(g.round_duration_minutes)||15;
- return durationMinutes<=5 || elapsed>=5*60*1000;
+ const elapsed=Number.isFinite(started)?Math.max(0,gameNow()-started):0;
+ return elapsed>=5*60*1000;
 }
+let emergencyButtonRefreshSeq=0;
 async function updateEmergencyButton(g){
  const b=el("emergencyReportFloat");
  if(!b)return;
- if(localStorage.getItem("wolf_game_admin_v7")==="1"){b.classList.remove("show");b.disabled=true;return;}
+ const seq=++emergencyButtonRefreshSeq;
+ const setState=(allowed)=>{
+   if(seq!==emergencyButtonRefreshSeq)return;
+   b.classList.toggle("show",!!allowed);
+   b.disabled=!allowed;
+ };
+ if(localStorage.getItem("wolf_game_admin_v7")==="1"){setState(false);return;}
  const p=await me().catch(()=>null);
- if(!p||p.status!=="ALIVE"){b.classList.remove("show");b.disabled=true;return;}
+ if(!p||p.status!=="ALIVE"){setState(false);return;}
  g=g||await settings().catch(()=>null);
- if(!g){b.classList.remove("show");b.disabled=true;return;}
+ if(!g){setState(false);return;}
+ // 5분 이하 라운드는 시간 조건을 즉시 충족시킵니다.
+ if(!emergencyReportAllowed(g)){setState(false);return;}
+ // 기본 시간 조건을 통과한 뒤에만 기존 제한 조건을 확인합니다.
  let sabotageActive=false;
  try{const st=await getSabotageState(g.current_round);sabotageActive=!!st?.active;}catch(_){ }
- const allowed=emergencyReportAllowed(g) && !sabotageActive && !(await hasEmergencyReportThisRound(g.current_round));
- b.classList.toggle("show",allowed);
- b.disabled=!allowed;
+ if(sabotageActive){setState(false);return;}
+ const alreadyReported=await hasEmergencyReportThisRound(g.current_round);
+ setState(!alreadyReported);
 }
 function emergencyTagMatches(event, configuredTag){
  const records=event?.message?.records||[];let values=[];
