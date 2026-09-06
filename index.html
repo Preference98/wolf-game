@@ -3668,6 +3668,7 @@ async function renderNight(p,g){
  tick();
  if(gameNow()<endMs)window.__nightLocalTimer=setInterval(tick,250);
 }
+let emergencyInterruptUntil=0;
 let emergencyNfcReader=null;
 let emergencyNfcAbortController=null;
 let emergencyNfcHandled=false;
@@ -3825,9 +3826,9 @@ async function submitEmergencyReport(event){
   // 이후 화면 전환 과정에서 문제가 생겨도 이미 접수된 신고를 "실패"로 표시하지 않습니다.
   closeOverlay();
   stopEmergencyNfcScan();
-  emergencyInterruptUntil=gameNow()+120000;
-  stopAllTimers();
   try{
+    emergencyInterruptUntil=gameNow()+120000;
+    stopAllTimers();
     await renderEmergencyTrialReady(p,{...g,notice:"EMERGENCY_REPORT|"+eventId},false,eventId);
   }catch(e){
     console.error("긴급신고 접수 후 재판준비 화면 전환 오류:",e);
