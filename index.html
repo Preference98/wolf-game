@@ -3688,30 +3688,41 @@ function emergencyReportAllowed(g){
  if(String(g.notice||"").startsWith("EMERGENCY_REPORT|"))return false;
  if(String(g.notice||"").startsWith("NIGHT_WARNING|"))return false;
  const durationMinutes=Number(g.round_duration_minutes);
- // 라운드 시간이 5분 이하로 설정되어 있으면 라운드 시작 즉시 긴급신고가 가능합니다.
+ // 관리자가 설정한 한 라운드 진행 시간이 5분 이하라면 시간 제한 없이 즉시 사용 가능합니다.
  if(Number.isFinite(durationMinutes) && durationMinutes>0 && durationMinutes<=5)return true;
  const started=Date.parse(g.round_started_at||"");
  const elapsed=Number.isFinite(started)?Math.max(0,gameNow()-started):0;
  return elapsed>=5*60*1000;
 }
 let emergencyButtonRefreshSeq=0;
-async function updateEmergencyButton(g){
+let emergencyButtonStateKey="";
+function setEmergencyButtonState(allowed){
+ const b=el("emergencyReportFloat");
+ if(!b)return;
+ b.classList.toggle("show",!!allowed);
+ b.disabled=!allowed;
+}
+async function updateEmergencyButton(g,p){
  const b=el("emergencyReportFloat");
  if(!b)return;
  const seq=++emergencyButtonRefreshSeq;
  const setState=(allowed)=>{
    if(seq!==emergencyButtonRefreshSeq)return;
-   b.classList.toggle("show",!!allowed);
-   b.disabled=!allowed;
+   setEmergencyButtonState(allowed);
  };
  if(localStorage.getItem("wolf_game_admin_v7")==="1"){setState(false);return;}
- const p=await me().catch(()=>null);
+ // 화면 렌더링 때 이미 확인한 플레이어 정보를 우선 사용합니다.
+ // 매 1초마다 플레이어 정보를 다시 요청하지 않아 버튼 상태가 늦게 바뀌는 문제를 줄입니다.
+ if(!p)p=window.__lastPlayer||null;
+ if(!p)p=await me().catch(()=>null);
  if(!p||p.status!=="ALIVE"){setState(false);return;}
- g=g||await settings().catch(()=>null);
+ if(!g)g=window.__lastSettings||null;
+ if(!g)g=await settings().catch(()=>null);
  if(!g){setState(false);return;}
- // 5분 이하 라운드는 시간 조건을 즉시 충족시킵니다.
+ window.__lastSettings=g;
+ // 여기서 5분 이하 설정이면 라운드 시작 시점부터 시간 조건을 통과합니다.
  if(!emergencyReportAllowed(g)){setState(false);return;}
- // 기본 시간 조건을 통과한 뒤에만 기존 제한 조건을 확인합니다.
+ // 시간 조건을 통과한 뒤에만 기존의 사용 제한을 확인합니다.
  let sabotageActive=false;
  try{const st=await getSabotageState(g.current_round);sabotageActive=!!st?.active;}catch(_){ }
  if(sabotageActive){setState(false);return;}
@@ -3841,6 +3852,7 @@ async function renderPlayerCore(){
   stopGameStartBgm();
   stopMissionTimer();
   const p=await me(),g=await settings();
+  window.__lastPlayer=p;
   window.__lastSettings=g;
   adjustEmergencyMissionTimers(g);
 
@@ -3908,7 +3920,7 @@ async function renderPlayerCore(){
   // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
-  await updateEmergencyButton(g);
+  await updateEmergencyButton(g,p);
 
   showScreen("player");
   startSabotageUiWatcher();
@@ -5770,7 +5782,8 @@ setInterval(()=>{
   if(!b)return;
   const active=document.querySelector("#player.screen.active");
   if(!active){b.classList.remove("show");b.disabled=true;return;}
-  settings().then(g=>updateEmergencyButton(g)).catch(()=>{});
+  // 설정값만 갱신합니다. 플레이어 정보는 renderPlayerCore에서 확인한 값을 재사용합니다.
+  settings().then(g=>updateEmergencyButton(g,window.__lastPlayer||null)).catch(()=>{});
 },1000);
 
 function realtime(){
