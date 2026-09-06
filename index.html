@@ -373,10 +373,11 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .actionDock .dockMain .chev{font-size:11px;display:block;line-height:10px}
 @media(max-width:600px){.actionDock{right:14px;bottom:14px}.actionDock .dockMain,.actionDock .dockItem{width:58px;height:58px}}
 
-/* 긴급신고: 왼쪽 하단 독립 플로팅 버튼 */
-.emergencyReportFloat{position:fixed;left:18px;bottom:18px;z-index:9001;display:none;align-items:center;justify-content:center;min-width:112px;height:52px;padding:0 18px;border-radius:999px;border:2px solid rgba(255,255,255,.28);background:#b91c1c;color:#fff;font-weight:1000;font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.48);cursor:pointer}
+/* 긴급신고: 화면 우측 하단 고정 버튼 */
+.emergencyReportFloat{position:fixed;right:22px;bottom:22px;z-index:9010;display:none;align-items:center;justify-content:center;min-width:132px;height:54px;padding:0 18px;border-radius:999px;border:2px solid rgba(255,255,255,.35);background:#b91c1c;color:#fff;font-weight:1000;font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer}
 .emergencyReportFloat.show{display:flex}
-@media(max-width:600px){.emergencyReportFloat{left:14px;bottom:14px;min-width:104px;height:48px;font-size:15px}}
+.emergencyReportFloat:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:600px){.emergencyReportFloat{right:14px;bottom:14px;min-width:116px;height:48px;font-size:15px}}
 
 
 .trialScreen{min-height:100vh;padding:22px 18px 40px;background:radial-gradient(circle at 50% 20%,#260006,#070707 55%,#000);color:#fff}
@@ -2305,7 +2306,6 @@ function bindCardSelectionV20(){
 <div id="noticeBox"></div>
 <div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle" style="flex:1">양 생존 중...</h1><span class="pill" id="round"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div>
 <div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
-<div class="card"><p class="muted">현장 신고 및 늑대 행동은 화면 우측 하단의 고정 메뉴에서 사용할 수 있습니다.</p></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
 <div id="actionDock" class="actionDock"></div><button id="emergencyReportFloat" class="emergencyReportFloat" type="button" onclick="window.openEmergencyReport()">🚨 긴급신고</button>
 </section>
