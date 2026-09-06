@@ -2569,7 +2569,7 @@ function bindCardSelectionV20(){
   <div class="adminSectionTitle">👥 플레이어 관리</div>
   <div class="card">
     <div class="row" style="align-items:center;gap:10px"><h2 style="margin:0;flex:1">플레이어</h2><button class="secondary" id="refreshPlayersBtn" onclick="refreshPlayers()">새로고침</button></div>
-    <p class="muted">현재 DB에 등록된 플레이어 정보를 표시합니다. 플레이어의 접속과 등록은 게임 시스템에서 자동으로 처리됩니다.</p>
+    <p class="muted">현재 DB에 등록된 플레이어 정보와 고유 NFC 태그를 확인·설정합니다. 태그는 기본적으로 접속 순서대로 p1, p2, p3...가 자동 부여됩니다.</p>
     <div id="playerList"></div>
   </div>
 
@@ -2620,6 +2620,7 @@ let emergencyNfcReader=null,emergencyNfcAbortController=null,emergencyNfcHandled
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
 let deathNotificationTimer=null,seenDeathNotificationIds=new Set();
+let wolfDeathNfcReader=null,wolfDeathNfcAbortController=null,wolfDeathNfcHandled=false;
 let deathNotificationMinId=0,deathNotificationWatcherStarted=false;
 let lastRealtimePhase=null,lastRealtimeRound=null,lastRealtimeReady=null;
 let wolfDeathProcessActive=false;
@@ -3153,6 +3154,70 @@ function playerLogout(){
  toast("플레이어에서 로그아웃했습니다.");
 }
 
+function playerTagNumber(tag){const m=String(tag||'').trim().match(/^p(\d+)$/i);return m?Number(m[1]):0;}
+async function ensurePlayerNfcTag(player){
+ if(!player?.id)return player;
+ if(String(player.nfc_tag||'').trim())return player;
+ const r=await db.from("players").select("id,nfc_tag,created_at").order("created_at",{ascending:true}).order("id",{ascending:true});
+ if(r.error)throw new Error("플레이어 NFC 태그 조회 실패\\n"+r.error.message);
+ const rows=r.data||[];
+ const used=new Set(rows.map(x=>String(x.nfc_tag||'').trim().toLowerCase()).filter(Boolean));
+ let next=1; while(used.has('p'+next))next++;
+ const tag='p'+next;
+ const u=await db.from("players").update({nfc_tag:tag}).eq("id",player.id).is("nfc_tag",null).select("*").maybeSingle();
+ if(u.error)throw new Error("플레이어 NFC 태그 부여 실패\\n"+u.error.message);
+ if(u.data)return u.data;
+ const latest=await db.from("players").select("*").eq("id",player.id).maybeSingle();
+ if(latest.error)throw new Error("플레이어 정보 재조회 실패\\n"+latest.error.message);
+ return latest.data||player;
+}
+function renderAdminPlayerList(players){
+ return players.length?players.map((x,i)=>{
+   const removed=String(x.status||'').toUpperCase()==='REMOVED';
+   const tag=String(x.nfc_tag||'').trim();
+   return '<div class="item" style="margin-bottom:10px">'+
+     '<div class="row" style="align-items:center;gap:10px">'+
+       '<b style="min-width:32px">'+(i+1)+'.</b>'+
+       '<div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role||'미정')+' · '+esc(x.status||'')+'</div></div>'+
+       (removed?'<span class="pill muted">퇴장됨</span>':'<button class="danger" style="width:auto;padding:8px 12px" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button>')+
+     '</div>'+
+     '<div class="row" style="align-items:center;gap:8px;margin-top:8px">'+
+       '<label class="small" style="min-width:90px">고유 NFC 태그</label>'+
+       '<input id="playerNfc_'+esc(x.id)+'" value="'+esc(tag)+'" placeholder="예: p1" maxlength="30" style="flex:1;text-transform:lowercase" '+(removed?'disabled':'')+'>'+
+       '<button class="secondary" style="width:auto;padding:8px 12px" '+(removed?'disabled':'')+' onclick="savePlayerNfcTag(\''+esc(x.id)+'\')">저장</button>'+
+     '</div>'+
+     '</div>';
+ }).join(''):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+}
+async function savePlayerNfcTag(playerId){
+ const input=el('playerNfc_'+playerId); const tag=String(input?.value||'').trim().toLowerCase();
+ if(!/^p\d+$/.test(tag)){toast('플레이어 NFC 태그는 p1, p2, p3 형식으로 입력해 주세요.');return;}
+ const dup=await db.from('players').select('id,name').eq('nfc_tag',tag).neq('id',playerId).maybeSingle();
+ if(dup.error){toast('태그 중복 확인 실패: '+dup.error.message);return;}
+ if(dup.data){toast('이미 '+tag+' 태그가 '+(dup.data.name||'다른 플레이어')+'에게 등록되어 있습니다.');return;}
+ const r=await db.from('players').update({nfc_tag:tag}).eq('id',playerId);
+ if(r.error){toast('플레이어 NFC 태그 저장 실패: '+r.error.message);return;}
+ toast(tag+' 태그를 저장했습니다.'); await renderAdmin();
+}
+function extractNfcText(event){
+ const records=event?.message?.records||[]; const values=[];
+ for(const rec of records){try{
+   if(['text','url','absolute-url','unknown'].includes(rec.recordType)){
+     const data=rec.data; values.push(new TextDecoder(rec.encoding||'utf-8').decode(data));
+   }
+ }catch(_){} }
+ return values.map(v=>String(v||'').trim()).filter(Boolean);
+}
+function normalizePlayerNfcTag(value){return String(value||'').trim().toLowerCase();}
+async function findPlayerByNfcTag(event){
+ const values=extractNfcText(event); if(!values.length)return null;
+ const tags=values.map(normalizePlayerNfcTag).filter(v=>/^p\d+$/.test(v));
+ if(!tags.length)return null;
+ const r=await db.from('players').select('*').in('nfc_tag',tags).maybeSingle();
+ if(r.error)throw new Error('플레이어 NFC 태그 조회 실패: '+r.error.message);
+ return r.data||null;
+}
+
 async function join(){
  const btn=el("joinBtn"),name=el("name").value.trim();if(!name){toast("이름을 입력해 주세요.");return;}
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
@@ -3175,6 +3240,7 @@ async function join(){
     p=r.data;
    }
    if(!p||!p.id)throw new Error("플레이어 정보를 가져오지 못했습니다.");
+   p=await ensurePlayerNfcTag(p);
    playerId=p.id;localStorage.setItem("wolf_game_player_v7",playerId);localStorage.removeItem("wolf_game_admin_v7");
    toast("접속되었습니다.");await route();
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}finally{done();}
@@ -4378,47 +4444,48 @@ async function renderSabotageStatus(g,p){
 async function openWolfDeathList(){
  closeActionDock();
  wolfDeathProcessActive=true;
- const players=(await db.from("players").select("id,name,role,status").eq("role","SHEEP").order("name")).data||[];
- if(!players.length){toast("사망처리할 양이 없습니다.");return;}
- const html='<div class="deathConfirmList">'+
-   players.map(x=>'<button onclick="confirmWolfDeath(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">'+
-     esc(x.name)+' <span class="small muted">('+esc(x.role||"역할없음")+' / '+esc(x.status||"상태없음")+')</span></button>').join("")+
-   '</div><button class="secondary" style="width:100%" onclick="closeOverlay()">취소</button>';
- openOverlay("☠️","사망처리","조건 없이 사망 처리 요청을 보낼 플레이어를 선택하십시오.","",html);
+ const p=await me().catch(()=>null),g=await settings().catch(()=>null);
+ if(!p||p.status!=='ALIVE'||String(p.role||'').toUpperCase()!=='WOLF'||String(g?.phase||'').toUpperCase()!=='PLAY'){
+   wolfDeathProcessActive=false;toast('현재는 사망처리를 할 수 없습니다.');return;
+ }
+ if(!('NDEFReader' in window)){wolfDeathProcessActive=false;toast('이 브라우저에서는 NFC 사망처리를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.');return;}
+ openOverlay('☠️','사망처리','사망시킬 플레이어의 등에 부착된 NFC 태그를 태그해주세요.','', '<button class="secondary" style="width:100%" onclick="cancelWolfDeathNfc()">취소</button>');
+ try{
+   wolfDeathNfcHandled=false; wolfDeathNfcReader=new NDEFReader(); wolfDeathNfcAbortController=new AbortController();
+   wolfDeathNfcReader.onreadingerror=()=>toast('NFC 태그를 읽지 못했습니다. 다시 태그해 주세요.');
+   wolfDeathNfcReader.onreading=async event=>{
+     if(wolfDeathNfcHandled)return;
+     wolfDeathNfcHandled=true;
+     try{
+       const victim=await findPlayerByNfcTag(event);
+       if(!victim){wolfDeathNfcHandled=false;toast('등록된 플레이어 NFC 태그가 아닙니다.');return;}
+       if(String(victim.status||'').toUpperCase()!=='ALIVE'){wolfDeathNfcHandled=false;toast('이미 탈락한 플레이어의 태그입니다.');return;}
+       if(String(victim.id)===String(p.id)){wolfDeathNfcHandled=false;toast('자신의 태그에는 사망처리를 할 수 없습니다.');return;}
+       if(String(victim.role||'').toUpperCase()!=='SHEEP'){wolfDeathNfcHandled=false;toast('늑대의 태그입니다. 양의 태그를 태그해주세요.');return;}
+       await completeWolfDeathByNfc(victim,p,g);
+     }catch(e){wolfDeathNfcHandled=false;toast('사망처리 실패: '+(e.message||String(e)));}
+   };
+   await wolfDeathNfcReader.scan({signal:wolfDeathNfcAbortController.signal});
+ }catch(e){closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;toast('NFC 스캔을 시작할 수 없습니다: '+(e.message||String(e)));}
 }
-function confirmWolfDeath(id,name){
- wolfDeathProcessActive=true;
- const safeName=String(name).replace(/'/g,"&#39;");
- openOverlay("☠️","사망 처리 확인",
-   '정말 '+esc(name)+'의 사망을 확인하시겠습니까?',"",
-   '<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="openWolfDeathList()">취소</button>'+
-   '<button class="danger" style="flex:1" onclick="sendDeathConfirmation(\''+esc(id)+'\',\''+safeName+'\')">확인</button></div>');
+function stopWolfDeathNfcScan(){try{wolfDeathNfcAbortController?.abort();}catch(_){} wolfDeathNfcAbortController=null;wolfDeathNfcReader=null;wolfDeathNfcHandled=false;}
+window.cancelWolfDeathNfc=function(){closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;}
+async function completeWolfDeathByNfc(victim,wolf,g){
+ const lock=await db.from('players').update({status:'DEAD'}).eq('id',victim.id).eq('status','ALIVE').select('id');
+ if(lock.error)throw new Error(lock.error.message);
+ if(!lock.data?.length)throw new Error('해당 플레이어의 상태가 이미 변경되었습니다.');
+ const round=Number(g.current_round)||0;
+ const attempt=await db.rpc('create_wolf_attempt',{p_game_round:round,p_wolf_player_id:String(wolf.id),p_victim_player_id:String(victim.id)});
+ if(attempt.error)console.warn('제한 없는 사망처리 기록 저장 실패:',attempt.error);
+ const wr=await db.rpc('complete_wolf_attempt',{p_game_round:round,p_victim_player_id:String(victim.id)});
+ if(wr.error)console.warn('complete_wolf_attempt 오류:',wr.error);
+ closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;
+ await playSound('death','nfc-death-'+String(victim.id)).catch(()=>{});
+ await evaluateSurvivorOutcome(round);
+ toast((victim.name||'플레이어')+' 탈락');
+ await route();
 }
 
-async function sendDeathConfirmation(victimId,victimName){
- closeOverlay();
- const r=await db.rpc("create_death_confirmation_notification",{
-   p_target_player_id:String(victimId),
-   p_message:"당신의 사망 처리가 요청되었습니다. 본인이 죽은 것이 맞다면 확인 버튼을 눌러 주세요."
- });
- if(r.error){
-   console.error("create_death_confirmation_notification 오류:",r.error);
-   toast("사망 확인 요청 실패: "+(r.error.message||"알 수 없는 오류"));
-   return;
- }
- // wolf_attempts는 제한 없는 기록용으로 남깁니다. 실패해도 알림 자체는 유지합니다.
- const g=await settings().catch(()=>null),p=await me().catch(()=>null);
- if(g&&p){
-   const attempt=await db.rpc("create_wolf_attempt",{
-     p_game_round:Number(g.current_round)||0,
-     p_wolf_player_id:String(p.id||victimId),
-     p_victim_player_id:String(victimId)
-   });
-   if(attempt.error)console.warn("제한 없는 사망처리 기록 저장 실패:",attempt.error);
- }
- toast(String(victimName||"플레이어")+"에게 사망 확인 요청을 보냈습니다.");
- wolfDeathProcessActive=false;
-}
 async function showDeathConfirmation(notification){
  const current=await me().catch(()=>null);
  if(!current || current.status!=="ALIVE")return;
@@ -4735,16 +4802,7 @@ async function refreshPlayers(){
    const r=await db.from("players").select("*").order("id");
    if(r.error)throw new Error("플레이어 정보 조회 실패: "+r.error.message);
    const players=r.data||[];
-   el("playerList").innerHTML=players.length?players.map((x,i)=>{
-     const removed=String(x.status||"").toUpperCase()==="REMOVED";
-     return '<div class="item row" style="align-items:center;gap:10px">'+
-       '<b style="min-width:32px">'+(i+1)+'.</b>'+
-       '<div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role||"미정")+' · '+esc(x.status||"")+'</div></div>'+
-       (removed
-         ? '<span class="pill muted">퇴장됨</span>'
-         : '<button class="danger" style="width:auto;padding:8px 12px" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button>')+
-       '</div>';
-   }).join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+   el("playerList").innerHTML=renderAdminPlayerList(players);
    toast("플레이어 정보를 새로고침했습니다.");
  }catch(e){
    toast("플레이어 새로고침 실패: "+(e.message||String(e)));
@@ -4788,16 +4846,7 @@ async function renderAdmin(){
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
   if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
-  el("playerList").innerHTML=p.length?p.map((x,i)=>{
-    const removed=String(x.status||"").toUpperCase()==="REMOVED";
-    return '<div class="item row" style="align-items:center;gap:10px">'+
-      '<b style="min-width:32px">'+(i+1)+'.</b>'+
-      '<div style="flex:1"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role||"미정")+' · '+esc(x.status||"")+'</div></div>'+
-      (removed
-        ? '<span class="pill muted">퇴장됨</span>'
-        : '<button class="danger" style="width:auto;padding:8px 12px" onclick="confirmRemovePlayer(\''+esc(x.id)+'\',\''+esc(x.name)+'\')">퇴장</button>')+
-      '</div>';
-  }).join(""):"<div class='muted'>현재 등록된 플레이어가 없습니다.</div>";
+  el("playerList").innerHTML=renderAdminPlayerList(p);
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 죽은 양 발견 장소가 없습니다.</div>";
   const mls=await activeMissionLocations();
@@ -6100,7 +6149,7 @@ async function boot(){
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.openMissionByLocation=openMissionByLocation;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.toggleActionDock=toggleActionDock;window.closeActionDock=closeActionDock;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
-window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.toggleSabotageLocation=toggleSabotageLocation;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
+window.savePlayerNfcTag=savePlayerNfcTag;window.cancelWolfDeathNfc=cancelWolfDeathNfc;window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.toggleSabotageLocation=toggleSabotageLocation;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;window.confirmWolfDeath=confirmWolfDeath;window.sendDeathConfirmation=sendDeathConfirmation;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.skipToGame=skipToGame;window.testNight=testNight;window.nextRound=nextRound;window.startTrial=startTrial;window.startVote=startVote;window.submitVote=submitVote;window.confirmVote=confirmVote;window.confirmIdentity=confirmIdentity;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
 window.markReady=markReady;
