@@ -6027,12 +6027,12 @@ async function tallyVotes(g){
  for(const d of votes.values()){const candidate=String(d.candidate_id||"");if(voterIds.has(candidate))counts.set(candidate,(counts.get(candidate)||0)+1);}
  let max=0,winners=[];for(const p of players){const c=counts.get(String(p.id))||0;if(c>max){max=c;winners=[p];}else if(c===max&&c>0)winners.push(p);}
  const hasWinner=max>0&&winners.length===1,winner=hasWinner?winners[0]:null;
- const result={round:Number(g.current_round||0),event_id:ev,trial_event_id:(String(g.notice||"").match(/^VOTE\|[^|]+\|[^|]+\|([^|]+)/)||[])[1]||"",trial_type:voteTrialType(g),player_id:winner?.id||null,name:winner?.name||"",votes:hasWinner?max:0,total:players.length,counts:Object.fromEntries(counts),no_execution:!hasWinner};
+ const result={round:Number(g.current_round||0),event_id:ev,trial_event_id:(String(g.notice||"").match(/^VOTE\|[^|]+\|[^|]+\|([^|]+)/)||[])[1]||"",trial_type:trialType(g),player_id:winner?.id||null,name:winner?.name||"",votes:hasWinner?max:0,total:players.length,counts:Object.fromEntries(counts),no_execution:!hasWinner};
  const existing=await db.from("notifications").select("id,message").is("target_player",null).eq("notification_type","VOTE_RESULT").order("id",{ascending:false}).limit(50);
  if(!existing.error){for(const n of existing.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(result.round)&&String(d.event_id)===ev)return true;}catch(_){}}}
  const ins=await db.from("notifications").insert({message:JSON.stringify(result),target_player:null,notification_type:"VOTE_RESULT"});
  if(ins.error)return false;
- const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev+"|"+voteTrialType(g)+"|"+(String(g.notice||"").match(/^VOTE\|[^|]+\|[^|]+\|([^|]+)/)||[])[1]||""}).eq("id",1).eq("phase","VOTE");
+ const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev+"|"+trialType(g)+"|"+(String(g.notice||"").match(/^VOTE\|[^|]+\|[^|]+\|([^|]+)/)||[])[1]||""}).eq("id",1).eq("phase","VOTE");
  return !lock.error;
 }
 let voteCompletionTimer=null;
