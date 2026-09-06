@@ -3821,11 +3821,18 @@ async function submitEmergencyReport(event){
     throw new Error("긴급신고 접수 알림 저장 실패: "+ins.error.message);
   }
 
+  // 여기까지 도달했다면 서버에 긴급신고 접수가 완료된 상태입니다.
+  // 이후 화면 전환 과정에서 문제가 생겨도 이미 접수된 신고를 "실패"로 표시하지 않습니다.
   closeOverlay();
   stopEmergencyNfcScan();
   emergencyInterruptUntil=gameNow()+120000;
   stopAllTimers();
-  await renderEmergencyTrialReady(await me(),await settings(),false,eventId);
+  try{
+    await renderEmergencyTrialReady(p,{...g,notice:"EMERGENCY_REPORT|"+eventId},false,eventId);
+  }catch(e){
+    console.error("긴급신고 접수 후 재판준비 화면 전환 오류:",e);
+    toast("긴급신고는 접수되었습니다. 재판준비 화면을 불러오는 중입니다.");
+  }
 }
 
 async function renderEmergencyTrialReady(p,g,showPopup=true,eventId=""){
@@ -4885,7 +4892,10 @@ async function renderAdmin(){
   if(roleBtn)roleBtn.disabled=g.phase!=="LOBBY";
   if(skipBtn)skipBtn.disabled=!g.ready || !["LOBBY","ROLE_REVEAL"].includes(String(g.phase));
   if(nightBtn)nightBtn.disabled=!["PLAY","INVESTIGATION","TRIAL"].includes(String(g.phase));
-  if(trialBtn)trialBtn.disabled=!(['INVESTIGATION','TRIAL'].includes(String(g.phase)));
+  if(trialBtn){
+   const emergencyReady=String(g.notice||"").startsWith("EMERGENCY_REPORT|");
+   trialBtn.disabled=!(emergencyReady || ["INVESTIGATION","TRIAL"].includes(String(g.phase)));
+ }
   if(voteBtn)voteBtn.disabled=String(g.phase)!=="TRIAL";
   if(identityBtn)identityBtn.disabled=String(g.phase)!=="VOTE_RESULT";
   if(el("trialFlowStatus"))el("trialFlowStatus").textContent={TRIAL:"재판 진행 중 · 투표시작을 눌러 투표를 시작할 수 있습니다.",VOTE:"투표 진행 중 · 모든 플레이어의 투표를 기다리는 중입니다.",VOTE_RESULT:"투표 결과 공개 완료 · 정체확인을 눌러 정체를 공개합니다.",IDENTITY_REVEAL:"탈락자 정체 공개 중입니다."}[String(g.phase)]||"현재 재판 단계가 아닙니다.";
@@ -5092,7 +5102,11 @@ async function startTrial(){
  if(["LOBBY","ROLE_INTRO","ROLE_REVEAL","COUNTDOWN"].includes(String(g.phase))){
    toast("게임이 아직 시작되지 않았습니다.");return;
  }
- if(!emergency && !["INVESTIGATION","TRIAL"].includes(String(g.phase))){toast("현재 상태에서는 재판을 시작할 수 없습니다.");return;}
+ const phase=String(g.phase||"").toUpperCase();
+ const emergencyNotice=String(g.notice||"").startsWith("EMERGENCY_REPORT|");
+ // 일반 재판은 기존 INVESTIGATION/TRIAL 상태에서 시작할 수 있고,
+ // 긴급신고로 재판준비가 된 경우에는 PLAY 상태에서도 재판을 시작할 수 있습니다.
+ if(!emergencyNotice && !["INVESTIGATION","TRIAL"].includes(phase)){toast("현재 상태에서는 재판을 시작할 수 없습니다.");return;}
  stopAllAdminBgm();
  await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
  toast("재판 시작 알림을 전송했습니다.");
