@@ -2982,6 +2982,8 @@ async function evaluateSurvivorOutcome(round){
  if(r.error){console.warn("생존자 승리 조건 확인 실패:",r.error.message);return {ended:false};}
  const alive=(r.data||[]).filter(x=>String(x.status||"").toUpperCase()==="ALIVE");
  if(alive.length!==2)return {ended:false,alive};
+ const current=await settings().catch(()=>null);
+ if(String(current?.phase||"").toUpperCase()==="VOTE_RESULT")return {ended:false,alive,deferredWinner:(alive.filter(x=>String(x.role||"").toUpperCase()==="SHEEP").length===2?"SHEEP":alive.filter(x=>String(x.role||"").toUpperCase()==="WOLF").length===1?"WOLF":"")};
  const sheep=alive.filter(x=>String(x.role||"").toUpperCase()==="SHEEP").length;
  const wolf=alive.filter(x=>String(x.role||"").toUpperCase()==="WOLF").length;
  if(sheep===2){
@@ -3283,6 +3285,7 @@ async function routeCore(){
      resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderCleanRoleReveal(p,g);return;
    case "COUNTDOWN":
+     if(String(g.notice||"").startsWith("EMERGENCY_RESUME|")){await renderEmergencyResumeCountdown(p,g);return;}
      if(document.querySelector("#gameCountdown.screen.active") && document.querySelector("#gameStartContent"))return;
      await renderGameCountdown(p,g);return;
    case "INVESTIGATION":
@@ -3704,6 +3707,7 @@ function stopEmergencyNfcScan(){
 
 function emergencyReportAllowed(g){
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY") return false;
+  if(String(g.notice||"").startsWith("EMERGENCY_USED|")) return false;
   const duration=Number(g.round_duration_minutes);
   // 한 라운드 진행 시간이 5분 이하이면 라운드 시작 즉시 활성화합니다.
   if(Number.isFinite(duration) && duration>=1 && duration<=5) return true;
@@ -5065,6 +5069,28 @@ function stopAllAdminBgm(){
 }
 
 let playerGameStartSequenceToken=0;
+async function renderEmergencyResumeCountdown(p,g){
+ const token=++playerGameStartSequenceToken;
+ await showScreen("gameCountdown");
+ const root=el("gameCountdown");if(!root)return;
+ root.innerHTML='<div class="gameStartStage"><div id="gameStartContent"><div class="gameStartMessage">잠시 후 게임이 재개됩니다.</div></div></div>';
+ const content=el("gameStartContent");
+ for(let n=5;n>=1;n--){
+   if(token!==playerGameStartSequenceToken)return;
+   content.innerHTML='<div class="gameStartCount">'+n+'</div>';
+   await playSound("countdown"+n,"emergency-resume-countdown-"+String(g.current_round)+"-"+n).catch(()=>{});
+   await wait(1000);
+ }
+ if(token!==playerGameStartSequenceToken)return;
+ content.innerHTML='<div class="gameStartTitle">게임 재개</div>';
+ await wait(1000);
+ if(token!==playerGameStartSequenceToken)return;
+ const latest=await settings();
+ if(String(latest.phase||"").toUpperCase()==="COUNTDOWN"&&String(latest.notice||"").startsWith("EMERGENCY_RESUME|")){
+   const eventId=String(latest.notice||"").split("|")[1]||"";
+   await db.from("game_settings").update({phase:"PLAY",notice:"EMERGENCY_USED|"+eventId}).eq("id",1).eq("phase","COUNTDOWN").eq("current_round",Number(latest.current_round||0));
+ }
+}
 async function renderGameCountdown(p,g){
  if(localStorage.getItem("wolf_game_admin_v7")==="1")return;
  const token=String(g.current_round||0);
@@ -5105,11 +5131,12 @@ async function startTrial(){
  }
  const phase=String(g.phase||"").toUpperCase();
  const emergencyNotice=String(g.notice||"").startsWith("EMERGENCY_REPORT|");
+ const emergencyEventId=emergencyNotice?(String(g.notice||"").match(/^EMERGENCY_REPORT\|([^|]+)$/)||[])[1]:"";
  // 일반 재판은 기존 INVESTIGATION/TRIAL 상태에서 시작할 수 있고,
  // 긴급신고로 재판준비가 된 경우에는 PLAY 상태에서도 재판을 시작할 수 있습니다.
  if(!emergencyNotice && !["INVESTIGATION","TRIAL"].includes(phase)){toast("현재 상태에서는 재판을 시작할 수 없습니다.");return;}
  stopAllAdminBgm();
- await set({phase:"TRIAL",notice:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
+ await set({phase:"TRIAL",notice:emergencyNotice?"TRIAL_START|EMERGENCY|"+emergencyEventId:"재판 시작 - 모두 그래이스홀로 이동해 주십시오."});
  toast("재판 시작 알림을 전송했습니다.");
  await renderAdmin();
 }
@@ -5998,7 +6025,7 @@ function realtime(){
 // TRIAL VOTING SYSTEM v190
 let voteRenderToken=0;
 function voteEventId(){return 'vote-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);}
-async function startVote(){const g=await settings();if(String(g.phase).toUpperCase()!=="TRIAL"){toast("재판 화면에서만 투표를 시작할 수 있습니다.");return;}const id=voteEventId();const r=await db.from("game_settings").update({phase:"VOTE",notice:"VOTE|"+id}).eq("id",1).eq("phase","TRIAL");if(r.error){toast("투표 시작 실패: "+r.error.message);return;}toast("투표를 시작했습니다.");await renderAdmin();}
+async function startVote(){const g=await settings();if(String(g.phase).toUpperCase()!=="TRIAL"){toast("재판 화면에서만 투표를 시작할 수 있습니다.");return;}const id=voteEventId();const emergency=String(g.notice||"").startsWith("TRIAL_START|EMERGENCY|");const r=await db.from("game_settings").update({phase:"VOTE",notice:"VOTE|"+id+(emergency?"|EMERGENCY":"")}).eq("id",1).eq("phase","TRIAL");if(r.error){toast("투표 시작 실패: "+r.error.message);return;}toast("투표를 시작했습니다.");await renderAdmin();}
 async function votePlayers(){const r=await db.from("players").select("id,name,status").eq("status","ALIVE").order("created_at").order("id");if(r.error)throw new Error("투표 대상 조회 실패: "+r.error.message);return r.data||[];}
 function voteEvent(g){const m=String(g.notice||"").match(/^VOTE\\|(.+)$/);return m?m[1]:"";}
 async function myVote(g,pid){const ev=voteEvent(g);if(!ev)return null;const r=await db.from("notifications").select("id,message").eq("notification_type","TRIAL_VOTE").eq("target_player",String(pid)).order("id",{ascending:false}).limit(30);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(g.current_round)&&String(d.event_id)===ev)return d;}catch(_){}}return null;}
@@ -6026,7 +6053,7 @@ async function tallyVotes(g){
  if(!existing.error){for(const n of existing.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(result.round)&&String(d.event_id)===ev)return true;}catch(_){}}}
  const ins=await db.from("notifications").insert({message:JSON.stringify(result),target_player:null,notification_type:"VOTE_RESULT"});
  if(ins.error)return false;
- const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev}).eq("id",1).eq("phase","VOTE");
+ const lock=await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+ev+(voteIsEmergency(g)?"|EMERGENCY":"")}).eq("id",1).eq("phase","VOTE");
  return !lock.error;
 }
 let voteCompletionTimer=null;
@@ -6106,7 +6133,9 @@ async function confirmIdentity(){
  const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();
  if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}
  const payload={round:Number(g.current_round||0),event_id:d.event_id,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
- const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id}).eq("id",1).eq("phase","VOTE_RESULT");
+ const emergencyOrigin=/^VOTE_RESULT\|[^|]+\|EMERGENCY$/.test(String(g.notice||""));
+ const identityNotice="IDENTITY_REVEAL|"+d.event_id+(emergencyOrigin?"|EMERGENCY":"");
+ const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:identityNotice}).eq("id",1).eq("phase","VOTE_RESULT");
  if(lock.error){toast("정체 공개 단계 전환 실패: "+lock.error.message);return;}
  const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});
  if(ins.error){toast("정체 공개 전송 실패: "+ins.error.message);return;}
@@ -6125,25 +6154,21 @@ async function renderIdentityRevealPlayer(p,g){
 }
 
 async function renderRoleRevealedPlayer(d,g){
-  const token=++voteRenderToken;
-  stopAllTimers();
-  await showScreen('identityReveal');
-  const root=el('identityReveal');
-  if(!root || token!==voteRenderToken)return;
-  const name=String(d?.name||'');
-  const role=String(d?.role||'').toUpperCase()==='WOLF'?'WOLF':'SHEEP';
-  const roleText=role==='WOLF'?'늑대':'양';
-  const ending=role==='WOLF'?'였습니다.':'이었습니다.';
-  const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
-  const particle=hasBatchim(name)?'은':'는';
-  const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
-  root.innerHTML='<div class="roleRevealedPlayerStage">'+
-    '<div class="roleRevealedPlayerResult">'+
-      '<div class="roleRevealedPlayerSentence"><span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span></div>'+
-      '<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 시작됩니다.</div>'+
-    '</div>'+
-  '</div>';
+  const token=++voteRenderToken;stopAllTimers();await showScreen("identityReveal");const root=el("identityReveal");if(!root||token!==voteRenderToken)return;
+  const name=String(d?.name||"");const role=String(d?.role||"").toUpperCase()==="WOLF"?"WOLF":"SHEEP";const roleText=role==="WOLF"?"늑대":"양";const ending=role==="WOLF"?"였습니다.":"이었습니다.";
+  const chars=Array.from(name.trim());const last=chars[chars.length-1]||"";const code=last.charCodeAt(0);const particle=code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0?"은":"는";const safeName=esc(name);
+  const emergencyOrigin=/^IDENTITY_REVEAL\|[^|]+\|EMERGENCY$/.test(String(g?.notice||""));
+  const aliveRows=(await db.from("players").select("id,role,status")).data||[];
+  const alive=aliveRows.filter(x=>String(x.status||"").toUpperCase()==="ALIVE");
+  const finalWinner=alive.length===2?(alive.filter(x=>String(x.role||"").toUpperCase()==="SHEEP").length===2?"SHEEP":alive.filter(x=>String(x.role||"").toUpperCase()==="WOLF").length===1?"WOLF":""):"";
+  let sentence,sub=finalWinner?"":"잠시 후 다음 라운드가 시작됩니다.";
+  if(emergencyOrigin&&role==="WOLF")sentence="축하합니다. 늑대를 찾아내셨습니다";
+  else sentence=safeName+particle+" "+roleText+ending;
+  if(emergencyOrigin&&role==="SHEEP")sub="";
+  root.innerHTML='<div class="roleRevealedPlayerStage"><div class="roleRevealedPlayerResult"><div class="roleRevealedPlayerSentence">'+sentence+'</div>'+(sub?'<div class="roleRevealedPlayerNext">'+sub+'</div>':'')+'</div></div>';
+  await wait(3000);if(token!==voteRenderToken)return;const latest=await settings().catch(()=>g);if(String(latest.phase||"").toUpperCase()==="FINISHED"&&latest.winner){await renderVictory(latest.winner);}
 }
+
 async function boot(){
  try{
   // 초기 로그인 화면은 Supabase 연결과 관계없이 항상 표시합니다.
