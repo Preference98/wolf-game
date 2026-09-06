@@ -3734,7 +3734,7 @@ window.openEmergencyReport=async function(){
  if(sabotageState?.active){toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");return;}
  if(!("NDEFReader" in window)){toast("이 브라우저에서는 NFC 긴급신고를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.");return;}
  emergencyNfcHandled=false;
- openOverlay("🚨","긴급신고","신고를 원하시면 태그 해주세요.","alarm",'<button class="secondary" style="width:100%" onclick="cancelEmergencyNfc()">취소</button>');
+ openOverlay("🚨","긴급신고","신고장소로 이동하여 태그해 주세요","alarm",'<button class="secondary" style="width:100%" onclick="cancelEmergencyNfc()">취소</button>');
  try{
    const reader=new NDEFReader(); emergencyNfcReader=reader;
    emergencyNfcAbortController=new AbortController();
