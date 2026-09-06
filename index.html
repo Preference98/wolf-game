@@ -3690,7 +3690,21 @@ async function updateEmergencyButton(g,p){
   g=g||window.__lastSettings||await settings().catch(()=>null);
   if(!g){finish(false);return;}
   window.__lastSettings=g;
-  finish(emergencyReportAllowed(g));
+
+  // 늑대방해가 실제로 진행 중인 동안에는 긴급신고 버튼을 비활성화합니다.
+  // 쿨타임은 무관하며, 현재 늑대방해 지속시간만 확인합니다.
+  let sabotageActive=false;
+  try{
+    const sabotageState=await getSabotageState(g.current_round);
+    sabotageActive=!!sabotageState?.active;
+  }catch(e){
+    // 상태를 확인할 수 없는 경우에는 기존 긴급신고 버튼을 임의로 활성화하지 않습니다.
+    console.warn("긴급신고 버튼의 늑대방해 상태 확인 실패:",e);
+    finish(false);
+    return;
+  }
+
+  finish(emergencyReportAllowed(g) && !sabotageActive);
 }
 window.emergencyReportButtonPressed=function(){
   const b=el("emergencyReportFloat");
