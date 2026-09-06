@@ -2961,22 +2961,60 @@ async function getPlayerCompletedLocationIds(round,playerIdValue){
 }
 
 async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
-async function checkWolfVictory(round){
- const r=await db.from("players").select("id").eq("role","SHEEP").eq("status","ALIVE");
- if(r.error){console.warn("늑대 승리 조건 확인 실패:",r.error.message);return false;}
- if((r.data||[]).length>0)return false;
- const u=await db.from("game_settings").update({phase:"FINISHED",winner:"WOLF",started:false,notice:"생존한 양이 없어 늑대가 승리했습니다."}).eq("id",1).eq("phase","PLAY");
- if(u.error){console.error("늑대 승리 상태 저장 실패:",u.error.message);return false;}
+async function advanceToNextRoundAfterSheepWin(round,expectedPhase="PLAY"){
+ const next=Number(round||0)+1;
+ const lock=await db.from("game_settings").update({
+   current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,
+   notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,
+   investigation_started_at:null,round_started_at:null,night_started_at:null,
+   round_time_penalty_total:0,mission_gauge_penalty_total:0
+ }).eq("id",1).eq("phase",String(expectedPhase||"PLAY")).eq("current_round",Number(round||0)).select("id");
+ if(lock.error||!lock.data?.length)return false;
+ await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
+ try{await db.rpc("reset_round_mission_progress",{p_game_round:Number(round||0)});}catch(e){console.warn("다음 라운드 미션 초기화 오류:",e);}
  return true;
 }
 
+// 모든 탈락 이벤트의 공통 승리 판정입니다.
+// 반드시 탈락 상태가 DB에 먼저 반영된 뒤 호출합니다.
+async function evaluateSurvivorOutcome(round){
+ const r=await db.from("players").select("id,role,status");
+ if(r.error){console.warn("생존자 승리 조건 확인 실패:",r.error.message);return {ended:false};}
+ const alive=(r.data||[]).filter(x=>String(x.status||"").toUpperCase()==="ALIVE");
+ if(alive.length!==2)return {ended:false,alive};
+ const sheep=alive.filter(x=>String(x.role||"").toUpperCase()==="SHEEP").length;
+ const wolf=alive.filter(x=>String(x.role||"").toUpperCase()==="WOLF").length;
+ if(sheep===2){
+   const u=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice:"생존자가 양 2명이 되어 양이 최종 승리했습니다."}).eq("id",1).eq("current_round",Number(round||0)).neq("phase","FINISHED");
+   return {ended:!u.error,winner:"SHEEP",alive};
+ }
+ if(sheep===1&&wolf===1){
+   const u=await db.from("game_settings").update({phase:"FINISHED",winner:"WOLF",started:false,notice:"생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다."}).eq("id",1).eq("current_round",Number(round||0)).neq("phase","FINISHED");
+   return {ended:!u.error,winner:"WOLF",alive};
+ }
+ return {ended:false,alive};
+}
+
+async function checkWolfVictory(round){
+ const out=await evaluateSurvivorOutcome(round);
+ return out.ended&&out.winner==="WOLF";
+}
+
 async function checkMissionGaugeAndWin(round){
- if(await checkWolfVictory(round))return true;
  const gauge=await getMissionGauge(round);
- if(gauge.sheepCount<=0)return true;
+ if(gauge.sheepCount<=0)return false;
  if(gauge.target>0&&gauge.completed>=gauge.target){
-   const r=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice:"미션 게이지가 100%가 되어 양이 승리했습니다."}).eq("id",1).eq("phase","PLAY");
-   return !r.error;
+   // 미션 100% 달성 시 해당 라운드의 늑대를 먼저 모두 탈락시킵니다.
+   const dead=await db.from("players").update({status:"DEAD"}).eq("role","WOLF").eq("status","ALIVE");
+   if(dead.error){console.warn("미션 완료 후 늑대 탈락 처리 실패:",dead.error.message);return false;}
+   const out=await evaluateSurvivorOutcome(round);
+   if(out.ended)return true;
+   // 생존자가 3명 이상이면 해당 라운드의 양 승리 후 다음 라운드로 넘어갑니다.
+   const alive=out.alive||[];
+   if(alive.length>=3){
+     await advanceToNextRoundAfterSheepWin(round);
+     return true;
+   }
  }
  return false;
 }
@@ -4423,8 +4461,8 @@ async function confirmDeathByPlayer(notificationId){
    return;
  }
 
- // 마지막 양이 사망하면 즉시 늑대 승리 상태로 전환
- await checkWolfVictory((await settings()).current_round);
+ // 탈락 상태가 DB에 반영된 뒤 공통 생존자 승리 판정을 수행합니다.
+ await evaluateSurvivorOutcome((await settings()).current_round);
 
  const attemptRound=(await settings()).current_round;
  const wr=await db.rpc("complete_wolf_attempt",{
@@ -5945,7 +5983,12 @@ async function renderVoteResultPlayer(p,g){
  // death.mp3는 탈락 대상 플레이어의 기기에서만 재생합니다.
  if(String(p.id)===String(d.player_id)){
    const dead=await db.from("players").update({status:"DEAD"}).eq("id",p.id).eq("status","ALIVE");
-   if(!dead.error) await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
+   if(!dead.error){
+     await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
+     const outcome=await evaluateSurvivorOutcome(g.current_round);
+     // 생존자가 2명이 된 경우에는 evaluateSurvivorOutcome에서 최종 승리를 확정합니다.
+     // 생존자가 3명 이상이면 기존 정체공개/다음 라운드 UI 흐름을 유지합니다.
+   }
  }
 }
 async function autoNextRoundNoWinner(g){
@@ -5967,7 +6010,8 @@ async function confirmIdentity(){
  const emergency=String(g.notice||"").startsWith("VOTE_RESULT|EMERGENCY|");
  if(emergency){
    const wolves=(await db.from("players").select("id,status").eq("role","WOLF").eq("status","ALIVE")).data||[];
-   const success=wolves.length===0;
+   const selectedWasWolf=String(r.data.role||"").toUpperCase()==="WOLF";
+   const success=wolves.filter(x=>String(x.id)!==String(r.data.id)).length===0 && selectedWasWolf;
    const outcomeId="emergency-outcome-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
    const lock=await db.from("game_settings").update({phase:"EMERGENCY_OUTCOME",notice:"EMERGENCY_OUTCOME|"+outcomeId+"|"+(success?"SUCCESS":"FAIL")}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0)).select("id");
    if(lock.error||!lock.data?.length){toast("긴급신고 결과 전환에 실패했습니다.");return;}
@@ -6093,6 +6137,8 @@ boot();
     comps,
     getPlayerCompletedLocationIds,
     checkMissionGaugeAndWin,
+    evaluateSurvivorOutcome,
+    advanceToNextRoundAfterSheepWin,
     getCurrentMission:()=>currentMission,
     setCurrentMission:(v)=>{currentMission=v;},
     markWolfMissionLocationComplete:(round,locationId)=>{
