@@ -3552,7 +3552,7 @@ function tickMission(){
  }
 }
 function tickRoundTimer(){
- if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); updateEmergencyButton(window.__lastSettings||null).catch(()=>{}); if(left<=0){
   clearInterval(roundTimer);roundTimer=null;
   if(!window.__roundExpiredHandled){
     window.__roundExpiredHandled=true;
@@ -3694,6 +3694,11 @@ function emergencyReportAllowed(g){
 async function updateEmergencyButton(g){
  const b=el("emergencyReportFloat");
  if(!b)return;
+ if(localStorage.getItem("wolf_game_admin_v7")==="1"){b.classList.remove("show");b.disabled=true;return;}
+ const p=await me().catch(()=>null);
+ if(!p||p.status!=="ALIVE"){b.classList.remove("show");b.disabled=true;return;}
+ g=g||await settings().catch(()=>null);
+ if(!g){b.classList.remove("show");b.disabled=true;return;}
  let sabotageActive=false;
  try{const st=await getSabotageState(g.current_round);sabotageActive=!!st?.active;}catch(_){ }
  const allowed=emergencyReportAllowed(g) && !sabotageActive && !(await hasEmergencyReportThisRound(g.current_round));
@@ -5745,6 +5750,15 @@ document.addEventListener("visibilitychange",()=>{
 });
 window.addEventListener("pageshow",()=>{ensureCentralServerClock(true).catch(()=>{});schedulePlayerResumeSync();});
 setInterval(()=>{if(document.visibilityState==="visible")ensureCentralServerClock(true).catch(()=>{});},30000);
+// 긴급신고 버튼은 라운드 시작 후 5분이 되는 시점을 놓치지 않도록 별도로 갱신합니다.
+setInterval(()=>{
+  if(document.visibilityState!=="visible")return;
+  const b=el("emergencyReportFloat");
+  if(!b)return;
+  const active=document.querySelector("#player.screen.active");
+  if(!active){b.classList.remove("show");b.disabled=true;return;}
+  settings().then(g=>updateEmergencyButton(g)).catch(()=>{});
+},1000);
 
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
