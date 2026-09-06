@@ -2239,7 +2239,7 @@ async function screenEmergencyOutcomeSequence(g){
  const root=document.getElementById('screenIdentityRevealRoot');
  if(!root)return;
  root.className='identityRevealStage';
- root.innerHTML=`<div class="identityRevealTop"><div class="identityRevealQuestion" style="opacity:1">${success?'축하합니다. 늑대를 발견했습니다.':'5초 뒤 게임이 재개됩니다.'}</div></div><div class="identityRevealCenter"></div><div class="identityRevealBottom"><div class="identityRevealBottomLabel" style="opacity:1">${success?'잠시 후 다음 라운드가 시작됩니다':'잠시 후 본게임이 재개됩니다'}</div></div>`;
+ root.innerHTML=`<div class="identityRevealTop"><div class="identityRevealQuestion" style="opacity:1">${success?'축하합니다. 늑대를 발견했습니다.':'5초 뒤 게임이 재개됩니다.'}</div></div><div class="identityRevealCenter"></div><div class="identityRevealBottom"><div class="identityRevealBottomLabel" style="opacity:1">${success?'':'잠시 후 본게임이 재개됩니다'}</div></div>`;
 }
 
 async function resultSequence(data){const token=++resultToken;show('s-result');const role=String(data.role||'').toUpperCase();await wait(4500);if(token!==resultToken)return;$('resultName').textContent=data.name||'';$('resultRole').textContent=role==='WOLF'?'늑대':'양';$('resultRole').className='resultRole '+(role==='WOLF'?'':'sheep');$('resultCaption').textContent='입니다.';await wait(6500);if(token!==resultToken)return;const g=await getSettings();if(String(g.phase).toUpperCase()==='TRIAL')show('s-trial');else if(String(g.phase).toUpperCase()==='PLAY')show('s-main')}
@@ -2253,12 +2253,12 @@ function renderScreenVictory(winner){
 async function renderNextRoundPrepScreen(g){
  show('s-nextRoundPrep');
  const rows=(await db.from('players').select('id,name,role,status').order('created_at')).data||[];
+ const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/); const until=m?Number(m[1]):Date.now()+6000; const publicWolf=!!(m&&m[3]==='PUBLIC_WOLF');
  const root=$('screenNextRoundFaces');
  if(root){root.innerHTML=rows.map(x=>{const dead=String(x.status||'').toUpperCase()!=='ALIVE';const src=(publicWolf && String(x.role||'').toUpperCase()==='WOLF')?'assets/wolf.png':'assets/sheep.png';return '<div style="position:relative"><img class="'+(dead?'dead':'')+'" src="'+src+'" alt="">'+(dead?'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;color:#ff3347;font-weight:1000">×</div>':'')+'</div>'}).join('');}
  const alive=rows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE').length; if($('screenNextRoundRemaining'))$('screenNextRoundRemaining').textContent=`남은 플레이어는 ${alive}명 입니다.`;
- const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(\d+)\|(\d+)\|([^|]*)$/); const until=m?Number(m[1]):Date.now()+6000; const publicWolf=!!(m&&m[3]==='PUBLIC_WOLF');
  if(window.__screenNextPrepTimer)clearTimeout(window.__screenNextPrepTimer);
- window.__screenNextPrepTimer=setTimeout(async()=>{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='NEXT_ROUND_PREP')return;const round=m?Number(m[2]):Number(latest.current_round||1);const next=round+1;await db.from('mission_completions').delete().eq('game_round',round);await db.from('wolf_attempts').delete().eq('game_round',round);await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','NEXT_ROUND_PREP');},Math.max(0,until-Date.now()));
+ window.__screenNextPrepTimer=setTimeout(async()=>{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='NEXT_ROUND_PREP')return;const round=m?Number(m[2]):Number(latest.current_round||1);const next=round+1;await db.from('mission_completions').delete().eq('game_round',round);await db.from('wolf_attempts').delete().eq('game_round',round);await db.from('sabotage_events').delete().eq('game_round',round);await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','NEXT_ROUND_PREP');},Math.max(0,until-Date.now()));
 }
 async function handlePhase(g,initial=false){
  if(!unlocked)return;
@@ -2566,7 +2566,7 @@ async function screenIdentityRevealSequence(g){
   const revealFinalWinner=revealAlive.length===2?(revealAlive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length===2?'SHEEP':revealAlive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length===1?'WOLF':''):'';
   const nextEl=document.createElement('div'); nextEl.className='identityRevealRoleSentence';
   if(revealFinalWinner|| (emergencyOrigin&&role==='SHEEP'))nextEl.textContent='';
-  else nextEl.textContent='잠시 후 다음 라운드가 시작됩니다.';
+  else nextEl.textContent='';
   const top=root.querySelector('.identityRevealTop');
   if(top)top.appendChild(nextEl);
   await wait(3000); if(token!==screenVoteToken)return; await playScreenSound('roleRevealedBgm','role-revealed-bgm-'+key,true,.6);
@@ -2576,7 +2576,11 @@ async function screenIdentityRevealSequence(g){
     await db.from('notifications').insert({message:JSON.stringify(noticePayload),target_player:null,notification_type:'ROLE_REVEALED'});
   }catch(err){console.warn('플레이어 정체 공개 완료 알림 전송 오류:',err);}
   const latest=await getSettings();
-  if(String(latest.phase||'').toUpperCase()==='FINISHED')return;
+  if(String(latest.phase||'').toUpperCase()==='FINISHED'){
+    const winner=String(latest.winner||'').toUpperCase();
+    if(winner==='SHEEP'||winner==='WOLF'){stopAllScreenBgm();show('s-victory');renderScreenVictory(winner);await playScreenEffect(winner==='WOLF'?'sounds/wolf-win.mp3':'sounds/sheep-win.mp3','screen-win-'+winner+'-'+String(latest.current_round)).catch(()=>{});}else show('s-idle');
+    return;
+  }
   if(emergencyOrigin&&role==='SHEEP'){
     const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
     let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.event_id||eventId)){rep=x;break;}}catch(_){}}
@@ -2588,9 +2592,29 @@ async function screenIdentityRevealSequence(g){
     await db.from('wolf_attempts').delete().eq('game_round',round);
     await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId)}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
   }
-  if(emergencyOrigin&&role==='WOLF'){
+  const rowsAfterReveal=(await db.from('players').select('role,status')).data||[];
+  const aliveAfterReveal=rowsAfterReveal.filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
+  const sheepAfterReveal=aliveAfterReveal.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length;
+  const wolfAfterReveal=aliveAfterReveal.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length;
+  const finalWinnerAfterReveal=aliveAfterReveal.length===2?(sheepAfterReveal===2?'SHEEP':(sheepAfterReveal===1&&wolfAfterReveal===1?'WOLF':'')):'';
+  if(finalWinnerAfterReveal){
+    await db.from('game_settings').update({phase:'FINISHED',winner:finalWinnerAfterReveal,started:false,notice:finalWinnerAfterReveal==='SHEEP'?'생존자가 양 2명이 되어 양이 최종 승리했습니다.':'생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다.'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
+  } else if(emergencyOrigin&&role==='SHEEP'){
+    const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
+    let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.event_id||eventId)){rep=x;break;}}catch(_){} }
+    const started=Date.parse(rep?.emergency_started_at||''); const pause=Number.isFinite(started)?Math.max(0,screenNow()-started):0;
+    const round=Number(latest.current_round||g.current_round||0);
+    const rs=Date.parse(latest.round_started_at||'');
+    if(Number.isFinite(rs)&&pause>0)await db.from('game_settings').update({round_started_at:new Date(rs+pause).toISOString()}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
+    if(pause>0){const sr=await db.from('sabotage_events').select('id,started_at,ends_at').eq('game_round',round);for(const ev of sr.data||[]){const st=Date.parse(ev.started_at||''),en=Date.parse(ev.ends_at||'');const patch={};if(Number.isFinite(st))patch.started_at=new Date(st+pause).toISOString();if(Number.isFinite(en))patch.ends_at=new Date(en+pause).toISOString();if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);}}
+    await db.from('wolf_attempts').delete().eq('game_round',round);
+    await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId)}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
+  } else if(emergencyOrigin&&role==='WOLF'){
     const until=Date.now()+6000;
     await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|PUBLIC_WOLF'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
+  } else {
+    const until=Date.now()+1000;
+    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|NORMAL'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
   }
 }
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
