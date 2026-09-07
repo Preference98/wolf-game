@@ -2269,6 +2269,8 @@ function renderScreenVictory(winner){
  '</div><div class="screenVictoryTitle">'+title+'</div></div>';
 }
 async function renderNextRoundPrepScreen(g){
+ const prepMatch=String(g.notice||'').match(/^NEXT_ROUND_PREP\|[^|]+\|[^|]+\|([^|]*)$/);
+ if(prepMatch&&prepMatch[1]==='PUBLIC_WOLF')return;
  show('s-nextRoundPrep');
  const rows=(await db.from('players').select('id,name,role,status').order('created_at')).data||[];
  const root=$('screenNextRoundFaces');
@@ -2458,7 +2460,7 @@ function subscribe(){
 // VOTE BROADCAST SYSTEM v193
 let screenVoteToken=0,screenVoteBoardTimer=null,screenLiveVoteEvent="",screenLiveVotes=new Map(),screenVoteResultCache=new Map();
 function screenVoteEvent(g){const m=String(g.notice||"").match(/^VOTE\|([^|]+)/);return m?m[1]:"";}
-function screenVoteResultEvent(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/);return m?m[1]:"";}
+function screenVoteResultEvent(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|([^|]+)/);return m?m[1]:"";}
 async function screenPlayVoteBgm(){const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');screenAudio.voteBgm=a;a.loop=true;a.volume=.55;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
 function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
 async function screenVoteData(round,eventId){const r=await db.from('notifications').select('id,message').eq('notification_type','TRIAL_VOTE').order('id',{ascending:false}).limit(5000);if(r.error){console.warn('스크린 투표 데이터 조회 실패:',r.error.message);return new Map();}const m=new Map();for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round)||String(d.event_id)!==String(eventId))continue;const voter=String(d.voter_id||'');if(voter&&!m.has(voter))m.set(voter,d);}catch(_){}}return m;}
