@@ -3254,12 +3254,6 @@ async function routeCore(){
   const p=await me();if(!p){showScreen("login");return;}
   const g=await settings();
   const currentPhase=String(g.phase||"LOBBY").toUpperCase();
-  // 처형된 플레이어도 정체 공개 단계에서는 정체 공개 화면을 그대로 봅니다.
-  // 사망 상태를 먼저 검사하면 이 화면에 도달하기 전에 탈락/대기 화면으로 빠집니다.
-  if(p.status!=="ALIVE" && currentPhase==="IDENTITY_REVEAL"){
-   const identity=await latestIdentity(g.current_round);
-   if(identity){await renderRoleRevealedPlayer(identity,g);return;}
-  }
   if(p.status!=="ALIVE"){
    if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
      stopAllTimers();
@@ -3309,12 +3303,7 @@ async function routeCore(){
      await renderVoteResultPlayer(p,g);return;
    case "IDENTITY_REVEAL":
      playerGameStartSequenceToken++;
-     {
-       const identity=await latestIdentity(g.current_round);
-       if(identity)await renderRoleRevealedPlayer(identity,g);
-       else await renderIdentityRevealPlayer(p,g);
-     }
-     return;
+     await renderIdentityRevealPlayer(p,g);return;
    case "FINISHED":
      playerGameStartSequenceToken++;
      if(g.winner)await renderVictory(g.winner);else stopAllTimers();
@@ -5965,6 +5954,7 @@ function realtime(){
      }catch(err){console.warn("정체 공개 완료 표시 오류:",err);}
      return;
    }
+   if(n.notification_type==="TRIAL_IDENTITY"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderRoleRevealedPlayer(d,g);}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
    if(currentPlayer.status!=="ALIVE")return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="EMERGENCY_REPORT"){
@@ -5987,7 +5977,6 @@ function realtime(){
      return;
    }
    if(["TRIAL_VOTE","SCREEN_VOTE"].includes(String(n.notification_type||"").toUpperCase()))return;
-   if(n.notification_type==="TRIAL_IDENTITY"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderRoleRevealedPlayer(d,g);}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
    if(n.notification_type==="VOTE_RESULT"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="VOTE_RESULT")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderVoteResultPlayer(await me(),g);}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
    if(n.notification_type==="NIGHT_WARNING"){
      const current=await settings();
