@@ -2457,7 +2457,7 @@ function subscribe(){
 }
 // VOTE BROADCAST SYSTEM v193
 let screenVoteToken=0,screenVoteBoardTimer=null,screenLiveVoteEvent="",screenLiveVotes=new Map(),screenVoteResultCache=new Map();
-function screenVoteEvent(g){const m=String(g.notice||"").match(/^VOTE\|(.+)$/);return m?m[1]:"";}
+function screenVoteEvent(g){const m=String(g.notice||"").match(/^VOTE\|([^|]+)/);return m?m[1]:"";}
 function screenVoteResultEvent(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/);return m?m[1]:"";}
 async function screenPlayVoteBgm(){const a=screenAudio.voteBgm||new Audio('sounds/vote_bgm.mp3');screenAudio.voteBgm=a;a.loop=true;a.volume=.55;try{await a.play();}catch(e){console.warn('vote_bgm 재생 실패:',e);}}
 function stopScreenVoteBgm(){stopScreenSound('voteBgm');}
