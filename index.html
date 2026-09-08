@@ -3728,7 +3728,16 @@ async function emergencyReportAllowed(g){
   if(emergencyReportUsageCacheKey===usageKey && emergencyReportUsageCache!==null){
     return !emergencyReportUsageCache;
   }
-  if(round>0 && Number.isFinite(roundStartedAt)){
+  // 먼저 "이 라운드에서 긴급신고를 사용할 수 있는 시간인지"를 판정합니다.
+  // 사용기록 조회가 늦거나 일시적으로 실패하더라도 시간 조건 자체가 잘못되어
+  // 버튼이 처음부터 비활성화되는 일이 없도록 두 조건을 분리합니다.
+  const duration=Number(g.round_duration_minutes);
+  const started=Date.parse(g.round_started_at||"");
+  const timingAllowed=(Number.isFinite(duration) && duration>=1 && duration<=5)
+    || (Number.isFinite(started) && gameNow()-started>=5*60*1000);
+  if(!timingAllowed)return false;
+
+  if(round>0){
     const r=await db.from("notifications")
       .select("id,message,created_at")
       .is("target_player",null)
@@ -3750,10 +3759,7 @@ async function emergencyReportAllowed(g){
     emergencyReportUsageCache=used;
     if(used)return false;
   }
-  const duration=Number(g.round_duration_minutes);
-  if(Number.isFinite(duration) && duration>=1 && duration<=5) return true;
-  const started=Date.parse(g.round_started_at||"");
-  return Number.isFinite(started) && gameNow()-started>=5*60*1000;
+  return true;
 }
 let emergencyButtonRefreshSeq=0;
 function setEmergencyButtonState(active){
@@ -3851,7 +3857,7 @@ async function submitEmergencyReport(event){
   const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId})
     .eq("id",1).eq("phase","PLAY").eq("notice",String(g.notice||"")).select("id");
   if(lock.error || !lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
-  emergencyReportUsageCacheKey=String(g.current_round||0)+"|"+String(g.round_started_at||"");
+  emergencyReportUsageCacheKey=String(g.current_round||0);
   emergencyReportUsageCache=true;
 
   const ins=await db.from("notifications").insert({
@@ -3860,7 +3866,7 @@ async function submitEmergencyReport(event){
   if(ins.error){
     await db.from("game_settings").update({notice:g.notice||""})
       .eq("id",1).eq("phase","PLAY").eq("notice","EMERGENCY_REPORT|"+eventId);
-    emergencyReportUsageCacheKey=String(g.current_round||0)+"|"+String(g.round_started_at||"");
+    emergencyReportUsageCacheKey=String(g.current_round||0);
     emergencyReportUsageCache=false;
     throw new Error("긴급신고 접수 알림 저장 실패: "+ins.error.message);
   }
