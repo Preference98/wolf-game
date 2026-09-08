@@ -2468,7 +2468,32 @@ function screenApplyVoteEvent(d){const ev=String(d?.event_id||'');if(!ev)return;
 async function renderScreenVoteBoard(g,finalData=null){const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');if(playersR.error){console.warn('스크린 투표 플레이어 조회 실패:',playersR.error.message);return;}const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE'||(finalData&&String(x.id)===String(finalData.player_id)));const ev=screenVoteEvent(g);if(!finalData&&ev){if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const fetched=await screenVoteData(g.current_round,ev);for(const [v,d] of fetched)screenLiveVotes.set(v,d);}const counts=new Map();if(finalData){for(const [id,c] of Object.entries(finalData.counts||{}))counts.set(String(id),Number(c)||0);}else{for(const d of screenLiveVotes.values()){const candidate=String(d.candidate_id||'');if(candidate)counts.set(candidate,(counts.get(candidate)||0)+1);}}const total=finalData?Number(finalData.total||players.length):players.length;const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';const title=$('screenVoteTitleCards');if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}const root=$('screenVotePlayers');if(!root)return;root.innerHTML=players.map(p=>{const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';}).join('');}
 async function screenVoteSequence(g){const token=++screenVoteToken;screenLiveVoteEvent=screenVoteEvent(g);screenLiveVotes=new Map();stopAllScreenBgm();await screenPlayVoteBgm();show('s-vote');await renderScreenVoteBoard(g);if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(e){console.warn('스크린 실시간 투표 갱신 오류:',e);}},700);if(token!==screenVoteToken)return;}
 async function screenVoteResultData(round,eventId){if(eventId&&screenVoteResultCache.has(eventId))return screenVoteResultCache.get(eventId);const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(50);if(r.error){console.warn('스크린 투표결과 조회 실패:',r.error.message);return null;}for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round))continue;if(eventId&&String(d.event_id)!==String(eventId))continue;if(d.event_id)screenVoteResultCache.set(String(d.event_id),d);return d;}catch(_){}}return null;}
-async function screenVoteResultSequence(g){const token=++screenVoteToken;if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const eventId=screenVoteResultEvent(g);let d=null;for(let i=0;i<40&&!d;i++){d=await screenVoteResultData(g.current_round,eventId);if(!d)await wait(250);}if(token!==screenVoteToken||!d)return;if(d.no_execution){show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';await wait(5000);if(token!==screenVoteToken)return;if(screenVoteResultTrialType(g)==='NORMAL'){await screenAutoNextRoundNoWinner(g);}else{await screenResumeEmergencyAfterTrial(g,eventId);}return;}show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';const title=document.getElementById('screenVoteTitle'),lead=document.getElementById('screenVoteLead'),fin=document.getElementById('screenVoteFinal');title.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});lead.textContent=(d.name||'')+' 양은...';fin.textContent='';fin.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;fin.textContent='처형되었습니다';fin.classList.add('show');await wait(5000);}
+async function screenMarkVoteExecutionDead(d,g){
+  const playerId=String(d?.player_id||'');
+  if(!playerId)return true;
+  const key=String(g.current_round||0)+'|'+String(d.event_id||'')+'|'+playerId;
+  if(screenExecutedVoteKey===key)return true;
+  const r=await db.from('players').update({status:'DEAD'}).eq('id',playerId).eq('status','ALIVE').select('id');
+  if(r.error){console.warn('재판 처형 탈락 처리 오류:',r.error);return false;}
+  // 이미 다른 화면에서 같은 처형을 확정했더라도 최종 상태가 DEAD라면 성공으로 취급합니다.
+  if(!r.data?.length){
+    const check=await db.from('players').select('id,status').eq('id',playerId).maybeSingle();
+    if(check.error||String(check.data?.status||'').toUpperCase()!=='DEAD'){
+      console.warn('재판 처형 탈락 상태 확인 실패:',check.error||check.data);
+      return false;
+    }
+  }
+  screenExecutedVoteKey=key;
+  return true;
+}
+async function screenVoteResultSequence(g){const token=++screenVoteToken;if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const eventId=screenVoteResultEvent(g);let d=null;for(let i=0;i<40&&!d;i++){d=await screenVoteResultData(g.current_round,eventId);if(!d)await wait(250);}if(token!==screenVoteToken||!d)return;if(d.no_execution){show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';await wait(5000);if(token!==screenVoteToken)return;if(screenVoteResultTrialType(g)==='NORMAL'){await screenAutoNextRoundNoWinner(g);}else{await screenResumeEmergencyAfterTrial(g,eventId);}return;}show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';const title=document.getElementById('screenVoteTitle'),lead=document.getElementById('screenVoteLead'),fin=document.getElementById('screenVoteFinal');title.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});lead.textContent=(d.name||'')+' 양은...';fin.textContent='';fin.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;fin.textContent='처형되었습니다';fin.classList.add('show');
+  // 탈락 처리는 "정체확인"이 아니라 "처형되었습니다" 문구가 등장하는 순간 확정합니다.
+  // 정체확인은 이후 역할 공개만 담당합니다.
+  if(!d.no_execution){
+    const executed=await screenMarkVoteExecutionDead(d,g);
+    if(!executed){console.warn('처형 연출 중 탈락 처리가 완료되지 않아 재시도 대기');}
+  }
+  await wait(5000);}
 async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
 async function screenResumeEmergencyAfterTrial(g,eventId=""){
   const round=Number(g.current_round||0);
@@ -2499,6 +2524,7 @@ async function screenResumeEmergencyAfterTrial(g,eventId=""){
   if(lock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+lock.error.message);
 }
 let screenIdentitySequenceKey="";
+let screenExecutedVoteKey="";
 async function screenIdentityRevealSequence(g){
   // 긴급재판 후 늦게 도착한 IDENTITY_REVEAL 상태가 현재 화면을 되돌리지 않도록 실제 DB 상태를 확인합니다.
   const actualAtStart=await getSettings();
@@ -2650,6 +2676,12 @@ async function screenIdentityRevealSequence(g){
     return;
   }
   if(String(latest.phase||'').toUpperCase()==='FINISHED')return;
+  // 일반재판은 양/늑대 어느 쪽이 탈락하더라도 정체 공개가 끝난 뒤 다음 라운드로 넘어갑니다.
+  if(!emergencyOrigin){
+    const until=Date.now()+6000;
+    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|TRIAL_EXECUTION'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
+    return;
+  }
   if(emergencyOrigin&&role==='WOLF'){
     const until=Date.now()+6000;
     await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|PUBLIC_WOLF'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));

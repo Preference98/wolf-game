@@ -6235,15 +6235,26 @@ async function renderVoteResultPlayer(p,g){
  fin.classList.add("show");
  // "처형되었습니다" 문구가 등장하는 정확한 순간에 탈락 처리합니다.
  // death.mp3는 탈락 대상 플레이어의 기기에서만 재생합니다.
- // 실제 탈락 확정과 게임 상태 전환은 관리자 정체확인 이후 스크린의
- // 정체 공개 완료 처리에서 한 번만 수행합니다. 비탈락 플레이어의 브라우저가
- // 자기 상태를 바꾸거나 게임을 재개하는 일이 없도록 합니다.
+ // 실제 탈락 확정은 스크린의 "처형되었습니다" 연출 시점에 이미 완료됩니다.
+ // 정체확인은 이후 역할 공개 단계로만 전환합니다.
  if(String(p.id)===String(d.player_id)){
    await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
  }
 }
-function voteResultTrialType(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|[^|]+\|([^|]+)/);return m&&m[1]==="EMERGENCY"?"EMERGENCY":"NORMAL";}
-function voteResultTrialEventId(g){const m=String(g.notice||"").match(/^VOTE_RESULT\|[^|]+\|[^|]+\|([^|]+)/);return m?m[1]:"";}
+function voteResultTrialType(g){
+ const n=String(g.notice||"");
+ const m=n.match(/^VOTE_RESULT\|[^|]+\|([^|]+)/);
+ if(m)return m[1]==="EMERGENCY"?"EMERGENCY":"NORMAL";
+ const i=n.match(/^IDENTITY_REVEAL\|[^|]+\|([^|]+)/);
+ return i&&i[1]==="EMERGENCY"?"EMERGENCY":"NORMAL";
+}
+function voteResultTrialEventId(g){
+ const n=String(g.notice||"");
+ const m=n.match(/^VOTE_RESULT\|[^|]+\|[^|]+\|([^|]+)/);
+ if(m)return m[1];
+ const i=n.match(/^IDENTITY_REVEAL\|[^|]+\|[^|]+\|([^|]+)/);
+ return i?i[1]:"";
+}
 async function autoNextRoundNoWinner(g){
  const next=Number(g.current_round||0)+1;
  await clearEmergencyReportRecords(g.current_round);
@@ -6257,23 +6268,20 @@ async function autoNextRoundNoWinner(g){
 async function confirmIdentity(){
  const g=await settings();
  if(String(g.phase).toUpperCase()!=="VOTE_RESULT"){toast("투표 결과 공개 후 정체확인을 눌러 주세요.");return;}
- const d=await latestVoteResult(g.current_round);
+ const currentVoteEvent=(String(g.notice||"").match(/^VOTE_RESULT\|([^|]+)/)||[])[1]||"";
+ const d=await latestVoteResult(g.current_round,currentVoteEvent);
  if(!d?.player_id){toast("이번 투표에서는 탈락자가 없습니다.");return;}
  const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();
  if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}
  if(String(r.data.status||"").toUpperCase()!=="ALIVE"){toast("해당 플레이어는 이미 탈락 처리되었습니다.");return;}
- const payload={round:Number(g.current_round||0),event_id:d.event_id,trial_event_id:voteResultTrialEventId(g),player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
+ const trialEventId=voteResultTrialEventId(g);
+ const payload={round:Number(g.current_round||0),event_id:d.event_id,trial_event_id:trialEventId,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
  const type=voteResultTrialType(g);
- // 정체확인을 누른 순간에만 정체공개 단계로 잠그고, 그 직후 탈락 상태를 확정합니다.
- const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id+"|"+type}).eq("id",1).eq("phase","VOTE_RESULT");
+ // 탈락 처리는 이미 "처형되었습니다" 연출 시점에 완료되어 있어야 합니다.
+ // 정체확인은 탈락을 발생시키는 버튼이 아니라 정체공개 단계로 넘기는 버튼입니다.
+ const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id+"|"+type+"|"+trialEventId}).eq("id",1).eq("phase","VOTE_RESULT");
  if(lock.error||!lock.data?.length){
    toast("정체 공개 단계 전환 실패: "+(lock.error?.message||"이미 다른 상태로 변경되었습니다."));
-   return;
- }
- const dead=await db.from("players").update({status:"DEAD"}).eq("id",r.data.id).eq("status","ALIVE").select("id");
- if(dead.error||!dead.data?.length){
-   await db.from("game_settings").update({phase:"VOTE_RESULT",notice:"VOTE_RESULT|"+d.event_id+"|"+type+"|"+voteResultTrialEventId(g)}).eq("id",1).eq("phase","IDENTITY_REVEAL");
-   toast("탈락 처리에 실패했습니다.");
    return;
  }
  const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});
