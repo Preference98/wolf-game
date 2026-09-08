@@ -3718,8 +3718,12 @@ let emergencyReportUsageCacheGeneration=0;
 async function emergencyReportAllowed(g){
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY") return false;
   const round=Number(g.current_round||0);
+  // 긴급신고 사용 여부는 라운드 자체에 귀속됩니다.
+  // 긴급재판 재개 시 round_started_at이 일시정지 시간만큼 이동하므로
+  // round_started_at을 사용키로 삼으면 같은 라운드의 기존 신고 기록을
+  // 새 라운드처럼 오인하여 버튼이 다시 활성화됩니다.
   const roundStartedAt=Date.parse(g.round_started_at||"");
-  const usageKey=String(round)+"|"+String(g.round_started_at||"");
+  const usageKey=String(round);
   const generation=emergencyReportUsageCacheGeneration;
   if(emergencyReportUsageCacheKey===usageKey && emergencyReportUsageCache!==null){
     return !emergencyReportUsageCache;
@@ -3734,8 +3738,8 @@ async function emergencyReportAllowed(g){
     if(r.error)throw new Error("긴급신고 사용 여부 확인 실패: "+r.error.message);
     let used=false;
     for(const n of r.data||[]){
-      const created=Date.parse(n.created_at||"");
-      if(!Number.isFinite(created) || created<roundStartedAt)continue;
+      // created_at은 비교하지 않습니다. 긴급재판 재개로 round_started_at이
+      // 변경되어도, 이번 라운드에서 이미 사용한 신고 기록은 그대로 유효합니다.
       try{
         const d=JSON.parse(n.message||"{}");
         if(Number(d.round)===round){used=true;break;}
@@ -6186,9 +6190,11 @@ async function renderVoteResultPlayer(p,g){
    const dead=await db.from("players").update({status:"DEAD"}).eq("id",p.id).eq("status","ALIVE");
    if(!dead.error){
      await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
-     const outcome=await evaluateSurvivorOutcome(g.current_round);
-     // 생존자가 2명이 된 경우에는 evaluateSurvivorOutcome에서 최종 승리를 확정합니다.
-     // 생존자가 3명 이상이면 기존 정체공개/다음 라운드 UI 흐름을 유지합니다.
+     // 긴급재판의 양 처형은 생존자 수와 관계없이 반드시 현재 라운드를 재개합니다.
+     // 여기서 공통 승리 판정을 실행하면, 본게임에서 이미 죽은 양이 있는 경우
+     // 생존자가 2명(양 1 + 늑대 1)이 되어 늑대 승리가 먼저 확정될 수 있습니다.
+     // 긴급재판에서는 정체 공개 후 재개 흐름이 승패 판정보다 우선입니다.
+     if(voteResultTrialType(g)!=="EMERGENCY") await evaluateSurvivorOutcome(g.current_round);
    }
  }
 }
