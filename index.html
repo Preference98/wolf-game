@@ -3715,12 +3715,13 @@ function stopEmergencyNfcScan(){
 }
 
 async function hasEmergencyReportAttempt(round){
+  const targetRound=Number(round)||0;
   const r=await db.from("emergency_attempts")
     .select("id,status,game_round")
-    .eq("game_round",Number(round)||0)
+    .eq("game_round",targetRound)
     .limit(1);
   if(r.error)throw new Error(r.error.message);
-  return !!(r.data&&r.data.length);
+  return Array.isArray(r.data) && r.data.some(x=>Number(x.game_round)===targetRound);
 }
 async function emergencyReportButtonAvailable(g,p){
   // 긴급신고 버튼의 사용 가능 여부는 화면 상태가 아니라
@@ -3741,26 +3742,14 @@ async function emergencyReportButtonAvailable(g,p){
   }
 }
 async function clearEmergencyReportRecords(){
-  // 먼저 일반 DELETE를 시도합니다. 정책이 허용되는 환경에서는 별도 RPC 없이도 처리됩니다.
-  const direct=await db.from("emergency_attempts").delete().gte("id",0);
-  if(direct.error){
-    console.warn("emergency_attempts 일반 삭제 실패, 전용 초기화 RPC를 시도합니다:",direct.error.message);
-  }
-
-  // DELETE가 RLS 등에 의해 실제로 적용되지 않았을 수 있으므로 반드시 남은 기록을 확인합니다.
-  const check=await db.from("emergency_attempts").select("id").limit(1);
-  if(check.error){
-    throw new Error("긴급신고 사용 기록 확인 실패: "+check.error.message);
-  }
-  if((check.data||[]).length===0)return;
-
-  // 기록이 남아 있으면 SECURITY DEFINER RPC로 다시 초기화합니다.
-  const rpc=await db.rpc("reset_emergency_attempts");
+  // 긴급신고 사용 기록은 전용 SECURITY DEFINER RPC를 기준으로 초기화합니다.
+  // 일반 DELETE는 RLS 정책에 따라 조용히 0건 처리될 수 있으므로 성공 기준으로 사용하지 않습니다.
+  const rpc=await db.rpc("reset_emergency_attempts_v2");
   if(rpc.error){
     throw new Error("긴급신고 사용 기록 초기화 실패: "+rpc.error.message);
   }
 
-  // RPC 실행 후에도 남아 있으면 초기화를 성공으로 처리하지 않습니다.
+  // 반드시 실제 테이블을 다시 조회하여 기록이 사라졌는지 확인합니다.
   const verify=await db.from("emergency_attempts").select("id").limit(1);
   if(verify.error)throw new Error("긴급신고 사용 기록 초기화 확인 실패: "+verify.error.message);
   if((verify.data||[]).length)throw new Error("긴급신고 사용 기록 초기화 실패: 기록이 남아 있습니다.");
@@ -3781,7 +3770,13 @@ async function updateEmergencyButton(g,p){
   const b=el("emergencyReportFloat");
   if(!b)return;
   const seq=++emergencyButtonRefreshSeq;
-  const finish=active=>{if(seq===emergencyButtonRefreshSeq)setEmergencyButtonState(active);};
+  const finish=active=>{
+    if(seq!==emergencyButtonRefreshSeq)return;
+    // 최종 판정은 반드시 실제 disabled 속성에 반영합니다.
+    b.disabled=!active;
+    b.classList.toggle("show",!!active);
+    b.setAttribute("aria-disabled",active?"false":"true");
+  };
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){finish(false);return;}
   p=p||window.__lastPlayer||await me().catch(()=>null);
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE"){finish(false);return;}
@@ -3789,12 +3784,19 @@ async function updateEmergencyButton(g,p){
   if(!g){finish(false);return;}
   window.__lastSettings=g;
 
-  // 긴급신고 버튼을 결정하는 순간 서버의 현재 늑대방해 상태도 함께 확인합니다.
-  // 감시기의 비동기 갱신 시점과 버튼 갱신 시점이 어긋나도 규칙이 뒤집히지 않습니다.
-  Promise.all([
-    emergencyReportButtonAvailable(g,p),
-    getSabotageState(Number(g.current_round||0)).then(st=>st.active===true)
-  ]).then(([ok,sabotageActive])=>finish(ok && !sabotageActive)).catch(()=>finish(false));
+  try{
+    // 현재 라운드의 emergency_attempts를 매번 서버에서 직접 확인합니다.
+    // 긴급재판 후 재개 여부와 관계없이 기록이 있으면 버튼을 끕니다.
+    const used=await hasEmergencyReportAttempt(g.current_round);
+    if(used){finish(false);return;}
+    const available=await emergencyReportButtonAvailable(g,p);
+    if(!available){finish(false);return;}
+    const sabotage=await getSabotageState(Number(g.current_round||0));
+    finish(sabotage.active!==true);
+  }catch(e){
+    console.warn("긴급신고 버튼 상태 확인 실패:",e);
+    finish(false);
+  }
 }
 window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
@@ -6275,6 +6277,12 @@ async function resumeEmergencyAfterTrial(g){
  if(remainDeath.error)throw new Error("사망처리 권한 초기화 확인 실패: "+remainDeath.error.message);
  if((remainDeath.data||[]).length)throw new Error("긴급재판 후 사망처리 권한이 초기화되지 않았습니다.");
  const lock=await db.from("game_settings").update({phase:"COUNTDOWN",notice:"EMERGENCY_RESUME|"+eventId}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",round);
+ if(!lock.error&&lock.data?.length){
+   // 긴급신고 기록은 유지된 상태이므로 다음 PLAY 진입 때 버튼이 반드시 비활성화되도록 즉시 상태를 갱신합니다.
+   const latest=await settings().catch(()=>null);
+   const player=window.__lastPlayer||await me().catch(()=>null);
+   if(latest&&player)await updateEmergencyButton(latest,player);
+ }
  return !lock.error&&!!lock.data?.length;
 }
 async function autoNextRoundNoWinner(g){
