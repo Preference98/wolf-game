@@ -3722,20 +3722,33 @@ async function hasEmergencyReportAttempt(round){
 async function emergencyReportButtonAvailable(g,p){
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return false;
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY")return false;
+  // 사용기록이 있으면 다른 조건을 보지 않고 즉시 비활성화합니다.
+  // 긴급재판 후 같은 라운드가 재개되어도 이 기록은 유지되므로
+  // 버튼은 다시 활성화될 수 없습니다.
+  try{
+    if(await hasEmergencyReportAttempt(g.current_round))return false;
+  }catch(_){
+    return false;
+  }
   const duration=Number(g.round_duration_minutes);
   const started=Date.parse(g.round_started_at||"");
   const timingAllowed=(Number.isFinite(duration)&&duration>=1&&duration<=5) ||
     (Number.isFinite(started)&&gameNow()-started>=5*60*1000);
   if(!timingAllowed)return false;
-  try{return !(await hasEmergencyReportAttempt(g.current_round));}catch(_){return false;}
+  return true;
 }
 async function clearEmergencyReportRecords(round=null){
   // 사망처리와 동일하게 emergency_attempts를 직접 DELETE합니다.
-  // 현재 라운드를 넘기면 해당 라운드만, 인자를 생략하면 새 게임/전체 초기화입니다.
+  // 삭제 후 실제로 기록이 없어졌는지 확인합니다.
   let q=db.from("emergency_attempts").delete();
   q=round===null?q.gte("id",0):q.eq("game_round",Number(round)||0);
   const r=await q;
   if(r.error)throw new Error("긴급신고 사용 기록 초기화 실패: "+r.error.message);
+  let check=db.from("emergency_attempts").select("id").limit(1);
+  if(round!==null)check=check.eq("game_round",Number(round)||0);
+  const remain=await check;
+  if(remain.error)throw new Error("긴급신고 사용 기록 초기화 확인 실패: "+remain.error.message);
+  if((remain.data||[]).length)throw new Error("긴급신고 사용 기록이 남아 있습니다.");
 }
 async function clearSabotageRecordsForNewGame(){
   const r=await db.from("sabotage_events").delete().gte("id",0);
@@ -3761,12 +3774,17 @@ async function updateEmergencyButton(g,p){
   if(!g){finish(false);return;}
   window.__lastSettings=g;
 
-  // 긴급신고 버튼을 결정하는 순간 서버의 현재 늑대방해 상태도 함께 확인합니다.
-  // 감시기의 비동기 갱신 시점과 버튼 갱신 시점이 어긋나도 규칙이 뒤집히지 않습니다.
-  Promise.all([
-    emergencyReportButtonAvailable(g,p),
-    getSabotageState(Number(g.current_round||0)).then(st=>st.active===true)
-  ]).then(([ok,sabotageActive])=>finish(ok && !sabotageActive)).catch(()=>finish(false));
+  // 사용기록 확인이 끝난 뒤에만 버튼 상태를 확정합니다.
+  // 기존에는 Promise.all을 시작만 하고 함수가 먼저 반환되어,
+  // 재개 직후 다른 갱신이 버튼 상태를 덮어쓸 수 있었습니다.
+  try{
+    const ok=await emergencyReportButtonAvailable(g,p);
+    if(!ok){finish(false);return;}
+    const st=await getSabotageState(Number(g.current_round||0));
+    finish(st?.active!==true);
+  }catch(_){
+    finish(false);
+  }
 }
 window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
@@ -5242,6 +5260,9 @@ async function resetGame(){
    // 사망처리 기록도 새 게임 시작 전에 완전히 비웁니다.
    const deathReset=await db.from("wolf_attempts").delete().gte("id",0);
    if(deathReset.error)throw new Error("사망처리 기록 초기화 실패: "+deathReset.error.message);
+
+   // 긴급신고 사용기록도 새 게임에서는 완전히 초기화합니다.
+   await clearEmergencyReportRecords();
 
    // 새 게임은 이전 게임의 진행 알림/방해 기록을 이어받지 않습니다.
    // 특히 긴급신고는 현재 라운드 번호가 다시 1부터 시작하므로 이전 게임의
