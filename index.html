@@ -6265,29 +6265,65 @@ async function autoNextRoundNoWinner(g){
  try{await db.rpc("reset_round_mission_progress",{p_game_round:Number(g.current_round||0)});}catch(_){}
 }
 
+let identityConfirmInFlight=false;
 async function confirmIdentity(){
+ if(identityConfirmInFlight)return;
+ identityConfirmInFlight=true;
+ const btn=el("identityConfirmBtn");
+ if(btn)btn.disabled=true;
+ try{
  const g=await settings();
+ if(String(g.phase).toUpperCase()==="IDENTITY_REVEAL"){
+   const currentEvent=(String(g.notice||"").match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||"";
+   const latest=await latestIdentity(g.current_round);
+   if(currentEvent && latest?.event_id && String(latest.event_id)===currentEvent){
+     await renderAdmin();
+     return;
+   }
+ }
  if(String(g.phase).toUpperCase()!=="VOTE_RESULT"){toast("투표 결과 공개 후 정체확인을 눌러 주세요.");return;}
  const currentVoteEvent=(String(g.notice||"").match(/^VOTE_RESULT\|([^|]+)/)||[])[1]||"";
  const d=await latestVoteResult(g.current_round,currentVoteEvent);
  if(!d?.player_id){toast("이번 투표에서는 탈락자가 없습니다.");return;}
  const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();
  if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}
- if(String(r.data.status||"").toUpperCase()!=="DEAD"){toast("처형된 플레이어의 탈락 처리가 아직 완료되지 않았습니다. 잠시 후 다시 눌러 주세요.");return;}
+ let deadReady=false;
+ for(let i=0;i<20;i++){
+   const statusCheck=await db.from("players").select("status").eq("id",r.data.id).maybeSingle();
+   if(!statusCheck.error && String(statusCheck.data?.status||"").toUpperCase()==="DEAD"){deadReady=true;break;}
+   await new Promise(resolve=>setTimeout(resolve,250));
+ }
+ if(!deadReady){toast("처형된 플레이어의 탈락 처리가 아직 완료되지 않았습니다. 잠시 후 다시 눌러 주세요.");return;}
  const trialEventId=voteResultTrialEventId(g);
  const payload={round:Number(g.current_round||0),event_id:d.event_id,trial_event_id:trialEventId,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
  const type=voteResultTrialType(g);
  // 탈락 처리는 이미 "처형되었습니다" 연출 시점에 완료되어 있어야 합니다.
  // 정체확인은 탈락을 발생시키는 버튼이 아니라 정체공개 단계로 넘기는 버튼입니다.
  const lock=await db.from("game_settings").update({phase:"IDENTITY_REVEAL",notice:"IDENTITY_REVEAL|"+d.event_id+"|"+type+"|"+trialEventId}).eq("id",1).eq("phase","VOTE_RESULT");
- if(lock.error||!lock.data?.length){
-   toast("정체 공개 단계 전환 실패: "+(lock.error?.message||"이미 다른 상태로 변경되었습니다."));
+ if(lock.error){
+   toast("정체 공개 단계 전환에 실패했습니다: "+lock.error.message);
    return;
  }
- const ins=await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});
+ if(!lock.data?.length){
+   const after=await settings();
+   const afterEvent=(String(after.notice||"").match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||"";
+   if(String(after.phase||"").toUpperCase()!=="IDENTITY_REVEAL" || String(afterEvent)!==String(d.event_id)){
+     toast("정체 공개 단계 전환에 실패했습니다. 현재 게임 상태를 확인해 주세요.");
+     return;
+   }
+ }
+ const existingIdentity=await latestIdentity(g.current_round);
+ const identityAlreadySent=existingIdentity && String(existingIdentity.event_id||"")===String(d.event_id);
+ const ins=identityAlreadySent?{error:null}:await db.from("notifications").insert({message:JSON.stringify(payload),target_player:null,notification_type:"TRIAL_IDENTITY"});
  if(ins.error){toast("정체 공개 전송 실패: "+ins.error.message);return;}
  toast(r.data.name+"의 정체를 공개합니다.");
  await renderAdmin();
+ }finally{
+   identityConfirmInFlight=false;
+   const latest=await settings().catch(()=>null);
+   const b=el("identityConfirmBtn");
+   if(b)b.disabled=!latest || String(latest.phase||"").toUpperCase()!=="VOTE_RESULT";
+ }
 }
 
 async function latestIdentity(round){const r=await db.from("notifications").select("message").is("target_player",null).eq("notification_type","TRIAL_IDENTITY").order("id",{ascending:false}).limit(20);if(r.error)return null;for(const n of r.data||[]){try{const d=JSON.parse(n.message||"{}");if(String(d.round)===String(round))return d;}catch(_){}}return null;}
