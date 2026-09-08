@@ -3718,7 +3718,7 @@ async function emergencyReportAllowed(g){
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY") return false;
   const round=Number(g.current_round||0);
   const roundStartedAt=Date.parse(g.round_started_at||"");
-  const usageKey=String(round)+"|"+String(g.round_started_at||"");
+  const usageKey=String(round);
   if(emergencyReportUsageCacheKey===usageKey && emergencyReportUsageCache!==null){
     return !emergencyReportUsageCache;
   }
@@ -3844,7 +3844,7 @@ async function submitEmergencyReport(event){
   const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId})
     .eq("id",1).eq("phase","PLAY").eq("notice",String(g.notice||"")).select("id");
   if(lock.error || !lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
-  emergencyReportUsageCacheKey=String(g.current_round||0)+"|"+String(g.round_started_at||"");
+  emergencyReportUsageCacheKey=String(g.current_round||0);
   emergencyReportUsageCache=true;
 
   const ins=await db.from("notifications").insert({
@@ -3853,7 +3853,7 @@ async function submitEmergencyReport(event){
   if(ins.error){
     await db.from("game_settings").update({notice:g.notice||""})
       .eq("id",1).eq("phase","PLAY").eq("notice","EMERGENCY_REPORT|"+eventId);
-    emergencyReportUsageCacheKey=String(g.current_round||0)+"|"+String(g.round_started_at||"");
+    emergencyReportUsageCacheKey=String(g.current_round||0);
     emergencyReportUsageCache=false;
     throw new Error("긴급신고 접수 알림 저장 실패: "+ins.error.message);
   }
@@ -6037,7 +6037,7 @@ function realtime(){
        const d=JSON.parse(n.message||"{}");
        const g=await settings();
        if(Number(g.current_round)===Number(d.round)){
-         emergencyReportUsageCacheKey=String(g.current_round||0)+"|"+String(g.round_started_at||"");
+         emergencyReportUsageCacheKey=String(g.current_round||0);
          emergencyReportUsageCache=true;
        }
        if(Number(g.current_round)!==Number(d.round))return;

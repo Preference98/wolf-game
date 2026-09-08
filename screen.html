@@ -2540,21 +2540,33 @@ async function screenIdentityRevealSequence(g){
   await wait(1500); if(token!==screenVoteToken)return;
   // 공개 연출: tension.mp3의 실제 재생 위치/남은 시간을 기준으로 진행합니다.
   const tension=screenAudio.tension;
-  if(!tension)return;
-  tension.loop=false;
-  tension.volume=.95;
-  tension.pause();
-  tension.currentTime=0;
-  const endedPromise=new Promise(resolve=>{
-    let done=false;
-    const finish=()=>{if(done)return;done=true;tension.removeEventListener('ended',finish);resolve(true);};
-    tension.addEventListener('ended',finish,{once:true});
-    tension.play().catch(()=>finish());
-  });
-  // 실제 재생이 시작되어 duration이 확보될 때까지 잠시 확인합니다.
-  for(let i=0;i<30 && !(Number.isFinite(tension.duration)&&tension.duration>0);i++){await wait(50);if(token!==screenVoteToken)return;}
-  const totalDuration=Number.isFinite(tension.duration)&&tension.duration>0?tension.duration:5;
-  const getRemain=()=>Math.max(0,totalDuration-(Number(tension.currentTime)||0));
+  // 정체공개 연출용 음원이 준비되지 않았더라도 게임 상태 전환은 절대로 중단하지 않습니다.
+  // 오디오 문제 때문에 긴급재판 후 게임 재개가 멈추면 안 되므로, 음원이 없거나 재생에 실패하면
+  // 짧은 기본 연출 시간으로 계속 진행합니다.
+  let totalDuration=5;
+  let getRemain;
+  let endedPromise=Promise.resolve(true);
+  if(tension){
+    tension.loop=false;
+    tension.volume=.95;
+    tension.pause();
+    try{tension.currentTime=0;}catch(_){}
+    endedPromise=new Promise(resolve=>{
+      let done=false;
+      const finish=()=>{if(done)return;done=true;tension.removeEventListener('ended',finish);resolve(true);};
+      tension.addEventListener('ended',finish,{once:true});
+      tension.play().catch(()=>finish());
+    });
+    // 실제 재생이 시작되어 duration이 확보될 때까지 잠시 확인합니다.
+    for(let i=0;i<30 && !(Number.isFinite(tension.duration)&&tension.duration>0);i++){await wait(50);if(token!==screenVoteToken)return;}
+    if(Number.isFinite(tension.duration)&&tension.duration>0)totalDuration=tension.duration;
+    getRemain=()=>Math.max(0,totalDuration-(Number(tension.currentTime)||0));
+  }else{
+    getRemain=()=>Math.max(0,totalDuration-(gameNow()-Date.now()+totalDuration));
+    // 음원이 없는 경우에도 동일한 5초 연출 길이를 유지합니다.
+    const fallbackStarted=gameNow();
+    getRemain=()=>Math.max(0,totalDuration-(gameNow()-fallbackStarted));
+  }
   const bottomLabels=root.querySelectorAll('.identityRevealBottomLabel');
   const setDim=(el,on)=>{if(el)el.classList.toggle('dim',on);};
   const setReveal=(el,on)=>{if(el)el.classList.toggle('revealed',on);};
