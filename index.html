@@ -3553,7 +3553,7 @@ function tickMission(){
  }
 }
 function tickRoundTimer(){
- if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); updateEmergencyButton(window.__lastSettings||null).catch(()=>{}); if(left<=0){
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
   clearInterval(roundTimer);roundTimer=null;
   if(!window.__roundExpiredHandled){
     window.__roundExpiredHandled=true;
@@ -3755,35 +3755,48 @@ async function clearSabotageRecordsForNewGame(){
   if(r.error)throw new Error("늑대방해 기록 초기화 실패: "+r.error.message);
   window.__sabotageActiveNow=false;
 }
-let emergencyButtonRefreshSeq=0;
-function setEmergencyButtonState(active){
-  const b=el("emergencyReportFloat");
-  if(!b)return;
-  b.disabled=!active;
-  b.classList.toggle("show",!!active);
-}
+let emergencyButtonUpdateBusy=false;
+let emergencyButtonUpdateQueued=false;
 async function updateEmergencyButton(g,p){
   const b=el("emergencyReportFloat");
   if(!b)return;
-  const seq=++emergencyButtonRefreshSeq;
-  const finish=active=>{if(seq===emergencyButtonRefreshSeq)setEmergencyButtonState(active);};
-  if(localStorage.getItem("wolf_game_admin_v7")==="1"){finish(false);return;}
-  p=p||window.__lastPlayer||await me().catch(()=>null);
-  if(!p || String(p.status||"").toUpperCase()!=="ALIVE"){finish(false);return;}
-  g=g||window.__lastSettings||await settings().catch(()=>null);
-  if(!g){finish(false);return;}
-  window.__lastSettings=g;
-
-  // 사용기록 확인이 끝난 뒤에만 버튼 상태를 확정합니다.
-  // 기존에는 Promise.all을 시작만 하고 함수가 먼저 반환되어,
-  // 재개 직후 다른 갱신이 버튼 상태를 덮어쓸 수 있었습니다.
+  if(emergencyButtonUpdateBusy){
+    emergencyButtonUpdateQueued=true;
+    return;
+  }
+  emergencyButtonUpdateBusy=true;
   try{
+    if(localStorage.getItem("wolf_game_admin_v7")==="1"){
+      setEmergencyButtonState(false);
+      return;
+    }
+    p=p||window.__lastPlayer||await me().catch(()=>null);
+    g=g||window.__lastSettings||await settings().catch(()=>null);
+    if(!p||String(p.status||"").toUpperCase()!=="ALIVE"||!g){
+      setEmergencyButtonState(false);
+      return;
+    }
+    window.__lastPlayer=p;
+    window.__lastSettings=g;
+
+    // 버튼 상태는 한 번의 갱신에서 서버의 현재 상태를 끝까지 확인한 뒤 확정합니다.
+    // 라운드 타이머(250ms)에서는 이 함수를 호출하지 않습니다.
     const ok=await emergencyReportButtonAvailable(g,p);
-    if(!ok){finish(false);return;}
+    if(!ok){
+      setEmergencyButtonState(false);
+      return;
+    }
     const st=await getSabotageState(Number(g.current_round||0));
-    finish(st?.active!==true);
+    setEmergencyButtonState(st?.active!==true);
   }catch(_){
-    finish(false);
+    // 서버 상태를 확인하지 못한 경우에는 안전하게 비활성화합니다.
+    setEmergencyButtonState(false);
+  }finally{
+    emergencyButtonUpdateBusy=false;
+    if(emergencyButtonUpdateQueued){
+      emergencyButtonUpdateQueued=false;
+      setTimeout(()=>updateEmergencyButton().catch(()=>{}),0);
+    }
   }
 }
 window.emergencyReportButtonPressed=async function(){
