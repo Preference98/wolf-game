@@ -4006,7 +4006,9 @@ async function renderPlayerCore(){
   // 타이머와 버튼 상태 계산이 서로 덮어쓰지 않습니다.
   await showScreen("player");
   startSabotageUiWatcher();
-  await updateEmergencyButton(g,p);
+  // 테스트: 본게임 진입 시 긴급신고 버튼을 조건 확인 없이 강제로 활성화합니다.
+  // 이 변경은 원인 확인용이며, 다른 긴급신고 처리 로직은 건드리지 않습니다.
+  setEmergencyButtonState(true);
   startRoundTimer(g);
 }
 
@@ -5933,8 +5935,9 @@ setInterval(()=>{
   const b=el("emergencyReportFloat");
   if(!b)return;
   const active=document.querySelector("#player.screen.active");
-  if(!active){setEmergencyButtonState(false);return;}
-  settings().then(g=>updateEmergencyButton(g,window.__lastPlayer||null)).catch(()=>{});
+  if(!active)return;
+  // 본게임 진입 시 강제 활성화 상태를 유지합니다.
+  setEmergencyButtonState(true);
 },1000);
 
 
