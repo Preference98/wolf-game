@@ -3741,7 +3741,9 @@ async function emergencyReportButtonAvailable(g,p){
   }
 }
 async function clearEmergencyReportRecords(){
-  const r=await db.from("emergency_attempts").delete().gte("id",0);
+  // emergency_attempts는 RLS 정책에 따라 일반 DELETE가 실제 행을 지우지 못할 수 있으므로
+  // 전용 SECURITY DEFINER RPC를 통해 확실하게 초기화합니다.
+  const r=await db.rpc("reset_emergency_attempts");
   if(r.error)throw new Error("긴급신고 사용 기록 초기화 실패: "+r.error.message);
 }
 async function clearSabotageRecordsForNewGame(){
@@ -5260,13 +5262,11 @@ async function resetGame(){
    const sabotageReset=await db.from("sabotage_events").delete().gte("id",0);
    if(sabotageReset.error)throw new Error("방해 기록 초기화 실패: "+sabotageReset.error.message);
 
-   // 새 게임에서는 이전 게임의 긴급신고 사용 기록도 완전히 제거합니다.
-   const emergencyAttemptReset=await db.from("emergency_attempts").delete().gte("id",0);
-   if(emergencyAttemptReset.error){
-     const msg=String(emergencyAttemptReset.error.message||"");
-     if(!/relation .* does not exist|could not find the table|schema cache/i.test(msg))
-       throw new Error("긴급신고 사용 기록 초기화 실패: "+msg);
-     console.warn("긴급신고 사용 기록 테이블이 없어 건너뜀:",msg);
+   // 새 게임에서는 이전 게임의 긴급신고 사용 기록도 전용 RPC로 완전히 제거합니다.
+   try{
+     await clearEmergencyReportRecords();
+   }catch(e){
+     throw e;
    }
    emergencyButtonRefreshSeq++;
    setEmergencyButtonState(false);
