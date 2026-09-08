@@ -2840,7 +2840,7 @@ async function ensureCentralServerClock(force=false){
     for(let i=0;i<3;i++){
       const t0=performance.now();
       try{
-        const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1&_clock="+Date.now(),{
+        const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1",{
           method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}
         });
         const t1=performance.now();
@@ -3754,6 +3754,12 @@ async function clearSabotageRecordsForNewGame(){
   const r=await db.from("sabotage_events").delete().gte("id",0);
   if(r.error)throw new Error("늑대방해 기록 초기화 실패: "+r.error.message);
   window.__sabotageActiveNow=false;
+}
+function setEmergencyButtonState(active){
+  const b=el("emergencyReportFloat");
+  if(!b)return;
+  b.disabled=!active;
+  b.classList.toggle("show",!!active);
 }
 let emergencyButtonUpdateBusy=false;
 let emergencyButtonUpdateQueued=false;
@@ -5928,16 +5934,6 @@ document.addEventListener("visibilitychange",()=>{
 });
 window.addEventListener("pageshow",()=>{ensureCentralServerClock(true).catch(()=>{});schedulePlayerResumeSync();});
 setInterval(()=>{if(document.visibilityState==="visible")ensureCentralServerClock(true).catch(()=>{});},30000);
-// 긴급신고 버튼은 라운드 조건만 1초마다 확인합니다.
-setInterval(()=>{
-  if(document.visibilityState!=="visible")return;
-  const b=el("emergencyReportFloat");
-  if(!b)return;
-  const active=document.querySelector("#player.screen.active");
-  if(!active){setEmergencyButtonState(false);return;}
-  settings().then(g=>updateEmergencyButton(g,window.__lastPlayer||null)).catch(()=>{});
-},1000);
-
 
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
