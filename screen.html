@@ -2491,12 +2491,9 @@ async function screenResumeEmergencyAfterTrial(g,eventId=""){
       if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);
     }
   }
-  // 긴급재판으로 현재 라운드가 재개될 때는 사망처리 권한을 완전히 초기화합니다.
-  const deathReset=await db.from('wolf_attempts').delete().eq('game_round',round);
+  // 긴급재판으로 현재 라운드가 재개될 때는 사망처리 권한을 서버에서 원자적으로 초기화합니다.
+  const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
   if(deathReset.error)throw new Error('긴급재판 후 사망처리 권한 초기화 실패: '+deathReset.error.message);
-  const remain=await db.from('wolf_attempts').select('id').eq('game_round',round).limit(1);
-  if(remain.error)throw new Error('사망처리 권한 초기화 확인 실패: '+remain.error.message);
-  if((remain.data||[]).length)throw new Error('긴급재판 후 사망처리 권한이 초기화되지 않았습니다.');
   const lock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(eventId||'')})
     .eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',round);
   if(lock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+lock.error.message);
@@ -2620,9 +2617,6 @@ async function screenIdentityRevealSequence(g){
   }
   const roleEl=document.createElement('div'); roleEl.className='identityRevealQuestion'; roleEl.textContent='';
   if(qEl&&qEl.parentNode){qEl.replaceWith(roleEl);}
-  const revealAliveRows=(await db.from('players').select('id,role,status')).data||[];
-  const revealAlive=revealAliveRows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
-  const revealFinalWinner=revealAlive.length===2?(revealAlive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length===2?'SHEEP':revealAlive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length===1?'WOLF':''):'';
   // 정체공개 화면에서는 어떤 재판이든 다음 라운드 안내 문구를 표시하지 않습니다.
   await wait(3000); if(token!==screenVoteToken)return; await playScreenSound('roleRevealedBgm','role-revealed-bgm-'+key,true,.6);
   if(token!==screenVoteToken)return;
@@ -2634,38 +2628,20 @@ async function screenIdentityRevealSequence(g){
   // 긴급재판 여부와 관계없이 처형 직후에는 기존 승패 판정을 먼저 확인합니다.
   // 승리 조건이 충족되지 않은 경우에만 긴급재판 규칙에 따라 현재 라운드를 재개합니다.
   if(emergencyOrigin&&role==='SHEEP'){
-    const survivorRows=(await db.from('players').select('id,role,status')).data||[];
-    const alive=survivorRows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
-    const sheepAlive=alive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length;
-    const wolfAlive=alive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length;
-    if(alive.length===2 && sheepAlive===2){
-      await db.from('game_settings').update({phase:'FINISHED',winner:'SHEEP',started:false,notice:'생존자가 양 2명이 되어 양이 최종 승리했습니다.'}).eq('id',1).eq('current_round',Number(g.current_round||0)).neq('phase','FINISHED');
-      return;
-    }
-    if(alive.length===2 && sheepAlive===1 && wolfAlive===1){
-      await db.from('game_settings').update({phase:'FINISHED',winner:'WOLF',started:false,notice:'생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다.'}).eq('id',1).eq('current_round',Number(g.current_round||0)).neq('phase','FINISHED');
-      return;
-    }
     const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
-    let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.trial_event_id||d.event_id||eventId)){rep=x;break;}}catch(_){}}
+    let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.trial_event_id||d.event_id||eventId)){rep=x;break;}}catch(_){} }
     const started=Date.parse(rep?.emergency_started_at||''); const pause=Number.isFinite(started)?Math.max(0,screenNow()-started):0;
     const round=Number(latest.current_round||g.current_round||0);
     const rs=Date.parse(latest.round_started_at||'');
     if(Number.isFinite(rs)&&pause>0)await db.from('game_settings').update({round_started_at:new Date(rs+pause).toISOString()}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
     if(pause>0){const sr=await db.from('sabotage_events').select('id,started_at,ends_at').eq('game_round',round);for(const ev of sr.data||[]){const st=Date.parse(ev.started_at||''),en=Date.parse(ev.ends_at||'');const patch={};if(Number.isFinite(st))patch.started_at=new Date(st+pause).toISOString();if(Number.isFinite(en))patch.ends_at=new Date(en+pause).toISOString();if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);}}
-    // 긴급재판으로 게임이 재개되는 순간, 이번 라운드의 늑대 사망처리 권한을 1회로 완전히 초기화합니다.
-    // 긴급신고 기록은 삭제하지 않습니다. 긴급신고는 라운드당 1회만 사용할 수 있습니다.
-    const deathReset=await db.from('wolf_attempts').delete().eq('game_round',round);
+    // 긴급재판에서 양이 탈락하면 생존자 수와 관계없이 무조건 현재 라운드를 재개합니다.
+    const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
     if(deathReset.error)throw new Error('긴급재판 후 사망처리 권한 초기화 실패: '+deathReset.error.message);
-    const deathRemain=await db.from('wolf_attempts').select('id').eq('game_round',round).limit(1);
-    if(deathRemain.error)throw new Error('사망처리 권한 초기화 확인 실패: '+deathRemain.error.message);
-    if((deathRemain.data||[]).length)throw new Error('긴급재판 후 사망처리 권한이 초기화되지 않았습니다.');
     const resumeLock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId)}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
     if(resumeLock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+resumeLock.error.message);
     if(!resumeLock.data?.length){
       const afterResumeCheck=await getSettings();
-      // 다른 클라이언트가 이미 같은 재개 전환을 처리한 경우에는 정상입니다.
-      // FINISHED 상태를 긴급재판 재개 상태로 되돌리지는 않습니다.
       if(String(afterResumeCheck.phase||'').toUpperCase()==='FINISHED')return;
       if(String(afterResumeCheck.phase||'').toUpperCase()!=='COUNTDOWN' || !String(afterResumeCheck.notice||'').startsWith('EMERGENCY_RESUME|')){
         throw new Error('긴급재판 게임 재개 상태 전환이 적용되지 않았습니다.');
