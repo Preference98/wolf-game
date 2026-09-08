@@ -3716,13 +3716,15 @@ function stopEmergencyNfcScan(){
 
 async function hasEmergencyReportAttempt(round){
   const r=await db.from("emergency_attempts")
-    .select("id,status")
+    .select("id,status,game_round")
     .eq("game_round",Number(round)||0)
     .limit(1);
   if(r.error)throw new Error(r.error.message);
   return !!(r.data&&r.data.length);
 }
 async function emergencyReportButtonAvailable(g,p){
+  // 긴급신고 버튼의 사용 가능 여부는 화면 상태가 아니라
+  // 현재 라운드의 emergency_attempts 기록을 최종 기준으로 판단합니다.
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return false;
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY")return false;
   const duration=Number(g.round_duration_minutes);
@@ -3730,8 +3732,13 @@ async function emergencyReportButtonAvailable(g,p){
   const timingAllowed=(Number.isFinite(duration) && duration>=1 && duration<=5)
     || (Number.isFinite(started) && gameNow()-started>=5*60*1000);
   if(!timingAllowed)return false;
-  try{return !(await hasEmergencyReportAttempt(g.current_round));}
-  catch(_){return false;}
+  try{
+    const used=await hasEmergencyReportAttempt(g.current_round);
+    return !used;
+  }catch(_){
+    // 사용 기록을 확인할 수 없으면 안전하게 비활성화합니다.
+    return false;
+  }
 }
 async function clearEmergencyReportRecords(){
   const r=await db.from("emergency_attempts").delete().gte("id",0);
@@ -3865,6 +3872,9 @@ async function submitEmergencyReport(event){
 
     const complete=await db.rpc("complete_emergency_attempt",{p_game_round:round,p_event_id:eventId});
     if(complete.error)throw new Error(complete.error.message);
+    // 사용 기록이 서버에 확정된 즉시 버튼도 먼저 끕니다.
+    // 이후의 모든 갱신에서도 emergency_attempts 기록을 다시 확인하므로 다시 활성화되지 않습니다.
+    setEmergencyButtonState(false);
   }catch(e){
     if(attemptId)await db.from("emergency_attempts").delete().eq("id",attemptId).eq("status","PENDING");
     throw e;
@@ -3970,7 +3980,7 @@ async function renderPlayerCore(){
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
   // 플레이어 화면을 먼저 활성화한 뒤 긴급신고 상태를 계산합니다.
-  // 화면 전환과 1초 갱신기가 서로 다른 시점에 실행되어 버튼 상태를 덮어쓰는 경합을 막습니다.
+  // 버튼 상태는 현재 라운드의 emergency_attempts 기록을 다시 조회해서 결정합니다.
   showScreen("player");
   startSabotageUiWatcher();
   await updateEmergencyButton(g,p);
@@ -5249,6 +5259,17 @@ async function resetGame(){
 
    const sabotageReset=await db.from("sabotage_events").delete().gte("id",0);
    if(sabotageReset.error)throw new Error("방해 기록 초기화 실패: "+sabotageReset.error.message);
+
+   // 새 게임에서는 이전 게임의 긴급신고 사용 기록도 완전히 제거합니다.
+   const emergencyAttemptReset=await db.from("emergency_attempts").delete().gte("id",0);
+   if(emergencyAttemptReset.error){
+     const msg=String(emergencyAttemptReset.error.message||"");
+     if(!/relation .* does not exist|could not find the table|schema cache/i.test(msg))
+       throw new Error("긴급신고 사용 기록 초기화 실패: "+msg);
+     console.warn("긴급신고 사용 기록 테이블이 없어 건너뜀:",msg);
+   }
+   emergencyButtonRefreshSeq++;
+   setEmergencyButtonState(false);
    emergencyPopupEventId=null;
 
    // 3) 게임 설정을 초기 로비 상태로 복구
