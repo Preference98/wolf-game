@@ -2472,6 +2472,10 @@ async function screenVoteResultSequence(g){const token=++screenVoteToken;if(scre
 async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
 let screenIdentitySequenceKey="";
 async function screenIdentityRevealSequence(g){
+  // 긴급재판 후 늦게 도착한 IDENTITY_REVEAL 상태가 현재 화면을 되돌리지 않도록 실제 DB 상태를 확인합니다.
+  const actualAtStart=await getSettings();
+  if(String(actualAtStart.phase||'').toUpperCase()!=='IDENTITY_REVEAL')return;
+  g=actualAtStart;
   const identityMatch=String(g.notice||'').match(/^IDENTITY_REVEAL\|([^|]+)(\|([^|]+))?$/);
   const eventId=identityMatch?identityMatch[1]:(String(g.notice||'').match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||'';
   const emergencyOrigin=identityMatch?.[3]==='EMERGENCY';
@@ -2488,6 +2492,10 @@ async function screenIdentityRevealSequence(g){
   const role=String(d.role||'').toUpperCase()==='WOLF'?'WOLF':'SHEEP';
   const root=document.getElementById('screenIdentityRevealRoot');
   if(!root)return;
+  // DB 확인 직후에도 단계가 바뀌었으면 정체공개 화면을 띄우지 않습니다.
+  const actualBeforeShow=await getSettings();
+  if(String(actualBeforeShow.phase||'').toUpperCase()!=='IDENTITY_REVEAL')return;
+  g=actualBeforeShow;
   root.className='identityRevealStage';
   root.innerHTML=`<div class="identityRevealTop"><div class="identityRevealName"><span class="identityRevealPlayerName">${screenEsc(d.name||'')}</span><span class="identityRevealPossessive">의</span></div><div class="identityRevealQuestion">정체는?</div></div><div class="identityRevealCenter"><img class="identityRevealRoleImage sheep dim" src="assets/sheep.png" alt="양"><img class="identityRevealRoleImage wolf dim" src="assets/wolf.png" alt="늑대"></div><div class="identityRevealBottom"><div class="identityRevealBottomLabel dim">양</div><div class="identityRevealBottomLabel dim">늑대</div></div>`;
   show('s-identityReveal');

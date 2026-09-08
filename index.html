@@ -3373,6 +3373,12 @@ async function renderNightPreAlert(g){
  const startMs=Date.parse(stamp);
  if(!Number.isFinite(startMs))return;
 
+ // 사망처리가 실제 진행 중인 늑대는 밤 준비 화면으로 끊지 않습니다.
+ // 다른 플레이어의 밤 진행은 서버 기준으로 그대로 진행되고, 사망처리 완료 후 현재 상태에 합류합니다.
+ if(wolfDeathProcessActive){
+   return;
+ }
+
  const warningKey="night-warning-"+String(g.current_round)+"-"+stamp;
  if(window.__nightWarningKey===warningKey && document.querySelector("#nightPreAlert.screen.active"))return;
 
@@ -4482,7 +4488,8 @@ async function openWolfDeathList(){
  closeActionDock();
  wolfDeathProcessActive=true;
  const p=await me().catch(()=>null),g=await settings().catch(()=>null);
- if(!p||p.status!=='ALIVE'||String(p.role||'').toUpperCase()!=='WOLF'||String(g?.phase||'').toUpperCase()!=='PLAY'){
+ const phase=String(g?.phase||'').toUpperCase();
+ if(!p||p.status!=='ALIVE'||String(p.role||'').toUpperCase()!=='WOLF'||!(phase==='PLAY'||phase==='NIGHT')){
    wolfDeathProcessActive=false;toast('현재는 사망처리를 할 수 없습니다.');return;
  }
  if(!('NDEFReader' in window)){wolfDeathProcessActive=false;toast('이 브라우저에서는 NFC 사망처리를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.');return;}
@@ -4506,7 +4513,9 @@ async function openWolfDeathList(){
  }catch(e){closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;toast('NFC 스캔을 시작할 수 없습니다: '+(e.message||String(e)));}
 }
 function stopWolfDeathNfcScan(){try{wolfDeathNfcAbortController?.abort();}catch(_){} wolfDeathNfcAbortController=null;wolfDeathNfcReader=null;wolfDeathNfcHandled=false;}
-window.cancelWolfDeathNfc=function(){closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;}
+window.cancelWolfDeathNfc=async function(){
+ closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;
+}
 async function completeWolfDeathByNfc(victim,wolf,g){
  const lock=await db.from('players').update({status:'DEAD'}).eq('id',victim.id).eq('status','ALIVE').select('id');
  if(lock.error)throw new Error(lock.error.message);
