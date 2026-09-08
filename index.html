@@ -2663,6 +2663,8 @@ function stopAllTimers(){
   stopCountdownTimer();
   stopRoleRevealTimer();
   stopSabotageUiWatcher();
+  // 밤 화면을 벗어나는 모든 경로에서 밤 BGM이 남지 않도록 합니다.
+  stopPlayerLoopBgm("nightBgm");
   if(adminGameStartEffectTimer){
     clearTimeout(adminGameStartEffectTimer);
     adminGameStartEffectTimer=null;
@@ -3367,6 +3369,8 @@ async function startPlayerLoopBgm(key,volume=.42){
 }
 function stopPlayerLoopBgm(key){try{const a=audio[key];if(a){a.pause();a.currentTime=0;}}catch(e){}}
 async function renderNightPreAlert(g){
+ const p=await me().catch(()=>null);
+ if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return;
  const raw=String(g.notice||"");
  if(!raw.startsWith("NIGHT_WARNING|"))return;
  const stamp=raw.split("|")[1]||"";
@@ -3422,17 +3426,13 @@ async function renderNightPreAlert(g){
        }).eq("id",1).eq("phase","PLAY").eq("notice",raw);
      }
 
-     // 로컬 화면도 DB realtime 이벤트를 기다리지 않고 즉시 NIGHT로 전환합니다.
+     // 서버에서 실제로 NIGHT가 되었을 때만 밤 화면으로 전환합니다.
+     // 다른 우선 이벤트가 먼저 발생했다면 임의로 가짜 NIGHT 화면을 만들지 않습니다.
      const latest2=await settings().catch(()=>null);
      if(latest2 && String(latest2.phase).toUpperCase()==="NIGHT"){
        await renderNight(await me().catch(()=>null),latest2);
-     }else{
-       await renderNight(await me().catch(()=>null),{
-         ...(latest||g),
-         phase:"NIGHT",
-         night_started_at:nightStart,
-         notice:"밤이 되었습니다."
-       });
+     }else if(latest2){
+       await route();
      }
    }
  };
@@ -3635,6 +3635,7 @@ async function startPlayerNightBgm(){
   }
 }
 async function renderNight(p,g){
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return;
   await startPlayerNightBgm();
  const rules=getRoundRules(g);
  const startedMs=Date.parse(g.night_started_at||"");
@@ -3710,14 +3711,27 @@ function stopEmergencyNfcScan(){
   emergencyNfcHandled=false;
 }
 
-function emergencyReportAllowed(g){
+async function emergencyReportAllowed(g){
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY") return false;
-  // 긴급재판으로 이미 사용한 긴급신고는 같은 라운드에서 다시 사용할 수 없습니다.
-  if(String(g.notice||"").startsWith("EMERGENCY_USED|")) return false;
+  const round=Number(g.current_round||0);
+  // 긴급신고는 같은 라운드에서 단 한 번만 사용할 수 있습니다.
+  // 긴급재판 후에는 wolf_attempts만 초기화되며, 긴급신고 기록은 그대로 남습니다.
+  try{
+    const r=await db.from("notifications").select("id,message").is("target_player",null)
+      .eq("notification_type","EMERGENCY_REPORT").order("id",{ascending:false}).limit(50);
+    if(r.error)throw r.error;
+    for(const n of r.data||[]){
+      try{
+        const d=JSON.parse(n.message||"{}");
+        if(Number(d.round)===round)return false;
+      }catch(_){}
+    }
+  }catch(e){
+    console.warn("긴급신고 사용 여부 확인 실패:",e);
+    return false;
+  }
   const duration=Number(g.round_duration_minutes);
-  // 한 라운드 진행 시간이 5분 이하이면 라운드 시작 즉시 활성화합니다.
   if(Number.isFinite(duration) && duration>=1 && duration<=5) return true;
-  // 6분 이상이면 라운드 시작 후 5분이 지나야 활성화합니다.
   const started=Date.parse(g.round_started_at||"");
   return Number.isFinite(started) && gameNow()-started>=5*60*1000;
 }
@@ -3743,14 +3757,14 @@ async function updateEmergencyButton(g,p){
   // 늑대방해 상태는 별도로 서버에 다시 조회하지 않습니다.
   // 10개 미션과 동일하게 공용 늑대방해 감시기가 갱신해 둔 현재 상태를 사용합니다.
   const sabotageActive=window.__sabotageActiveNow===true;
-  finish(emergencyReportAllowed(g) && !sabotageActive);
+  emergencyReportAllowed(g).then(ok=>finish(ok && !sabotageActive)).catch(()=>finish(false));
 }
 window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
   if(!b || b.disabled)return;
   const p=await me().catch(()=>null);
   const g=await settings().catch(()=>null);
-  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !g || !emergencyReportAllowed(g)){
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !g || !(await emergencyReportAllowed(g))){
     toast("현재는 긴급신고를 사용할 수 없습니다.");
     return;
   }
@@ -3797,7 +3811,7 @@ window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();};
 
 async function submitEmergencyReport(event){
   const p=await me(),g=await settings();
-  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !emergencyReportAllowed(g)){
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !(await emergencyReportAllowed(g))){
     closeOverlay();stopEmergencyNfcScan();
     toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");
     return;
@@ -5181,6 +5195,10 @@ async function resetGame(){
    const playerReset=await db.rpc("reset_players_for_new_game");
    if(playerReset.error)throw new Error("플레이어 초기화 실패: "+playerReset.error.message);
 
+   // 사망처리 기록도 새 게임 시작 전에 완전히 비웁니다.
+   const deathReset=await db.from("wolf_attempts").delete().gte("id",0);
+   if(deathReset.error)throw new Error("사망처리 기록 초기화 실패: "+deathReset.error.message);
+
    // 3) 게임 설정을 초기 로비 상태로 복구
    await set({
      current_round:1,
@@ -5833,6 +5851,25 @@ setInterval(()=>{
   settings().then(g=>updateEmergencyButton(g,window.__lastPlayer||null)).catch(()=>{});
 },1000);
 
+let playerPhasePollBusy=false;
+let playerPhasePollKey="";
+setInterval(async()=>{
+  if(document.visibilityState!=="visible" || localStorage.getItem("wolf_game_admin_v7")==="1" || !playerId || playerPhasePollBusy)return;
+  playerPhasePollBusy=true;
+  try{
+    const p=await me().catch(()=>null);
+    if(!p)return;
+    const g=await settings().catch(()=>null);
+    if(!g)return;
+    const key=String(g.current_round||0)+"|"+String(g.phase||"")+"|"+String(g.notice||"");
+    if(playerPhasePollKey && key!==playerPhasePollKey){
+      // Realtime 이벤트를 놓친 기기도 서버 상태 변화 후 최대 0.7초 안에 따라갑니다.
+      await route();
+    }
+    playerPhasePollKey=key;
+  }catch(e){console.warn("게임 상태 보정 동기화 오류:",e);}finally{playerPhasePollBusy=false;}
+},700);
+
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
@@ -5882,8 +5919,11 @@ function realtime(){
   // 매 UPDATE마다 route/renderPlayer를 호출하면 화면이 매초 다시 그려져 깜빡이고
   // 현재 열어둔 미션/늑대방해 메뉴까지 끊깁니다.
   const previousPhase=lastRealtimePhase;
+  const previousNotice=window.__lastRealtimeNotice;
   const phaseChanged=lastRealtimePhase!==null && String(g.phase)!==String(lastRealtimePhase);
   const roundChanged=lastRealtimeRound!==null && Number(g.current_round)!==Number(lastRealtimeRound);
+  const noticeChanged=previousNotice!==undefined && String(g.notice||"")!==String(previousNotice||"");
+  window.__lastRealtimeNotice=g.notice||"";
 
   if(phaseChanged && String(previousPhase).toUpperCase()==="NIGHT" && String(g.phase).toUpperCase()==="PLAY"){
     activateStageAudio().then(()=>playSound("morning","morning-"+g.current_round)).catch(()=>{});
@@ -5892,7 +5932,7 @@ function realtime(){
   lastRealtimeRound=g.current_round;
   const readyChanged=lastRealtimeReady!==null && Boolean(g.ready)!==Boolean(lastRealtimeReady);
   lastRealtimeReady=g.ready;
-  if(phaseChanged || roundChanged || readyChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
+  if(phaseChanged || noticeChanged || roundChanged || readyChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
     if(realtimeRouteTimer)clearTimeout(realtimeRouteTimer);
     realtimeRouteTimer=setTimeout(async()=>{
       realtimeRouteTimer=null;
@@ -5985,7 +6025,6 @@ function realtime(){
      }catch(err){console.warn("정체 공개 완료 표시 오류:",err);}
      return;
    }
-   if(n.notification_type==="TRIAL_IDENTITY"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="IDENTITY_REVEAL")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^IDENTITY_REVEAL\|([^|]+)/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderRoleRevealedPlayer(d,g);}catch(err){console.warn("정체 공개 표시 오류:",err);}return;}
    if(currentPlayer.status!=="ALIVE")return;
    if(n.notification_type==="WOLF" && !n.target_player)return;
    if(n.notification_type==="EMERGENCY_REPORT"){
@@ -6011,7 +6050,10 @@ function realtime(){
    if(n.notification_type==="VOTE_RESULT"){try{const g=await settings();if(String(g.phase||"").toUpperCase()!=="VOTE_RESULT")return;const d=JSON.parse(n.message||"{}");const currentEvent=(String(g.notice||"").match(/^VOTE_RESULT\|(.+)$/)||[])[1]||"";if(currentEvent&&d.event_id&&String(d.event_id)!==currentEvent)return;await renderVoteResultPlayer(await me(),g);}catch(err){console.warn("투표 결과 표시 오류:",err);}return;}
    if(n.notification_type==="NIGHT_WARNING"){
      const current=await settings();
-     if(current.phase==="PLAY" && String(current.notice||"").startsWith("NIGHT_WARNING|"))await renderNightPreAlert(current);
+     if(current.phase==="PLAY" && String(current.notice||"").startsWith("NIGHT_WARNING|")){
+       const latestPlayer=await me().catch(()=>null);
+       if(latestPlayer && String(latestPlayer.status||"").toUpperCase()==="ALIVE")await renderNightPreAlert(current);
+     }
      return;
    }
    if(n.notification_type==="DEATH_CONFIRM"){
@@ -6141,7 +6183,11 @@ async function resumeEmergencyAfterTrial(g){
  const rs=Date.parse(g.round_started_at||"");
  if(Number.isFinite(rs)&&pause>0)await db.from("game_settings").update({round_started_at:new Date(rs+pause).toISOString()}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",round);
  if(pause>0){const sr=await db.from("sabotage_events").select("id,started_at,ends_at").eq("game_round",round);for(const ev of sr.data||[]){const st=Date.parse(ev.started_at||""),en=Date.parse(ev.ends_at||"");const patch={};if(Number.isFinite(st))patch.started_at=new Date(st+pause).toISOString();if(Number.isFinite(en))patch.ends_at=new Date(en+pause).toISOString();if(Object.keys(patch).length)await db.from("sabotage_events").update(patch).eq("id",ev.id);}}
- await db.from("wolf_attempts").delete().eq("game_round",round);
+ const resetDeath=await db.from("wolf_attempts").delete().eq("game_round",round).select("id");
+ if(resetDeath.error)throw new Error("긴급재판 후 사망처리 권한 초기화 실패: "+resetDeath.error.message);
+ const remainDeath=await db.from("wolf_attempts").select("id").eq("game_round",round).limit(1);
+ if(remainDeath.error)throw new Error("사망처리 권한 초기화 확인 실패: "+remainDeath.error.message);
+ if((remainDeath.data||[]).length)throw new Error("긴급재판 후 사망처리 권한이 초기화되지 않았습니다.");
  const lock=await db.from("game_settings").update({phase:"COUNTDOWN",notice:"EMERGENCY_RESUME|"+eventId}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",round);
  return !lock.error&&!!lock.data?.length;
 }
