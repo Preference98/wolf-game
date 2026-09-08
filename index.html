@@ -3725,6 +3725,13 @@ async function emergencyReportAllowed(g){
   const roundStartedAt=Date.parse(g.round_started_at||"");
   const usageKey=String(round);
   const generation=emergencyReportUsageCacheGeneration;
+  const currentEmergencyEvent=String(g.notice||"").match(/^EMERGENCY_REPORT\|([^|]+)$/)?.[1]||"";
+  // 일반 PLAY 상태에서는 이전 게임/이전 상태에서 남은 사용 캐시를 신뢰하지 않습니다.
+  // 실제 긴급신고 상태에서만 cache=true가 현재 라운드의 사용 완료 상태를 나타냅니다.
+  if(!currentEmergencyEvent && emergencyReportUsageCacheKey===usageKey && emergencyReportUsageCache===true){
+    emergencyReportUsageCacheKey="";
+    emergencyReportUsageCache=null;
+  }
   if(emergencyReportUsageCacheKey===usageKey && emergencyReportUsageCache!==null){
     return !emergencyReportUsageCache;
   }
@@ -5900,6 +5907,12 @@ setInterval(()=>{
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
+  // 새 게임/로비로 돌아갈 때 이전 게임의 긴급신고 캐시를 폐기합니다.
+  // ROUND 1은 게임마다 다시 시작하므로 이전 ROUND 1 캐시가 새 게임을 막아서는 안 됩니다.
+  if(String(g.phase||"").toUpperCase()==="LOBBY" || g.started===false){
+    emergencyReportUsageCacheKey="";
+    emergencyReportUsageCache=null;
+  }
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
     if(g.phase==="INVESTIGATION" && g.investigation_started_at){
       const investigationKey=String(g.current_round)+"-"+String(g.investigation_started_at);
@@ -6059,12 +6072,16 @@ function realtime(){
      try{
        const d=JSON.parse(n.message||"{}");
        const g=await settings();
-       if(Number(g.current_round)===Number(d.round)){
-         emergencyReportUsageCacheKey=String(g.current_round||0);
-         emergencyReportUsageCache=true;
-       }
-       if(Number(g.current_round)!==Number(d.round))return;
-       const eventId=String(d.event_id||emergencyNoticeData(g)?.eventId||"");
+       const currentRound=Number(g.current_round||0);
+       const eventId=String(d.event_id||"");
+       const currentEmergencyEvent=String(g.notice||"").match(/^EMERGENCY_REPORT\|([^|]+)$/)?.[1]||"";
+       // 과거 게임의 긴급신고 알림이 늦게 도착해도 새 게임의 같은 라운드에
+       // 사용 기록으로 잘못 캐시하지 않습니다. 현재 서버가 같은 이벤트를
+       // 실제로 진행 중일 때만 이 알림을 현재 게임의 신고로 인정합니다.
+       if(currentRound!==Number(d.round))return;
+       if(String(g.phase||"").toUpperCase()!=="PLAY" || !currentEmergencyEvent || !eventId || currentEmergencyEvent!==eventId)return;
+       emergencyReportUsageCacheKey=String(currentRound);
+       emergencyReportUsageCache=true;
        emergencyInterruptUntil=gameNow()+120000;
        await renderEmergencyTrialReady(currentPlayer,g,true,eventId);
        await playSound("deadSheepFound","emergency-report-"+String(n.id)).catch(()=>{});
