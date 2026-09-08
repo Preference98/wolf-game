@@ -3714,8 +3714,6 @@ function stopEmergencyNfcScan(){
   emergencyNfcHandled=false;
 }
 
-// 긴급신고 사용권은 사망처리와 동일하게 "라운드당 1회" 전용 기록으로 관리합니다.
-// notifications는 알림 전달용이고, 사용권 판정에는 사용하지 않습니다.
 async function hasEmergencyReportAttempt(round){
   const r=await db.from("emergency_attempts")
     .select("id,status")
@@ -3724,32 +3722,26 @@ async function hasEmergencyReportAttempt(round){
   if(r.error)throw new Error(r.error.message);
   return !!(r.data&&r.data.length);
 }
-
 async function emergencyReportButtonAvailable(g,p){
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return false;
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY")return false;
-
   const duration=Number(g.round_duration_minutes);
   const started=Date.parse(g.round_started_at||"");
   const timingAllowed=(Number.isFinite(duration) && duration>=1 && duration<=5)
     || (Number.isFinite(started) && gameNow()-started>=5*60*1000);
   if(!timingAllowed)return false;
-
   try{return !(await hasEmergencyReportAttempt(g.current_round));}
   catch(_){return false;}
 }
-
 async function clearEmergencyReportRecords(){
   const r=await db.from("emergency_attempts").delete().gte("id",0);
   if(r.error)throw new Error("긴급신고 사용 기록 초기화 실패: "+r.error.message);
 }
-
 async function clearSabotageRecordsForNewGame(){
   const r=await db.from("sabotage_events").delete().gte("id",0);
   if(r.error)throw new Error("늑대방해 기록 초기화 실패: "+r.error.message);
   window.__sabotageActiveNow=false;
 }
-
 let emergencyButtonRefreshSeq=0;
 function setEmergencyButtonState(active){
   const b=el("emergencyReportFloat");
@@ -3764,14 +3756,17 @@ async function updateEmergencyButton(g,p){
   const finish=active=>{if(seq===emergencyButtonRefreshSeq)setEmergencyButtonState(active);};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){finish(false);return;}
   p=p||window.__lastPlayer||await me().catch(()=>null);
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE"){finish(false);return;}
   g=g||window.__lastSettings||await settings().catch(()=>null);
-  if(!p||!g){finish(false);return;}
+  if(!g){finish(false);return;}
   window.__lastSettings=g;
 
+  // 긴급신고 버튼을 결정하는 순간 서버의 현재 늑대방해 상태도 함께 확인합니다.
+  // 감시기의 비동기 갱신 시점과 버튼 갱신 시점이 어긋나도 규칙이 뒤집히지 않습니다.
   Promise.all([
     emergencyReportButtonAvailable(g,p),
     getSabotageState(Number(g.current_round||0)).then(st=>st.active===true)
-  ]).then(([available,sabotageActive])=>finish(available && !sabotageActive)).catch(()=>finish(false));
+  ]).then(([ok,sabotageActive])=>finish(ok && !sabotageActive)).catch(()=>finish(false));
 }
 window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
@@ -3821,7 +3816,8 @@ window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();};
 
 async function submitEmergencyReport(event){
   const p=await me(),g=await settings();
-  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !(await emergencyReportButtonAvailable(g,p))){
+  const available=await emergencyReportButtonAvailable(g,p).catch(()=>false);
+  if(!available){
     closeOverlay();stopEmergencyNfcScan();
     toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");
     return;
@@ -3843,7 +3839,7 @@ async function submitEmergencyReport(event){
     round_started_at_before:g.round_started_at||null
   };
 
-  // 사망처리의 create_wolf_attempt와 같은 방식으로 서버에서 사용권을 먼저 예약합니다.
+  // 사망처리의 create_wolf_attempt와 동일하게 서버에서 먼저 이번 라운드의 사용권을 예약합니다.
   const attempt=await db.rpc("create_emergency_attempt",{
     p_game_round:round,
     p_reporter_player_id:String(p.id),
@@ -3853,7 +3849,7 @@ async function submitEmergencyReport(event){
   const attemptId=attempt.data?.id||attempt.data?.[0]?.id||null;
 
   try{
-    // 같은 순간 두 명이 태그해도 첫 번째 신고만 게임 상태를 선점합니다.
+    // 같은 순간 두 명이 신고해도 game_settings의 notice는 한 명만 선점합니다.
     const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId})
       .eq("id",1).eq("phase","PLAY").eq("current_round",round).eq("notice",String(g.notice||"")).select("id");
     if(lock.error || !lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
@@ -3884,6 +3880,256 @@ async function submitEmergencyReport(event){
     console.error("긴급신고 접수 후 재판준비 화면 전환 오류:",e);
     toast("긴급신고는 접수되었습니다. 재판준비 화면을 불러오는 중입니다.");
   }
+}
+
+async function renderEmergencyTrialReady(p,g,showPopup=true,eventId=""){
+  emergencyInterruptUntil=gameNow()+120000;
+  stopAllTimers();
+  const key=eventId||emergencyNoticeData(g)?.eventId||"";
+  // 긴급신고 팝업은 신고가 접수된 바로 그 시점에 표시되어야 합니다.
+  // 이후 route()가 같은 긴급신고 상태를 다시 처리하더라도 팝업을 닫지 않습니다.
+  if(!showPopup && (!key || emergencyPopupEventId!==key))closeOverlay();
+  // 기존 재판준비 화면을 그대로 사용합니다. 별도의 긴급신고 전용 화면으로 바꾸지 않습니다.
+  await showScreen("trialReadyAnnouncement");
+  if(showPopup){
+    if(key && emergencyPopupEventId===key)return;
+    emergencyPopupEventId=key||emergencyPopupEventId;
+    openOverlay("🚨","긴급신고 접수","긴급신고가 접수되었습니다.\n잠시 후 늑대재판이 시작됩니다.","alarm",'<button onclick="closeOverlay()">확인</button>');
+  }
+}
+async function renderPlayerCore(){
+  if(document.querySelector("#sabotage.screen.active"))return;
+  stopGameStartBgm();
+  stopMissionTimer();
+  const p=await me(),g=await settings();
+  window.__lastPlayer=p;
+  window.__lastSettings=g;
+
+  if(!p||p.status!=="ALIVE"){await route();return;}
+
+  // renderPlayer는 PLAY 이후의 본게임 화면 전용입니다.
+  // 역할 선정/카드 선택 단계에서는 절대로 미션 준비 코드를 실행하지 않습니다.
+  if(g.phase!=="PLAY"){
+    await route();
+    return;
+  }
+
+  let locs=[],allLocations=[],completedLocations=new Set(),sabotaged=new Set();
+  try{
+    allLocations=await activeMissionLocations();
+    locs=await getRoundMissionLocations(g.current_round,true,p.id);
+    completedLocations=await getPlayerCompletedLocationIds(g.current_round,p.id);
+    sabotaged=await getSabotagedLocationIds(g.current_round);
+    // 완료 표시는 항상 현재 플레이어의 DB 기록만 사용합니다.
+    // 다른 플레이어/늑대의 완료 상태를 이 플레이어의 장소에 섞지 않습니다.
+  }catch(e){
+    console.error("플레이어 미션 준비 실패:",e);
+    showScreen("player");
+    el("missions").innerHTML='<div class="errorbox">미션 준비 중 오류가 발생했습니다.<br><small>'+esc(e.message||String(e))+'</small></div>';
+    return;
+  }
+
+  el("stateTitle").innerHTML=esc(p.name)+' 양 <span class="sheepAliveIcon">🐑</span> <span style="color:#35d878">생존</span>';
+  el("round").textContent="ROUND "+g.current_round;
+  el("phase").textContent=g.notice||g.phase;
+  el("totalMissionCount").innerHTML='전체 장소 <b>10개</b> · 이번 라운드 활성 장소 <b>'+locs.length+'개</b>';
+  const gauge=await getMissionGauge(g.current_round); el("missionGaugeText").textContent=gauge.completed+" / "+gauge.target+" ("+gauge.percent+"%)"; el("missionGaugeBar").style.width=gauge.percent+"%";
+  el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"");
+
+  const box=el("missions");
+  const sabotageState=await getSabotageState(g.current_round);
+  const sabotageEnds=sabotageState.activeLocationEnds||new Map();
+  const activeIds=new Set(locs.map(x=>String(x.id)));
+  box.className="missionBoard";
+  box.innerHTML="";
+  for(const loc of allLocations){
+    const id=String(loc.id);
+    const done=completedLocations.has(id);
+    const active=activeIds.has(id);
+    const sabotagedHere=sabotaged.has(id);
+    const nfcOk=g.nfc_enabled===false||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===id;
+    const label=String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
+    let cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
+    let status=done?"✓ 미션 완료":sabotagedHere?"⚠ 늑대방해 중":active?"● 활성 미션":"○ 비활성 미션";
+    const sabotageEnd=Number(sabotageEnds.get(id)||0);
+    const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
+      ?Math.ceil((sabotageEnd-gameNow())/1000):0;
+    let action="";
+    if(!done&&!sabotagedHere&&active){
+      action=nfcOk
+        ?'<button onclick="event.stopPropagation();openMissionByLocation(\''+esc(id)+'\')">미션 입장</button>'
+        :'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(id)+'\')">NFC 인증</button>';
+    }
+    box.innerHTML+=`<div class="missionBlock ${cls}">
+      <div class="small">${label}</div><h3 style="margin:5px 0">${esc(loc.name)}</h3>
+      <div class="missionBlockStatus">${status}</div>${sabotagedHere?'<div class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">'+(sabotageSeconds>0?sabotageSeconds+"초":"늑대방해 종료")+'</div>':""}${action}
+    </div>`;
+  }
+  if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
+  // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
+  // 기존 deadSheepBtn을 직접 참조하지 않습니다.
+  renderActionDock(g,p);
+  // 플레이어 화면을 먼저 활성화한 뒤 긴급신고 상태를 계산합니다.
+  // 화면 전환과 1초 갱신기가 서로 다른 시점에 실행되어 버튼 상태를 덮어쓰는 경합을 막습니다.
+  showScreen("player");
+  startSabotageUiWatcher();
+  await updateEmergencyButton(g,p);
+  startRoundTimer(g);
+}
+
+
+function toggleActionDock(){
+ const d=el("actionDock");
+ if(d)d.classList.toggle("expanded");
+}
+function closeActionDock(){
+ const d=el("actionDock");
+ if(d)d.classList.remove("expanded");
+}
+function missionActionIcon(type){
+ if(type==="discovery") return '<img class="dockIcon discoveryIcon" src="assets/sheep_dead.png" alt="">';
+ if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M20 9l8 5 7-2 5-8 7 4-1 9 5 5 9-1 4 8-8 5-1 7 6 6-5 7-8-4-7 4-2 9-9 0-2-9-7-4-8 4-5-7 6-6-1-7-8-5 4-8 9 1 5-5-1-9 8-4zm12 15a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M13 50L50 13" stroke="#ef3340" stroke-width="7" stroke-linecap="round"/><path fill="currentColor" d="M42 9l13 7-4 5-13-7zM37 16l7 4-11 20-6-3zM30 39l7 4-7 12-8-4z"/><path d="M27 55l-5 4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>';
+ if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 27C18 16 24 9 32 9s14 7 14 18v16c0 8-6 13-14 13s-14-5-14-13V27zm-8 6h8v7h-8v-7zm36 0h8v7h-8v-7z"/><circle cx="27" cy="30" r="3.5" fill="#000"/><circle cx="37" cy="30" r="3.5" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 12l8 8" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M49 20L35 34" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
+ return "";
+}
+async function renderActionDock(g,p){
+ const d=el("actionDock");
+ if(!d)return;
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){d.innerHTML="";return;}
+ const discovery=missionActionIcon("discovery");
+ if(roleIsWolf(p.role)){
+   const st=await getSabotageState(g.current_round).catch(()=>({active:false,cooldownUntil:0,latest:null}));
+   const now=gameNow(),cd=Math.max(0,(st.cooldownUntil||0)-now),active=Math.max(0,Date.parse(st.latest?.ends_at||"")-now);
+   const remain=active>0?active:cd;
+   const deathAvailable=await wolfDeathButtonAvailable(g,p);
+   d.innerHTML=
+    '<button class="dockMain danger" title="늑대 전용 메뉴" onclick="toggleActionDock()">'+discovery+'<span class="dockMainLabel">죽은 양 발견</span></button>'+
+    '<button id="dockSabotage" class="dockItem sabotageItem danger" title="늑대방해" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
+      missionActionIcon("sabotage")+'<span class="dockLabel">늑대방해</span>'+
+      '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
+    '<button class="dockItem deathItem danger" title="사망처리" '+(deathAvailable?'onclick="closeActionDock();openWolfDeathList()"':'disabled')+'>'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
+    '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">죽은 양 발견</span></button>';
+ }else{
+   d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'<span class="dockMainLabel">죽은 양 발견</span></button>';
+ }
+}
+
+async function openMissionByLocation(locationId){
+  try{
+    const p=await me(),g=await settings();
+    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+
+    const loc=await getMissionLocation(locationId);
+    if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
+
+    const roundLocations=await getRoundMissionLocations(g.current_round,true,p.id);
+    if(!roundLocations.some(x=>String(x.id)===String(locationId))){
+      toast("이번 라운드에 활성화되지 않은 장소입니다.");
+      return;
+    }
+
+    const completed=await getPlayerCompletedLocationIds(g.current_round,p.id); if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;} const sabotaged=await getSabotagedLocationIds(g.current_round); if(sabotaged.has(String(locationId))){toast("현재 늑대의 늑대방해로 비활성화된 장소입니다.");return;}
+    const m=await getOrCreateRoundMission(loc,g.current_round);
+    await openMissionObject(m,loc,p,g);
+  }catch(e){
+    console.error("openMissionByLocation 오류:",e);
+    toast(e.message||String(e));
+  }
+}
+
+async function openMission(id){
+  try{
+    const p=await me(),g=await settings();
+    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+
+    const m=(await allMissions()).find(x=>String(x.id)===String(id));
+    if(!m)throw new Error("미션을 찾을 수 없습니다.");
+
+    const loc=await getMissionLocation(m.mission_location_id||m.location_id);
+    if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
+
+    await openMissionObject(m,loc,p,g);
+  }catch(e){
+    console.error("openMission 오류:",e);
+    toast(e.message||String(e));
+  }
+}
+
+async function openMissionObject(m,loc,p,g){
+  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
+  const locationId=loc?.id??m.mission_location_id??m.location_id;
+  if(locationId!=null&&completed.has(String(locationId))){
+    toast("이미 완료된 미션입니다.");
+    return;
+  }
+
+  window.__miniOutcomeLocked=false;
+  currentMission=m;
+
+  el("mMeta").textContent=(loc?.name||"미션")+" · "+
+    (String(m.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐");
+  el("mTitle").textContent=m.title;
+  el("mDesc").textContent=m.description||"";
+  el("question").textContent="";
+  el("answer").value="";
+  el("answer").disabled=false;
+  el("answer").readOnly=false;
+  el("answerBtn").disabled=false;
+  el("answerBtn").style.pointerEvents="auto";
+  el("missionResult").innerHTML="";
+  if(el("miniGame"))el("miniGame").innerHTML="";
+
+  const isPuzzle=String(m.concept_type||"").toUpperCase()==="PUZZLE";
+  el("answer").style.display=isPuzzle?"":"none";
+  el("answerBtn").style.display=isPuzzle?"":"none";
+
+  const missionStorageKey="wolf-mission-end:"+String(g.current_round)+":"+String(p.id)+":"+String(m.id);
+  const storedMissionEnd=Number(sessionStorage.getItem(missionStorageKey)||0);
+  missionEndAt=storedMissionEnd>gameNow()?storedMissionEnd:gameNow()+180000;
+  sessionStorage.setItem(missionStorageKey,String(missionEndAt));
+  clearInterval(missionTimer);
+  missionTimer=setInterval(tickMission,250);
+  window.__wolfMissionTimerId=missionTimer;
+  tickMission();
+  showScreen("mission");
+  if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
+  if(isPuzzle)el("question").textContent=m.question||"문제가 없습니다.";
+  else launchMiniGame(m);
+}
+
+async function completeCurrentMission(){
+ const p=await me(),g=await settings(); if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;} if(!currentMission)throw new Error("현재 미션이 없습니다.");
+ const locId=currentMission.mission_location_id||currentMission.location_id,completed=await getPlayerCompletedLocationIds(g.current_round,p.id); if(locId!=null&&completed.has(String(locId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
+ const sabotageNow=await getSabotagedLocationIds(g.current_round);
+ const currentLocId=currentMission.mission_location_id||currentMission.location_id;
+ if(currentLocId!=null&&sabotageNow.has(String(currentLocId))){
+   window.__miniOutcomeLocked=true;
+   stopMissionTimer();
+   if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert">늑대방해로 미션 실패</div>';
+   if(el("answer"))el("answer").disabled=true;
+   if(el("answerBtn"))el("answerBtn").disabled=true;
+   el("missionResult").innerHTML='<div class="notice alert">늑대방해로 인해 미션 실패 처리되었습니다.</div>';
+   return;
+ }
+ const r=await db.rpc("complete_player_mission",{
+   p_game_round:g.current_round,
+   p_player_id:p.id,
+   p_mission_id:currentMission.id
+ });
+ if(r.error){
+   if(Number(r.status)===404 || /Could not find the function|schema cache/i.test(String(r.error.message||""))){
+     throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
+   }
+   throw new Error(r.error.message);
+ }
+ if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
+}
+
+async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission||gameNow()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
+async function enableSound(){
+ await unlockSound();
+ toast("알림 소리가 활성화되었습니다.");
+ setTimeout(()=>playSound("login","manual-sound-test"),50);
 }
 
 async function getSabotageState(round){
@@ -5661,6 +5907,10 @@ setInterval(()=>{
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
   const g=payload.new||{};
+  // 새 게임/로비로 돌아갈 때 이전 게임의 긴급신고 캐시를 폐기합니다.
+  // ROUND 1은 게임마다 다시 시작하므로 이전 ROUND 1 캐시가 새 게임을 막아서는 안 됩니다.
+  if(String(g.phase||"").toUpperCase()==="LOBBY" || g.started===false){
+  }
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){
     if(g.phase==="INVESTIGATION" && g.investigation_started_at){
       const investigationKey=String(g.current_round)+"-"+String(g.investigation_started_at);
