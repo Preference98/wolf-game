@@ -3317,7 +3317,7 @@ async function routeCore(){
        return;
      }
      if(String(g.notice||"").startsWith("EMERGENCY_REPORT|")){
-       await renderEmergencyTrialReady(p,g,false,emergencyNoticeData(g)?.eventId||"");
+       await renderEmergencyTrialReady(p,g,true,emergencyNoticeData(g)?.eventId||"");
        return;
      }
      if(document.querySelector("#sabotage.screen.active"))return;
@@ -3582,6 +3582,11 @@ async function transitionToNight(){
  const g=await settings();
  if(g.phase!=="PLAY")return;
  const currentNotice=String(g.notice||"");
+ // 긴급신고가 접수된 라운드는 재판준비 상태입니다. 라운드 타이머가 0이 되어도 밤으로 전환하지 않습니다.
+ if(currentNotice.startsWith("EMERGENCY_REPORT|")){
+   await renderEmergencyTrialReady(await me().catch(()=>null),g,false,emergencyNoticeData(g)?.eventId||"");
+   return;
+ }
  if(currentNotice.startsWith("NIGHT_WARNING|")){
    await renderNightPreAlert(g);
    return;
@@ -3590,9 +3595,13 @@ async function transitionToNight(){
  const warningNotice="NIGHT_WARNING|"+warningStart;
  const r=await db.from("game_settings").update({
    notice:warningNotice
- }).eq("id",1).eq("phase","PLAY");
+ }).eq("id",1).eq("phase","PLAY").eq("notice",currentNotice);
  if(r.error)throw new Error("밤 준비 시작 실패: "+r.error.message);
- await renderNightPreAlert({...g,notice:warningNotice});
+ // 긴급신고 등 더 높은 우선순위 상태가 먼저 접수된 경우에는 NIGHT_WARNING을 만들지 않습니다.
+ if(!r.data?.length)return;
+ const latest=await settings().catch(()=>null);
+ if(!latest || String(latest.phase||"").toUpperCase()!=="PLAY" || String(latest.notice||"")!==warningNotice)return;
+ await renderNightPreAlert(latest);
 }
 async function finishNight(){
  if(window.__nightLocalTimer){clearInterval(window.__nightLocalTimer);window.__nightLocalTimer=null;}
@@ -3776,11 +3785,6 @@ window.emergencyReportButtonPressed=async function(){
     toast("늑대방해 중에는 긴급신고를 사용할 수 없습니다.");
     return;
   }
-  if(!("NDEFReader" in window)){
-    toast("이 브라우저에서는 NFC 긴급신고를 사용할 수 없습니다. Android Chrome 등 Web NFC 지원 환경에서 이용해 주세요.");
-    return;
-  }
-
   stopEmergencyNfcScan();
   emergencyNfcHandled=false;
   openOverlay("🚨","긴급신고","신고 장소로 이동하여 태그 해주세요","alarm",
@@ -3861,7 +3865,7 @@ async function submitEmergencyReport(event){
   try{
     emergencyInterruptUntil=gameNow()+120000;
     stopAllTimers();
-    await renderEmergencyTrialReady(p,{...g,notice:"EMERGENCY_REPORT|"+eventId},false,eventId);
+    await renderEmergencyTrialReady(p,{...g,notice:"EMERGENCY_REPORT|"+eventId},true,eventId);
   }catch(e){
     console.error("긴급신고 접수 후 재판준비 화면 전환 오류:",e);
     toast("긴급신고는 접수되었습니다. 재판준비 화면을 불러오는 중입니다.");
@@ -4520,7 +4524,6 @@ async function wolfDeathButtonAvailable(g,p){
  if(String(p.role||"").toUpperCase()!=="WOLF")return false;
  const phase=String(g?.phase||"").toUpperCase();
  if(phase!=="PLAY" && phase!=="NIGHT")return false;
- if(!("NDEFReader" in window))return false;
  try{return !(await hasWolfDeathAttempt(g.current_round));}catch(_){return false;}
 }
 async function openWolfDeathList(){
@@ -6015,6 +6018,8 @@ function realtime(){
    if(n.target_player && n.target_player!==playerId)return;
    // 모든 게임 진행 알림은 여기서 생존 여부를 한 번만 확인합니다.
    if(String(currentPlayer.status||"").toUpperCase()!=="ALIVE")return;
+   // TRIAL_IDENTITY는 스크린 연출을 위한 내부 이벤트입니다. 플레이어 일반 팝업으로 표시하지 않습니다.
+   if(String(n.notification_type||"").toUpperCase()==="TRIAL_IDENTITY")return;
    if(String(n.notification_type||"").toUpperCase()==="ROLE_REVEALED"){
      try{
        const g=await settings();
@@ -6242,13 +6247,14 @@ async function renderRoleRevealedPlayer(d,g){
   const ending=role==='WOLF'?'였습니다.':'이었습니다.';
   const emergencyTrial=voteResultTrialType(g)==='EMERGENCY';
   const emergencyWolf=emergencyTrial && role==='WOLF';
+  const nextRound=(!emergencyTrial)||emergencyWolf;
   const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
   const particle=hasBatchim(name)?'은':'는';
   const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   root.innerHTML='<div class="roleRevealedPlayerStage">'+
     '<div class="roleRevealedPlayerResult">'+
       '<div class="roleRevealedPlayerSentence">'+(emergencyWolf?'축하합니다. 늑대를 찾아내셨습니다':('<span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span>'))+'</div>'+
-      (emergencyWolf?'<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 시작됩니다.</div>':'')+
+      (nextRound?'<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 진행됩니다.</div>':'')+
     '</div>'+
   '</div>';
 }
