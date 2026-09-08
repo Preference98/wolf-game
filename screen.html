@@ -2631,9 +2631,21 @@ async function screenIdentityRevealSequence(g){
     await db.from('notifications').insert({message:JSON.stringify(noticePayload),target_player:null,notification_type:'ROLE_REVEALED'});
   }catch(err){console.warn('플레이어 정체 공개 완료 알림 전송 오류:',err);}
   const latest=await getSettings();
-  // 긴급재판에서 양이 처형된 경우에는 생존자 수로 계산된 일반 승패보다
-  // 긴급재판 재개 규칙이 우선합니다.
+  // 긴급재판 여부와 관계없이 처형 직후에는 기존 승패 판정을 먼저 확인합니다.
+  // 승리 조건이 충족되지 않은 경우에만 긴급재판 규칙에 따라 현재 라운드를 재개합니다.
   if(emergencyOrigin&&role==='SHEEP'){
+    const survivorRows=(await db.from('players').select('id,role,status')).data||[];
+    const alive=survivorRows.filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
+    const sheepAlive=alive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length;
+    const wolfAlive=alive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length;
+    if(alive.length===2 && sheepAlive===2){
+      await db.from('game_settings').update({phase:'FINISHED',winner:'SHEEP',started:false,notice:'생존자가 양 2명이 되어 양이 최종 승리했습니다.'}).eq('id',1).eq('current_round',Number(g.current_round||0)).neq('phase','FINISHED');
+      return;
+    }
+    if(alive.length===2 && sheepAlive===1 && wolfAlive===1){
+      await db.from('game_settings').update({phase:'FINISHED',winner:'WOLF',started:false,notice:'생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다.'}).eq('id',1).eq('current_round',Number(g.current_round||0)).neq('phase','FINISHED');
+      return;
+    }
     const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
     let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.trial_event_id||d.event_id||eventId)){rep=x;break;}}catch(_){}}
     const started=Date.parse(rep?.emergency_started_at||''); const pause=Number.isFinite(started)?Math.max(0,screenNow()-started):0;
@@ -2652,14 +2664,10 @@ async function screenIdentityRevealSequence(g){
     if(resumeLock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+resumeLock.error.message);
     if(!resumeLock.data?.length){
       const afterResumeCheck=await getSettings();
-      if(String(afterResumeCheck.phase||'').toUpperCase()==='FINISHED'){
-        // 사망 직후 일반 승패 판정이 먼저 반영된 경우에도 긴급재판의 규칙을 우선합니다.
-        // 이 시점의 FINISHED는 긴급재판 양 처형 직후에만 발생할 수 있는 잘못된 선행 상태이므로
-        // 현재 라운드를 EMERGENCY_RESUME으로 되돌립니다.
-        const recover=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId),winner:null,started:true})
-          .eq('id',1).eq('phase','FINISHED').eq('current_round',round);
-        if(recover.error || !recover.data?.length)throw new Error('긴급재판 선행 승패 상태 복구에 실패했습니다.');
-      }else if(String(afterResumeCheck.phase||'').toUpperCase()!=='COUNTDOWN' || !String(afterResumeCheck.notice||'').startsWith('EMERGENCY_RESUME|')){
+      // 다른 클라이언트가 이미 같은 재개 전환을 처리한 경우에는 정상입니다.
+      // FINISHED 상태를 긴급재판 재개 상태로 되돌리지는 않습니다.
+      if(String(afterResumeCheck.phase||'').toUpperCase()==='FINISHED')return;
+      if(String(afterResumeCheck.phase||'').toUpperCase()!=='COUNTDOWN' || !String(afterResumeCheck.notice||'').startsWith('EMERGENCY_RESUME|')){
         throw new Error('긴급재판 게임 재개 상태 전환이 적용되지 않았습니다.');
       }
     }

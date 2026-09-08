@@ -6196,11 +6196,11 @@ async function renderVoteResultPlayer(p,g){
    const dead=await db.from("players").update({status:"DEAD"}).eq("id",p.id).eq("status","ALIVE");
    if(!dead.error){
      await playSound("death","vote-execution-death-"+String(d.event_id||g.current_round)).catch(()=>{});
-     // 긴급재판의 양 처형은 생존자 수와 관계없이 반드시 현재 라운드를 재개합니다.
-     // 여기서 공통 승리 판정을 실행하면, 본게임에서 이미 죽은 양이 있는 경우
-     // 생존자가 2명(양 1 + 늑대 1)이 되어 늑대 승리가 먼저 확정될 수 있습니다.
-     // 긴급재판에서는 정체 공개 후 재개 흐름이 승패 판정보다 우선입니다.
-     if(voteResultTrialType(g)!=="EMERGENCY") await evaluateSurvivorOutcome(g.current_round);
+     // 처형 직후에는 긴급재판 여부와 관계없이 기존 승패 판정을 먼저 실행합니다.
+     // 승리 조건이 충족되면 그대로 게임을 종료하고, 승리 조건이 충족되지 않은
+     // 경우에만 긴급재판 규칙에 따라 현재 라운드를 재개합니다.
+     const outcome=await evaluateSurvivorOutcome(g.current_round);
+     if(!outcome.ended && voteResultTrialType(g)==="EMERGENCY") await resumeEmergencyAfterTrial(g);
    }
  }
 }
