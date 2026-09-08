@@ -3511,7 +3511,7 @@ async function markReady(){
  const g=await settings();
  if(g.phase==="FINISHED" && g.winner){
    const next=g.current_round+1;
-   await clearEmergencyReportRecords();
+   await clearEmergencyReportRecords(g.current_round);
    await db.from("mission_completions").delete().eq("game_round",g.current_round);
    await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
    await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
@@ -3715,44 +3715,27 @@ function stopEmergencyNfcScan(){
 }
 
 async function hasEmergencyReportAttempt(round){
-  const targetRound=Number(round)||0;
-  const r=await db.from("emergency_attempts")
-    .select("id,status,game_round")
-    .eq("game_round",targetRound)
-    .limit(1);
+  const r=await db.from("emergency_attempts").select("id,game_round,status").eq("game_round",Number(round)||0).limit(1);
   if(r.error)throw new Error(r.error.message);
-  return Array.isArray(r.data) && r.data.some(x=>Number(x.game_round)===targetRound);
+  return !!(r.data&&r.data.length);
 }
 async function emergencyReportButtonAvailable(g,p){
-  // 긴급신고 버튼의 사용 가능 여부는 화면 상태가 아니라
-  // 현재 라운드의 emergency_attempts 기록을 최종 기준으로 판단합니다.
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE")return false;
   if(!g || String(g.phase||"").toUpperCase()!=="PLAY")return false;
   const duration=Number(g.round_duration_minutes);
   const started=Date.parse(g.round_started_at||"");
-  const timingAllowed=(Number.isFinite(duration) && duration>=1 && duration<=5)
-    || (Number.isFinite(started) && gameNow()-started>=5*60*1000);
+  const timingAllowed=(Number.isFinite(duration)&&duration>=1&&duration<=5) ||
+    (Number.isFinite(started)&&gameNow()-started>=5*60*1000);
   if(!timingAllowed)return false;
-  try{
-    const used=await hasEmergencyReportAttempt(g.current_round);
-    return !used;
-  }catch(_){
-    // 사용 기록을 확인할 수 없으면 안전하게 비활성화합니다.
-    return false;
-  }
+  try{return !(await hasEmergencyReportAttempt(g.current_round));}catch(_){return false;}
 }
-async function clearEmergencyReportRecords(){
-  // 긴급신고 사용 기록은 전용 SECURITY DEFINER RPC를 기준으로 초기화합니다.
-  // 일반 DELETE는 RLS 정책에 따라 조용히 0건 처리될 수 있으므로 성공 기준으로 사용하지 않습니다.
-  const rpc=await db.rpc("reset_emergency_attempts_v2");
-  if(rpc.error){
-    throw new Error("긴급신고 사용 기록 초기화 실패: "+rpc.error.message);
-  }
-
-  // 반드시 실제 테이블을 다시 조회하여 기록이 사라졌는지 확인합니다.
-  const verify=await db.from("emergency_attempts").select("id").limit(1);
-  if(verify.error)throw new Error("긴급신고 사용 기록 초기화 확인 실패: "+verify.error.message);
-  if((verify.data||[]).length)throw new Error("긴급신고 사용 기록 초기화 실패: 기록이 남아 있습니다.");
+async function clearEmergencyReportRecords(round=null){
+  // 사망처리와 동일하게 emergency_attempts를 직접 DELETE합니다.
+  // 현재 라운드를 넘기면 해당 라운드만, 인자를 생략하면 새 게임/전체 초기화입니다.
+  let q=db.from("emergency_attempts").delete();
+  q=round===null?q.gte("id",0):q.eq("game_round",Number(round)||0);
+  const r=await q;
+  if(r.error)throw new Error("긴급신고 사용 기록 초기화 실패: "+r.error.message);
 }
 async function clearSabotageRecordsForNewGame(){
   const r=await db.from("sabotage_events").delete().gte("id",0);
@@ -3770,13 +3753,7 @@ async function updateEmergencyButton(g,p){
   const b=el("emergencyReportFloat");
   if(!b)return;
   const seq=++emergencyButtonRefreshSeq;
-  const finish=active=>{
-    if(seq!==emergencyButtonRefreshSeq)return;
-    // 최종 판정은 반드시 실제 disabled 속성에 반영합니다.
-    b.disabled=!active;
-    b.classList.toggle("show",!!active);
-    b.setAttribute("aria-disabled",active?"false":"true");
-  };
+  const finish=active=>{if(seq===emergencyButtonRefreshSeq)setEmergencyButtonState(active);};
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){finish(false);return;}
   p=p||window.__lastPlayer||await me().catch(()=>null);
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE"){finish(false);return;}
@@ -3784,27 +3761,19 @@ async function updateEmergencyButton(g,p){
   if(!g){finish(false);return;}
   window.__lastSettings=g;
 
-  try{
-    // 현재 라운드의 emergency_attempts를 매번 서버에서 직접 확인합니다.
-    // 긴급재판 후 재개 여부와 관계없이 기록이 있으면 버튼을 끕니다.
-    const used=await hasEmergencyReportAttempt(g.current_round);
-    if(used){finish(false);return;}
-    const available=await emergencyReportButtonAvailable(g,p);
-    if(!available){finish(false);return;}
-    const sabotage=await getSabotageState(Number(g.current_round||0));
-    finish(sabotage.active!==true);
-  }catch(e){
-    console.warn("긴급신고 버튼 상태 확인 실패:",e);
-    finish(false);
-  }
+  // 긴급신고 버튼을 결정하는 순간 서버의 현재 늑대방해 상태도 함께 확인합니다.
+  // 감시기의 비동기 갱신 시점과 버튼 갱신 시점이 어긋나도 규칙이 뒤집히지 않습니다.
+  Promise.all([
+    emergencyReportButtonAvailable(g,p),
+    getSabotageState(Number(g.current_round||0)).then(st=>st.active===true)
+  ]).then(([ok,sabotageActive])=>finish(ok && !sabotageActive)).catch(()=>finish(false));
 }
 window.emergencyReportButtonPressed=async function(){
   const b=el("emergencyReportFloat");
   if(!b || b.disabled)return;
   const p=await me().catch(()=>null);
   const g=await settings().catch(()=>null);
-  const available=await emergencyReportButtonAvailable(g,p).catch(()=>false);
-  if(!available){
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !g || !(await emergencyReportButtonAvailable(g,p))){
     toast("현재는 긴급신고를 사용할 수 없습니다.");
     return;
   }
@@ -3846,8 +3815,7 @@ window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();};
 
 async function submitEmergencyReport(event){
   const p=await me(),g=await settings();
-  const available=await emergencyReportButtonAvailable(g,p).catch(()=>false);
-  if(!available){
+  if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !(await emergencyReportButtonAvailable(g,p))){
     closeOverlay();stopEmergencyNfcScan();
     toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");
     return;
@@ -3859,9 +3827,8 @@ async function submitEmergencyReport(event){
   }
 
   const eventId="emergency-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
-  const round=Number(g.current_round||0);
   const payload={
-    round:round,
+    round:Number(g.current_round||0),
     event_id:eventId,
     reporter_id:p.id,
     reporter_name:p.name||"",
@@ -3869,9 +3836,9 @@ async function submitEmergencyReport(event){
     round_started_at_before:g.round_started_at||null
   };
 
-  // 사망처리의 create_wolf_attempt와 동일하게 서버에서 먼저 이번 라운드의 사용권을 예약합니다.
+  // 사망처리의 wolf_attempts와 동일하게 서버에서 먼저 이번 라운드의 사용권을 예약합니다.
   const attempt=await db.rpc("create_emergency_attempt",{
-    p_game_round:round,
+    p_game_round:Number(g.current_round||0),
     p_reporter_player_id:String(p.id),
     p_event_id:eventId
   });
@@ -3879,9 +3846,9 @@ async function submitEmergencyReport(event){
   const attemptId=attempt.data?.id||attempt.data?.[0]?.id||null;
 
   try{
-    // 같은 순간 두 명이 신고해도 game_settings의 notice는 한 명만 선점합니다.
+    // 같은 순간 두 명이 태그해도 game_settings의 notice는 한 명만 선점합니다.
     const lock=await db.from("game_settings").update({notice:"EMERGENCY_REPORT|"+eventId})
-      .eq("id",1).eq("phase","PLAY").eq("current_round",round).eq("notice",String(g.notice||"")).select("id");
+      .eq("id",1).eq("phase","PLAY").eq("current_round",Number(g.current_round||0)).eq("notice",String(g.notice||"")).select("id");
     if(lock.error || !lock.data?.length)throw new Error("다른 플레이어가 먼저 긴급신고를 접수했습니다.");
 
     const ins=await db.from("notifications").insert({
@@ -3889,20 +3856,22 @@ async function submitEmergencyReport(event){
     });
     if(ins.error){
       await db.from("game_settings").update({notice:g.notice||""})
-        .eq("id",1).eq("phase","PLAY").eq("notice","EMERGENCY_REPORT|"+eventId);
+        .eq("id",1).eq("phase","PLAY").eq("current_round",Number(g.current_round||0)).eq("notice","EMERGENCY_REPORT|"+eventId);
       throw new Error("긴급신고 접수 알림 저장 실패: "+ins.error.message);
     }
 
-    const complete=await db.rpc("complete_emergency_attempt",{p_game_round:round,p_event_id:eventId});
+    const complete=await db.rpc("complete_emergency_attempt",{
+      p_game_round:Number(g.current_round||0),p_event_id:eventId
+    });
     if(complete.error)throw new Error(complete.error.message);
-    // 사용 기록이 서버에 확정된 즉시 버튼도 먼저 끕니다.
-    // 이후의 모든 갱신에서도 emergency_attempts 기록을 다시 확인하므로 다시 활성화되지 않습니다.
     setEmergencyButtonState(false);
   }catch(e){
     if(attemptId)await db.from("emergency_attempts").delete().eq("id",attemptId).eq("status","PENDING");
     throw e;
   }
 
+  // 여기까지 도달했다면 서버에 긴급신고 접수가 완료된 상태입니다.
+  // 이후 화면 전환 과정에서 문제가 생겨도 이미 접수된 신고를 "실패"로 표시하지 않습니다.
   closeOverlay();
   stopEmergencyNfcScan();
   try{
@@ -4003,7 +3972,7 @@ async function renderPlayerCore(){
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
   // 플레이어 화면을 먼저 활성화한 뒤 긴급신고 상태를 계산합니다.
-  // 버튼 상태는 현재 라운드의 emergency_attempts 기록을 다시 조회해서 결정합니다.
+  // 화면 전환과 1초 갱신기가 서로 다른 시점에 실행되어 버튼 상태를 덮어쓰는 경합을 막습니다.
   showScreen("player");
   startSabotageUiWatcher();
   await updateEmergencyButton(g,p);
@@ -5214,7 +5183,7 @@ async function nextRound(){
   const rr=await db.rpc("reset_round_mission_progress",{p_game_round:g.current_round});
   if(rr.error)throw new Error("미션 진행상태 라운드 초기화 실패: "+rr.error.message);
   const next=g.current_round+1;
-  await clearEmergencyReportRecords();
+  await clearEmergencyReportRecords(g.current_round);
   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
   toast("다음 라운드 대기 상태입니다.");
@@ -5281,17 +5250,7 @@ async function resetGame(){
    if(notificationReset.error)throw new Error("게임 진행 알림 초기화 실패: "+notificationReset.error.message);
 
    const sabotageReset=await db.from("sabotage_events").delete().gte("id",0);
-   if(sabotageReset.error)throw new Error("방해 기록 초기화 실패: "+sabotageReset.error.message);
-
-   // 새 게임에서는 이전 게임의 긴급신고 사용 기록도 전용 RPC로 완전히 제거합니다.
-   try{
-     await clearEmergencyReportRecords();
-   }catch(e){
-     throw e;
-   }
-   emergencyButtonRefreshSeq++;
-   setEmergencyButtonState(false);
-   emergencyPopupEventId=null;
+   if(sabotageReset.error)throw new Error("방해 기록 초기화 실패: "+sabotageReset.error.message); emergencyPopupEventId=null;
 
    // 3) 게임 설정을 초기 로비 상태로 복구
    await set({
@@ -6277,17 +6236,11 @@ async function resumeEmergencyAfterTrial(g){
  if(remainDeath.error)throw new Error("사망처리 권한 초기화 확인 실패: "+remainDeath.error.message);
  if((remainDeath.data||[]).length)throw new Error("긴급재판 후 사망처리 권한이 초기화되지 않았습니다.");
  const lock=await db.from("game_settings").update({phase:"COUNTDOWN",notice:"EMERGENCY_RESUME|"+eventId}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",round);
- if(!lock.error&&lock.data?.length){
-   // 긴급신고 기록은 유지된 상태이므로 다음 PLAY 진입 때 버튼이 반드시 비활성화되도록 즉시 상태를 갱신합니다.
-   const latest=await settings().catch(()=>null);
-   const player=window.__lastPlayer||await me().catch(()=>null);
-   if(latest&&player)await updateEmergencyButton(latest,player);
- }
  return !lock.error&&!!lock.data?.length;
 }
 async function autoNextRoundNoWinner(g){
  const next=Number(g.current_round||0)+1;
- await clearEmergencyReportRecords();
+ await clearEmergencyReportRecords(g.current_round);
  const lock=await db.from("game_settings").update({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0));
  if(lock.error)return;
  if(lock.data?.length===0)return;
