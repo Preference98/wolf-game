@@ -2597,7 +2597,13 @@ async function screenIdentityRevealSequence(g){
     const rs=Date.parse(latest.round_started_at||'');
     if(Number.isFinite(rs)&&pause>0)await db.from('game_settings').update({round_started_at:new Date(rs+pause).toISOString()}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
     if(pause>0){const sr=await db.from('sabotage_events').select('id,started_at,ends_at').eq('game_round',round);for(const ev of sr.data||[]){const st=Date.parse(ev.started_at||''),en=Date.parse(ev.ends_at||'');const patch={};if(Number.isFinite(st))patch.started_at=new Date(st+pause).toISOString();if(Number.isFinite(en))patch.ends_at=new Date(en+pause).toISOString();if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);}}
-    await db.from('wolf_attempts').delete().eq('game_round',round);
+    // 긴급재판으로 게임이 재개되는 순간, 이번 라운드의 늑대 사망처리 권한을 1회로 완전히 초기화합니다.
+    // 긴급신고 기록은 삭제하지 않습니다. 긴급신고는 라운드당 1회만 사용할 수 있습니다.
+    const deathReset=await db.from('wolf_attempts').delete().eq('game_round',round);
+    if(deathReset.error)throw new Error('긴급재판 후 사망처리 권한 초기화 실패: '+deathReset.error.message);
+    const deathRemain=await db.from('wolf_attempts').select('id').eq('game_round',round).limit(1);
+    if(deathRemain.error)throw new Error('사망처리 권한 초기화 확인 실패: '+deathRemain.error.message);
+    if((deathRemain.data||[]).length)throw new Error('긴급재판 후 사망처리 권한이 초기화되지 않았습니다.');
     await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId)}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
   }
   if(emergencyOrigin&&role==='WOLF'){
