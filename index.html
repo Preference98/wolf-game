@@ -6273,7 +6273,7 @@ async function confirmIdentity(){
  if(!d?.player_id){toast("이번 투표에서는 탈락자가 없습니다.");return;}
  const r=await db.from("players").select("id,name,role,status").eq("id",d.player_id).maybeSingle();
  if(r.error||!r.data){toast("탈락자 정보를 불러오지 못했습니다.");return;}
- if(String(r.data.status||"").toUpperCase()!=="ALIVE"){toast("해당 플레이어는 이미 탈락 처리되었습니다.");return;}
+ if(String(r.data.status||"").toUpperCase()!=="DEAD"){toast("처형된 플레이어의 탈락 처리가 아직 완료되지 않았습니다. 잠시 후 다시 눌러 주세요.");return;}
  const trialEventId=voteResultTrialEventId(g);
  const payload={round:Number(g.current_round||0),event_id:d.event_id,trial_event_id:trialEventId,player_id:r.data.id,name:r.data.name||"",role:String(r.data.role||"").toUpperCase()};
  const type=voteResultTrialType(g);
