@@ -1726,7 +1726,6 @@ async function startScreenCardDealV18(){
     </div>
   </div>
 
-  <div class="screen" id="s-nextRoundPrep"></div>
   <div class="screen resultScene" id="s-result"><img class="resultBg" src="assets/trial_bg.jpg" alt=""><div class="resultTint"></div><div class="resultQuestion">여러분이 <em>처형</em>한 사람의 정체는...</div><div class="roleCards"><div class="roleCard wolf"><img src="assets/wolf.png" alt=""></div><div class="roleCard maybe">일까?</div><div class="roleCard sheep"><img src="assets/sheep.png" alt=""></div><div class="roleCard question">일까?</div></div><div class="resultReveal"><div class="center"><div class="resultName" id="resultName"></div><div class="resultRole" id="resultRole">?</div><div class="resultCaption" id="resultCaption"></div></div></div></div>
 
   <div class="screenStatus" id="screenStatus">SCREEN v188</div>
@@ -2269,18 +2268,21 @@ function renderScreenVictory(winner){
  '</div><div class="screenVictoryTitle">'+title+'</div></div>';
 }
 async function renderNextRoundPrepScreen(g){
-  // NEXT_ROUND_PREP 자체는 새로운 화면을 렌더링하지 않습니다.
-  // 일반 재판에서는 IDENTITY_REVEAL 화면을 그대로 유지합니다.
-  // 긴급재판에서 늑대가 처형된 경우에만 NEXT_ROUND_PREP에서 즉시 재개 카운트다운으로 전환합니다.
-  const m=String(g.notice||'').match(/^NEXT_ROUND_PREP\|(?:[^|]+)\|(?:[^|]+)\|([^|]*)$/);
-  const reason=m?String(m[1]):'';
+  // NEXT_ROUND_PREP 자체에서는 일반 재판의 IDENTITY_REVEAL 화면을 그대로 유지합니다.
+  // 과거의 생존자 화면/자동 LOBBY 전환은 존재하지 않습니다.
+  // 긴급재판에서 늑대가 처형된 경우에만 이 상태에서 즉시 재개 카운트다운으로 전환합니다.
+  const notice=String(g.notice||'');
+  const m=notice.match(/^NEXT_ROUND_PREP\|([^|]+)\|([^|]+)\|([^|]*)$/);
+  const reason=m?String(m[3]||''):'';
   if(reason!=='PUBLIC_WOLF')return;
   const round=Number(g.current_round||0);
-  const eventId=(String(g.notice||'').match(/^NEXT_ROUND_PREP\|[^|]+\|[^|]+\|[^|]*$/)?'':'');
-  const lock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+eventId})
+  const trialEventId=m?String(m[2]||''):'';
+  const resumeNotice='EMERGENCY_RESUME|'+trialEventId;
+  const lock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:resumeNotice})
     .eq('id',1).eq('phase','NEXT_ROUND_PREP').eq('current_round',round);
   if(lock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+lock.error.message);
 }
+
 
 async function handlePhase(g,initial=false){
  if(!unlocked)return;
@@ -2719,13 +2721,11 @@ async function screenIdentityRevealSequence(g){
   if(String(latest.phase||'').toUpperCase()==='FINISHED')return;
   // 일반재판은 양/늑대 어느 쪽이 탈락하더라도 정체 공개가 끝난 뒤 다음 라운드로 넘어갑니다.
   if(!emergencyOrigin){
-    const until=Date.now()+6000;
-    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|TRIAL_EXECUTION'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
+    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+String(g.current_round||0)+'|'+String(d.trial_event_id||trialEventId||d.event_id||eventId)+'|TRIAL_EXECUTION'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
     return;
   }
   if(emergencyOrigin&&role==='WOLF'){
-    const until=Date.now()+6000;
-    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+until+'|'+String(g.current_round||0)+'|PUBLIC_WOLF'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
+    await db.from('game_settings').update({phase:'NEXT_ROUND_PREP',notice:'NEXT_ROUND_PREP|'+String(g.current_round||0)+'|'+String(d.trial_event_id||trialEventId||d.event_id||eventId)+'|PUBLIC_WOLF'}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',Number(g.current_round||0));
   }
 }
 function screenEsc(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
