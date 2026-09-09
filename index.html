@@ -3102,10 +3102,11 @@ async function createPuzzleMission(location){
  return ins.data;
 }
 
-async function getOrCreateRoundMission(location,round){
-  await ensureRoundMissionSetup(round);
-  const currentPlayer=await me();
-  const rows=await getRoundMissionLocations(round,false,currentPlayer?.id);
+async function getOrCreateRoundMission(location,round,currentPlayer=null,roundLocations=null){
+  // 미션 입장 시에는 이미 본게임 화면을 만들면서 이번 라운드 배정이 끝난 상태이므로
+  // 여기서 다시 배정 RPC를 호출하지 않습니다. 전달된 배정 목록이 있으면 그대로 사용합니다.
+  const p=currentPlayer||await me();
+  const rows=roundLocations||await getRoundMissionLocations(round,false,p?.id);
   if(!rows.some(x=>String(x.id)===String(location.id))){
     throw new Error("현재 플레이어에게 활성화되지 않은 장소입니다: "+location.name);
   }
@@ -4087,40 +4088,38 @@ async function renderActionDock(g,p){
 async function openMissionByLocation(locationId){
   const requestToken=++missionEntryToken;
   try{
-    const p=await me(),g=await settings();
+    const [p,g]=await Promise.all([me(),settings()]);
     if(requestToken!==missionEntryToken)return;
     if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"||wolfDeathProcessActive||window.__sabotageActiveNow===true){toast("현재는 미션에 들어갈 수 없습니다.");return;}
 
-    const loc=await getMissionLocation(locationId);
+    // 본게임 화면에 이미 표시된 장소를 다시 전체 배정 RPC로 확인하지 않습니다.
+    // 화면에 버튼이 존재한다는 것은 renderPlayerCore에서 이번 라운드 배정이 완료됐다는 뜻입니다.
+    const [loc,completed,sabotaged,latest]=await Promise.all([
+      getMissionLocation(locationId),
+      getPlayerCompletedLocationIds(g.current_round,p.id),
+      getSabotagedLocationIds(g.current_round),
+      settings()
+    ]);
     if(requestToken!==missionEntryToken)return;
     if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
+    if(latest.phase!=="PLAY"||wolfDeathProcessActive){return;}
+    if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
+    if(sabotaged.has(String(locationId))){toast("현재 늑대의 늑대방해로 비활성화된 장소입니다.");return;}
 
-    const roundLocations=await getRoundMissionLocations(g.current_round,true,p.id);
+    const latestSabotage=await getSabotageState(latest.current_round);
+    if(requestToken!==missionEntryToken)return;
+    if(latestSabotage.active){toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return;}
+
+    const roundLocations=await getRoundMissionLocations(latest.current_round,false,p.id);
     if(requestToken!==missionEntryToken)return;
     if(!roundLocations.some(x=>String(x.id)===String(locationId))){
       toast("이번 라운드에 활성화되지 않은 장소입니다.");
       return;
     }
 
-    const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
+    const m=await getOrCreateRoundMission(loc,latest.current_round,p,roundLocations);
     if(requestToken!==missionEntryToken)return;
-    if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
-    const sabotaged=await getSabotagedLocationIds(g.current_round);
-    if(requestToken!==missionEntryToken)return;
-    if(sabotaged.has(String(locationId))){toast("현재 늑대의 늑대방해로 비활성화된 장소입니다.");return;}
-
-    const latest=await settings();
-    if(requestToken!==missionEntryToken)return;
-    if(latest.phase!=="PLAY"||wolfDeathProcessActive)return;
-    const latestSabotage=await getSabotageState(g.current_round);
-    if(requestToken!==missionEntryToken)return;
-    if(latestSabotage.active){toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return;}
-
-    const m=await getOrCreateRoundMission(loc,g.current_round);
-    if(requestToken!==missionEntryToken)return;
-    const finalSettings=await settings();
-    if(requestToken!==missionEntryToken||finalSettings.phase!=="PLAY"||wolfDeathProcessActive)return;
-    await openMissionObject(m,loc,p,finalSettings,requestToken);
+    await openMissionObject(m,loc,p,latest,requestToken,{completed,sabotageState:latestSabotage});
   }catch(e){
     if(requestToken!==missionEntryToken)return;
     console.error("openMissionByLocation 오류:",e);
@@ -4154,13 +4153,13 @@ async function openMission(id){
     toast(e.message||String(e));
   }
 }
-async function openMissionObject(m,loc,p,g,requestToken=missionEntryToken){
-  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
+async function openMissionObject(m,loc,p,g,requestToken=missionEntryToken,preflight=null){
+  const completed=preflight?.completed||await getPlayerCompletedLocationIds(g.current_round,p.id);
   const locationId=loc?.id??m.mission_location_id??m.location_id;
   if(requestToken!==missionEntryToken)return;
-  const latest=await settings();
+  const latest=preflight?.latestSettings||g;
   if(requestToken!==missionEntryToken||latest.phase!=="PLAY"||wolfDeathProcessActive)return;
-  const sabotageState=await getSabotageState(latest.current_round);
+  const sabotageState=preflight?.sabotageState||await getSabotageState(latest.current_round);
   if(requestToken!==missionEntryToken)return;
   if(sabotageState.active){toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return;}
   if(locationId!=null&&completed.has(String(locationId))){
