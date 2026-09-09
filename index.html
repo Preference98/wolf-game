@@ -6367,10 +6367,8 @@ async function renderRoleRevealedPlayer(d,g){
   const role=String(d?.role||'').toUpperCase()==='WOLF'?'WOLF':'SHEEP';
   const roleText=role==='WOLF'?'늑대':'양';
   const ending=role==='WOLF'?'였습니다.':'이었습니다.';
-  const currentPhase=String(g?.phase||'').toUpperCase();
-  const emergencyTrial=voteResultTrialType(g)==='EMERGENCY';
-  const emergencyWolf=emergencyTrial && role==='WOLF';
-  const nextRound=(currentPhase==='NEXT_ROUND_PREP') || (!emergencyTrial)||emergencyWolf;
+  // NEXT_ROUND_PREP에서는 정체 공개 결과와 다음 라운드 안내 문구를 그대로 유지합니다.
+  const nextRound=true;
   const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
   const particle=hasBatchim(name)?'은':'는';
   const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));

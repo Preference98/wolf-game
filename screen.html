@@ -2270,17 +2270,12 @@ function renderScreenVictory(winner){
 async function renderNextRoundPrepScreen(g){
   // NEXT_ROUND_PREP 자체에서는 일반 재판의 IDENTITY_REVEAL 화면을 그대로 유지합니다.
   // 과거의 생존자 화면/자동 LOBBY 전환은 존재하지 않습니다.
-  // 긴급재판에서 늑대가 처형된 경우에만 이 상태에서 즉시 재개 카운트다운으로 전환합니다.
-  const notice=String(g.notice||'');
-  const m=notice.match(/^NEXT_ROUND_PREP\|([^|]+)\|([^|]+)\|([^|]*)$/);
-  const reason=m?String(m[3]||''):'';
-  if(reason!=='PUBLIC_WOLF')return;
-  const round=Number(g.current_round||0);
-  const trialEventId=m?String(m[2]||''):'';
-  const resumeNotice='EMERGENCY_RESUME|'+trialEventId;
-  const lock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:resumeNotice})
-    .eq('id',1).eq('phase','NEXT_ROUND_PREP').eq('current_round',round);
-  if(lock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+lock.error.message);
+  // NEXT_ROUND_PREP에서는 화면을 새로 렌더링하거나 자동 전환하지 않습니다.
+  // 일반재판의 경우 IDENTITY_REVEAL 화면을 그대로 유지하고,
+  // 긴급재판에서 늑대가 처형된 경우에도 동일하게 다음 라운드 대기 상태를 유지합니다.
+  // 긴급재판에서 아무도 처형되지 않은 경우에는 VOTE_RESULT 단계에서 이미
+  // EMERGENCY_RESUME 카운트다운으로 전환되므로 이 함수에서는 아무것도 하지 않습니다.
+  return;
 }
 
 
@@ -2677,8 +2672,7 @@ async function screenIdentityRevealSequence(g){
   const nameFinal=root.querySelector('.identityRevealName');
   if(nameFinal){
     const safeName=screenEsc(d.name||'');
-    if(emergencyOrigin&&role==='WOLF')nameFinal.innerHTML='<span class="identityRevealRoleSentence">축하합니다. 늑대를 찾아내셨습니다</span>';
-    else nameFinal.innerHTML='<span class="identityRevealPlayerName">'+safeName+'</span><span class="identityRevealRoleSentence">'+particle+' <span class="identityRevealRoleText '+(role==='WOLF'?'wolfText':'sheepText')+'">'+roleText+'</span>'+(role==='WOLF'?'였습니다.':'이었습니다.')+'</span>';
+    nameFinal.innerHTML='<span class="identityRevealPlayerName">'+safeName+'</span><span class="identityRevealRoleSentence">'+particle+' <span class="identityRevealRoleText '+(role==='WOLF'?'wolfText':'sheepText')+'">'+roleText+'</span>'+(role==='WOLF'?'였습니다.':'이었습니다.')+'</span>';
   }
   const roleEl=document.createElement('div'); roleEl.className='identityRevealQuestion'; roleEl.textContent='';
   if(qEl&&qEl.parentNode){qEl.replaceWith(roleEl);}
