@@ -2468,27 +2468,6 @@ function screenApplyVoteEvent(d){const ev=String(d?.event_id||'');if(!ev)return;
 async function renderScreenVoteBoard(g,finalData=null){const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');if(playersR.error){console.warn('스크린 투표 플레이어 조회 실패:',playersR.error.message);return;}const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE'||(finalData&&String(x.id)===String(finalData.player_id)));const ev=screenVoteEvent(g);if(!finalData&&ev){if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const fetched=await screenVoteData(g.current_round,ev);for(const [v,d] of fetched)screenLiveVotes.set(v,d);}const counts=new Map();if(finalData){for(const [id,c] of Object.entries(finalData.counts||{}))counts.set(String(id),Number(c)||0);}else{for(const d of screenLiveVotes.values()){const candidate=String(d.candidate_id||'');if(candidate)counts.set(candidate,(counts.get(candidate)||0)+1);}}const total=finalData?Number(finalData.total||players.length):players.length;const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';const title=$('screenVoteTitleCards');if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}const root=$('screenVotePlayers');if(!root)return;root.innerHTML=players.map(p=>{const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';}).join('');}
 async function screenVoteSequence(g){const token=++screenVoteToken;screenLiveVoteEvent=screenVoteEvent(g);screenLiveVotes=new Map();stopAllScreenBgm();await screenPlayVoteBgm();show('s-vote');await renderScreenVoteBoard(g);if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(e){console.warn('스크린 실시간 투표 갱신 오류:',e);}},700);if(token!==screenVoteToken)return;}
 async function screenVoteResultData(round,eventId){if(eventId&&screenVoteResultCache.has(eventId))return screenVoteResultCache.get(eventId);const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(50);if(r.error){console.warn('스크린 투표결과 조회 실패:',r.error.message);return null;}for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round))continue;if(eventId&&String(d.event_id)!==String(eventId))continue;if(d.event_id)screenVoteResultCache.set(String(d.event_id),d);return d;}catch(_){}}return null;}
-async function screenEvaluateFinalVictory(round){
-  const r=await db.from('players').select('id,role,status');
-  if(r.error){console.warn('스크린 최종승리 조건 확인 실패:',r.error.message);return {ended:false};}
-  const alive=(r.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
-  if(alive.length!==2)return {ended:false,alive};
-  const sheep=alive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length;
-  const wolf=alive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length;
-  let winner='';
-  if(sheep===2)winner='SHEEP';
-  else if(sheep===1&&wolf===1)winner='WOLF';
-  else return {ended:false,alive};
-  const msg=winner==='SHEEP'?'생존자가 양 2명이 되어 양이 최종 승리했습니다.':'생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다.';
-  const u=await db.from('game_settings').update({phase:'FINISHED',winner,started:false,notice:msg})
-    .eq('id',1).eq('current_round',Number(round||0)).neq('phase','FINISHED').select('id');
-  if(u.error){console.warn('스크린 최종승리 확정 실패:',u.error.message);return {ended:false,alive};}
-  if(u.data?.length)return {ended:true,winner,alive};
-  const latest=await getSettings();
-  if(String(latest.phase||'').toUpperCase()==='FINISHED'&&String(latest.winner||'').toUpperCase()===winner)return {ended:true,winner,alive};
-  return {ended:false,alive};
-}
-
 async function screenMarkVoteExecutionDead(d,g){
   const playerId=String(d?.player_id||'');
   if(!playerId)return true;
@@ -2688,10 +2667,6 @@ async function screenIdentityRevealSequence(g){
   const latest=await getSettings();
   // 긴급재판 여부와 관계없이 처형 직후에는 기존 승패 판정을 먼저 확인합니다.
   // 승리 조건이 충족되지 않은 경우에만 긴급재판 규칙에 따라 현재 라운드를 재개합니다.
-  // 처형으로 DEAD가 확정된 뒤 기존 정체공개 연출이 끝난 시점에 최종승리를 판정합니다.
-  // 최종승리가 아니면 아래의 기존 일반/긴급 재판 후속처리를 그대로 실행합니다.
-  const finalOutcome=await screenEvaluateFinalVictory(Number(d.round||g.current_round||0));
-  if(finalOutcome.ended)return;
   if(emergencyOrigin&&role==='SHEEP'){
     const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
     let rep=null; for(const n of report.data||[]){try{const x=JSON.parse(n.message||'{}');if(String(x.round)===String(d.round||g.current_round||0)&&String(x.event_id)===String(d.trial_event_id||trialEventId||d.event_id||eventId)){rep=x;break;}}catch(_){} }
