@@ -2057,6 +2057,8 @@ async function countdownSequence(g){
  sequence().catch(e=>console.warn('스크린 카운트다운:',e));
 }
 async function investigationSequence(g){
+  if(window.WG_PRIORITY && !window.WG_PRIORITY.observe(g))return;
+  if(window.WG_PRIORITY && window.WG_PRIORITY.area(g)!=='C')return;
   startScreenTrialInvestigationBgm();
  const token=++seqToken;
  show('s-investigation');
@@ -2161,6 +2163,7 @@ function updateScreenRoundTimer(g){
  tick();screenRoundTimerHandle=setInterval(tick,250);
 }
 async function screenNightWarning(g){
+ if(window.WG_PRIORITY && !window.WG_PRIORITY.observe(g))return;
  const raw=String(g.notice||"");
  if(!raw.startsWith("NIGHT_WARNING|"))return;
  const stamp=raw.split("|")[1]||"";
@@ -2281,6 +2284,7 @@ async function renderNextRoundPrepScreen(g){
 
 async function handlePhase(g,initial=false){
  if(!unlocked)return;
+ if(window.WG_PRIORITY && !window.WG_PRIORITY.observe(g))return;
  // 오래 도착한 realtime 이벤트가 현재 단계의 화면/BGM을 되돌리지 않도록
  // game_settings.updated_at 기준으로 과거 상태를 무시합니다.
  const incomingUpdatedAt=String(g.updated_at||'');
@@ -2515,7 +2519,19 @@ async function screenMarkVoteExecutionDead(d,g){
   console.warn('재판 처형 탈락 상태 확인 실패:',finalCheck.error||finalCheck.data);
   return false;
 }
-async function screenVoteResultSequence(g){const token=++screenVoteToken;if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;const eventId=screenVoteResultEvent(g);let d=null;for(let i=0;i<40&&!d;i++){d=await screenVoteResultData(g.current_round,eventId);if(!d)await wait(250);}if(token!==screenVoteToken||!d)return;if(d.no_execution){show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';await wait(5000);if(token!==screenVoteToken)return;if(screenVoteResultTrialType(g)==='NORMAL'){await screenAutoNextRoundNoWinner(g);}else{await screenResumeEmergencyAfterTrial(g,eventId);}return;}show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';const title=document.getElementById('screenVoteTitle'),lead=document.getElementById('screenVoteLead'),fin=document.getElementById('screenVoteFinal');title.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});lead.textContent=(d.name||'')+' 양은...';fin.textContent='';fin.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;fin.textContent='처형되었습니다';fin.classList.add('show');
+function screenVoteResultTrialType(g){
+  const m=String(g?.notice||'').match(/^(?:TRIAL|VOTE|VOTE_RESULT|IDENTITY_REVEAL)\|([^|]+)\|([^|]+)/);
+  return m&&String(m[2]).toUpperCase()==='EMERGENCY'?'EMERGENCY':'NORMAL';
+}
+async function screenVoteResultSequence(g){
+ const priorityToken=window.WG_PRIORITY?.token(g);
+ const token=++screenVoteToken;if(screenVoteBoardTimer){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;}show('s-voteTally');await wait(3000);if(token!==screenVoteToken)return;
+ const latestBeforeResult=await getSettings().catch(()=>null);
+ if(!latestBeforeResult || String(latestBeforeResult.phase||'').toUpperCase()!=='VOTE_RESULT' || (priorityToken && !window.WG_PRIORITY.globalStillCurrent(priorityToken,latestBeforeResult)))return;
+ const eventId=screenVoteResultEvent(latestBeforeResult);let d=null;for(let i=0;i<40&&!d;i++){d=await screenVoteResultData(g.current_round,eventId);if(!d)await wait(250);}if(token!==screenVoteToken||!d)return;if(d.no_execution){show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteNoExecutionStage"><div class="voteNoExecutionTitle">투표결과</div><div class="voteNoExecutionText">아무도 처형되지 않았습니다</div></div>';await wait(5000);if(token!==screenVoteToken)return;
+ const latestNoExec=await getSettings().catch(()=>null);
+ if(!latestNoExec || String(latestNoExec.phase||'').toUpperCase()!=='VOTE_RESULT')return;
+ if(screenVoteResultTrialType(latestNoExec)==='NORMAL'){await screenAutoNextRoundNoWinner(latestNoExec);}else{await screenResumeEmergencyAfterTrial(latestNoExec,eventId);}return;}show('s-voteResult');const root=document.getElementById('s-voteResult');root.innerHTML='<div class="voteBroadcastStage"><div><div class="voteBroadcastTitle" id="screenVoteTitle"></div><div class="voteBroadcastLead" id="screenVoteLead"></div><div class="voteBroadcastFinal" id="screenVoteFinal"></div></div></div>';const title=document.getElementById('screenVoteTitle'),lead=document.getElementById('screenVoteLead'),fin=document.getElementById('screenVoteFinal');title.innerHTML='';['결','과','공','개'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});lead.textContent=(d.name||'')+' 양은...';fin.textContent='';fin.classList.remove('show');await wait(2500);if(token!==screenVoteToken)return;fin.textContent='처형되었습니다';fin.classList.add('show');
   // 탈락 처리는 "정체확인"이 아니라 "처형되었습니다" 문구가 등장하는 순간 확정합니다.
   // 정체확인은 이후 역할 공개만 담당합니다.
   if(!d.no_execution){
@@ -2547,12 +2563,16 @@ async function screenResumeEmergencyAfterTrial(g,eventId=""){
       if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);
     }
   }
-  // 긴급재판으로 현재 라운드가 재개될 때는 사망처리 권한을 서버에서 원자적으로 초기화합니다.
-  const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
-  if(deathReset.error)throw new Error('긴급재판 후 사망처리 권한 초기화 실패: '+deathReset.error.message);
+  // 긴급재판 무처형은 게임 재개 전환을 먼저 확정합니다.
+  // 사망처리 권한 초기화(RPC)가 실패하더라도 COUNTDOWN 전환 자체가 막히지 않도록
+  // 재개 상태 변경과 권한 초기화를 서로 분리합니다.
   const lock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(eventId||'')})
     .eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',round);
   if(lock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+lock.error.message);
+  const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
+  if(deathReset.error){
+    console.error('긴급재판 후 사망처리 권한 초기화 실패(게임은 재개됨):',deathReset.error);
+  }
 }
 let screenIdentitySequenceKey="";
 let screenExecutedVoteKey="";
@@ -2698,11 +2718,14 @@ async function screenIdentityRevealSequence(g){
     const rs=Date.parse(latest.round_started_at||'');
     if(Number.isFinite(rs)&&pause>0)await db.from('game_settings').update({round_started_at:new Date(rs+pause).toISOString()}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
     if(pause>0){const sr=await db.from('sabotage_events').select('id,started_at,ends_at').eq('game_round',round);for(const ev of sr.data||[]){const st=Date.parse(ev.started_at||''),en=Date.parse(ev.ends_at||'');const patch={};if(Number.isFinite(st))patch.started_at=new Date(st+pause).toISOString();if(Number.isFinite(en))patch.ends_at=new Date(en+pause).toISOString();if(Object.keys(patch).length)await db.from('sabotage_events').update(patch).eq('id',ev.id);}}
-    // 긴급재판에서 양이 탈락하면 생존자 수와 관계없이 무조건 현재 라운드를 재개합니다.
-    const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
-    if(deathReset.error)throw new Error('긴급재판 후 사망처리 권한 초기화 실패: '+deathReset.error.message);
+    // 긴급재판에서 양이 탈락하고 최종승리가 아니라면 현재 라운드를 재개합니다.
+    // 재개 상태 변경을 먼저 확정하여 사망처리 권한 초기화 RPC 실패가 게임 재개를 막지 않게 합니다.
     const resumeLock=await db.from('game_settings').update({phase:'COUNTDOWN',notice:'EMERGENCY_RESUME|'+String(d.event_id||eventId)}).eq('id',1).eq('phase','IDENTITY_REVEAL').eq('current_round',round);
     if(resumeLock.error)throw new Error('긴급재판 게임 재개 전환 실패: '+resumeLock.error.message);
+    const deathReset=await db.rpc('reset_wolf_attempts_for_emergency_resume',{p_game_round:round});
+    if(deathReset.error){
+      console.error('긴급재판 후 사망처리 권한 초기화 실패(게임은 재개됨):',deathReset.error);
+    }
     if(!resumeLock.data?.length){
       const afterResumeCheck=await getSettings();
       if(String(afterResumeCheck.phase||'').toUpperCase()==='FINISHED')return;
@@ -2841,6 +2864,80 @@ document.addEventListener("DOMContentLoaded",()=>startCardSelectionProgressV20()
 })();
 </script>
 
+<script id="wg-central-priority-v1">
+/* 중앙 우선순위 컨트롤러 v1
+ * A~D는 게임 전체 상태, E는 플레이어별 개인 상태로 분리합니다.
+ * 명령을 계속 감시하지 않고 상태 전환/실행 직전에만 검사합니다.
+ * 같은 우선순위의 다른 플레이어 행동은 서로 차단하지 않습니다.
+ * 상위 전역 상태가 되면 이전 상태에서 발생한 하위 명령은 세대가 달라져 무효가 됩니다.
+ * 사망처리는 D 내부의 전환 동안 완료할 수 있으며, 완료 직후 현재 서버 상태를 다시 확인합니다.
+ */
+(function(){
+  const AREA={A:500,B:400,C:300,D:200};
+  const D={EMERGENCY_REPORT:240,NIGHT:230,SABOTAGE:220,PLAY:200};
+  const PERSONAL={DEAD:500,DEATH_PROCESS:400,EMERGENCY:300,SABOTAGE:300,MISSION:100};
+  let globalEpoch=0,lastGlobalKey='',lastUpdatedAt=0;
+  const personalEpoch=new Map();
+  function phase(g){return String(g?.phase||'LOBBY').toUpperCase();}
+  function notice(g){return String(g?.notice||'');}
+  function area(g){
+    const p=phase(g);
+    if(['LOBBY','ROLE_SELECT','ROLE_REVEAL','COUNTDOWN'].includes(p))return 'A';
+    if(p==='FINISHED')return 'B';
+    if(['TRIAL','VOTE','VOTE_RESULT','IDENTITY_REVEAL','INVESTIGATION','NEXT_ROUND_PREP'].includes(p))return 'C';
+    return 'D';
+  }
+  function level(g){
+    const p=phase(g),n=notice(g);
+    if(p==='PLAY' && n.startsWith('EMERGENCY_REPORT|'))return D.EMERGENCY_REPORT;
+    if(p==='PLAY' && n.startsWith('NIGHT_WARNING|'))return D.NIGHT;
+    if(p==='PLAY')return D.PLAY;
+    if(p==='NIGHT')return D.NIGHT;
+    return AREA[area(g)];
+  }
+  function key(g){return [Number(g?.current_round||0),phase(g),notice(g),String(g?.updated_at||'')].join('|');}
+  function observe(g){
+    if(!g)return false;
+    const u=Date.parse(String(g.updated_at||''));
+    if(Number.isFinite(u)&&lastUpdatedAt&&u<lastUpdatedAt)return false;
+    const k=key(g);
+    if(k!==lastGlobalKey){
+      const prev=window.__WG_PRIORITY_LAST_GLOBAL||null;
+      if(prev && (Number(g.current_round||0)!==Number(prev.current_round||0) || phase(g)!==phase(prev) || notice(g)!==notice(prev)))globalEpoch++;
+      lastGlobalKey=k;
+      window.__WG_PRIORITY_LAST_GLOBAL={current_round:g.current_round,phase:g.phase,notice:g.notice,updated_at:g.updated_at};
+    }
+    if(Number.isFinite(u))lastUpdatedAt=Math.max(lastUpdatedAt,u);
+    return true;
+  }
+  function token(g){return {epoch:globalEpoch,round:Number(g?.current_round||0),phase:phase(g),notice:notice(g),updatedAt:String(g?.updated_at||'')};}
+  function globalStillCurrent(t,g){
+    if(!t||!g)return false;
+    return globalEpoch===t.epoch && Number(g.current_round||0)===t.round && phase(g)===t.phase && notice(g)===t.notice;
+  }
+  function personalRank(kind){return PERSONAL[String(kind||'').toUpperCase()]||0;}
+  function beginPersonal(playerId,kind,g){
+    const id=String(playerId||'');
+    const epoch=(personalEpoch.get(id)||0)+1;
+    personalEpoch.set(id,epoch);
+    return {id,kind:String(kind||'').toUpperCase(),rank:personalRank(kind),epoch,global:token(g)};
+  }
+  function invalidatePersonal(playerId){
+    const id=String(playerId||'');
+    personalEpoch.set(id,(personalEpoch.get(id)||0)+1);
+  }
+  function personalStillCurrent(rec,g){
+    if(!rec||!g)return false;
+    if((personalEpoch.get(String(rec.id))||0)!==rec.epoch)return false;
+    const a=area(g),p=phase(g),n=notice(g);
+    if(rec.kind==='DEATH_PROCESS')return a==='D' && p!=='FINISHED';
+    if(rec.kind==='MISSION')return p==='PLAY' && !n.startsWith('EMERGENCY_REPORT|') && !n.startsWith('NIGHT_WARNING|');
+    if(rec.kind==='SABOTAGE'||rec.kind==='EMERGENCY')return p==='PLAY' && !n.startsWith('EMERGENCY_REPORT|') && !n.startsWith('NIGHT_WARNING|');
+    return a==='D';
+  }
+  window.WG_PRIORITY={AREA,D,PERSONAL,phase,notice,area,level,key,observe,token,globalStillCurrent,beginPersonal,invalidatePersonal,personalStillCurrent,get globalEpoch(){return globalEpoch;}};
+})();
+</script>
 </body>
 </html>
 

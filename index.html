@@ -3256,8 +3256,10 @@ async function routeCore(){
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
   const p=await me();if(!p){showScreen("login");return;}
   const g=await settings();
+  if(window.WG_PRIORITY && !window.WG_PRIORITY.observe(g))return;
   const currentPhase=String(g.phase||"LOBBY").toUpperCase();
   if(p.status!=="ALIVE"){
+   if(window.WG_PRIORITY)window.WG_PRIORITY.invalidatePersonal(p.id);
    if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
      stopAllTimers();
      await showScreen("deathWarning");
@@ -3269,6 +3271,19 @@ async function routeCore(){
    return;
   }
   if(p.status==="ALIVE")localStorage.removeItem("wolf_game_death_lock_v1");
+
+  // E-사망처리는 다른 플레이어의 행동과 독립적이며, D 영역(긴급신고/밤/늑대방해)의
+  // 전환 때문에 중간에 화면이 빼앗기지 않도록 합니다. 사망처리가 끝나면 route()가
+  // 현재 서버 상태를 다시 읽어 동일한 시간축의 화면으로 따라갑니다.
+  if(wolfDeathProcessActive){
+    const globalArea=window.WG_PRIORITY?.area(g)||"D";
+    if(globalArea==="D" && (currentPhase==="PLAY" || currentPhase==="NIGHT")){
+      return;
+    }
+    try{stopWolfDeathNfcScan();}catch(_){}
+    wolfDeathProcessActive=false;
+    closeOverlay();
+  }
 
   switch(currentPhase){
    case "ROLE_SELECT":
@@ -3373,6 +3388,10 @@ async function startPlayerLoopBgm(key,volume=.42){
 }
 function stopPlayerLoopBgm(key){try{const a=audio[key];if(a){a.pause();a.currentTime=0;}}catch(e){}}
 async function renderNightPreAlert(g){
+ const current=await settings().catch(()=>null);
+ if(!current)return;
+ if(window.WG_PRIORITY && !window.WG_PRIORITY.observe(current))return;
+ g=current;
  const raw=String(g.notice||"");
  if(!raw.startsWith("NIGHT_WARNING|"))return;
  const stamp=raw.split("|")[1]||"";
@@ -3642,6 +3661,9 @@ async function startPlayerNightBgm(){
   }
 }
 async function renderNight(p,g){
+ const latest=await settings().catch(()=>null);
+ if(!latest || String(latest.phase||"").toUpperCase()!=="NIGHT")return;
+ g=latest;
   await startPlayerNightBgm();
  const rules=getRoundRules(g);
  const startedMs=Date.parse(g.night_started_at||"");
@@ -3855,6 +3877,7 @@ window.cancelEmergencyNfc=function(){closeOverlay();stopEmergencyNfcScan();};
 
 async function submitEmergencyReport(event){
   const p=await me(),g=await settings();
+  const priorityToken=window.WG_PRIORITY?.beginPersonal(p?.id,"EMERGENCY",g);
   if(!p || String(p.status||"").toUpperCase()!=="ALIVE" || !(await emergencyReportButtonAvailable(g,p))){
     closeOverlay();stopEmergencyNfcScan();
     toast("긴급신고 조건이 변경되어 접수되지 않았습니다.");
@@ -3866,6 +3889,11 @@ async function submitEmergencyReport(event){
     return;
   }
 
+  const latestBefore=await settings();
+  if(!priorityToken || !window.WG_PRIORITY.personalStillCurrent(priorityToken,latestBefore)){
+    closeOverlay();stopEmergencyNfcScan();
+    toast("게임 상태가 변경되어 긴급신고를 접수하지 않았습니다.");return;
+  }
   const eventId="emergency-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
   const payload={
     round:Number(g.current_round||0),
@@ -4072,7 +4100,9 @@ async function openMissionByLocation(locationId){
 
     const completed=await getPlayerCompletedLocationIds(g.current_round,p.id); if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;} const sabotaged=await getSabotagedLocationIds(g.current_round); if(sabotaged.has(String(locationId))){toast("현재 늑대의 늑대방해로 비활성화된 장소입니다.");return;}
     const m=await getOrCreateRoundMission(loc,g.current_round);
-    await openMissionObject(m,loc,p,g);
+    const latest=await settings();
+    if(!window.WG_PRIORITY.personalStillCurrent(priorityToken,latest)){toast("게임 상태가 변경되어 미션을 시작하지 않았습니다.");return;}
+    await openMissionObject(m,loc,p,latest);
   }catch(e){
     console.error("openMissionByLocation 오류:",e);
     toast(e.message||String(e));
@@ -4082,7 +4112,9 @@ async function openMissionByLocation(locationId){
 async function openMission(id){
   try{
     const p=await me(),g=await settings();
+    const priorityToken=window.WG_PRIORITY?.beginPersonal(p?.id,"MISSION",g);
     if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+    if(!priorityToken||!window.WG_PRIORITY.personalStillCurrent(priorityToken,g)){toast("현재는 미션을 시작할 수 없습니다.");return;}
 
     const m=(await allMissions()).find(x=>String(x.id)===String(id));
     if(!m)throw new Error("미션을 찾을 수 없습니다.");
@@ -4090,7 +4122,9 @@ async function openMission(id){
     const loc=await getMissionLocation(m.mission_location_id||m.location_id);
     if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
 
-    await openMissionObject(m,loc,p,g);
+    const latest=await settings();
+    if(!window.WG_PRIORITY.personalStillCurrent(priorityToken,latest)){toast("게임 상태가 변경되어 미션을 시작하지 않았습니다.");return;}
+    await openMissionObject(m,loc,p,latest);
   }catch(e){
     console.error("openMission 오류:",e);
     toast(e.message||String(e));
@@ -4140,7 +4174,11 @@ async function openMissionObject(m,loc,p,g){
 }
 
 async function completeCurrentMission(){
- const p=await me(),g=await settings(); if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;} if(!currentMission)throw new Error("현재 미션이 없습니다.");
+ const p=await me(),g=await settings();
+ const priorityToken=window.WG_PRIORITY?.beginPersonal(p?.id,"MISSION",g);
+ if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;}
+ if(!priorityToken||!window.WG_PRIORITY.personalStillCurrent(priorityToken,g)){toast("현재는 미션을 완료할 수 없습니다.");return;}
+ if(!currentMission)throw new Error("현재 미션이 없습니다.");
  const locId=currentMission.mission_location_id||currentMission.location_id,completed=await getPlayerCompletedLocationIds(g.current_round,p.id); if(locId!=null&&completed.has(String(locId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
  const sabotageNow=await getSabotagedLocationIds(g.current_round);
  const currentLocId=currentMission.mission_location_id||currentMission.location_id;
@@ -4152,6 +4190,10 @@ async function completeCurrentMission(){
    if(el("answerBtn"))el("answerBtn").disabled=true;
    el("missionResult").innerHTML='<div class="notice alert">늑대방해로 인해 미션 실패 처리되었습니다.</div>';
    return;
+ }
+ const latestBeforeComplete=await settings();
+ if(!window.WG_PRIORITY.personalStillCurrent(priorityToken,latestBeforeComplete)){
+   toast("게임 상태가 변경되어 미션 완료를 처리하지 않았습니다.");return;
  }
  const r=await db.rpc("complete_player_mission",{
    p_game_round:g.current_round,
@@ -4619,11 +4661,22 @@ window.cancelWolfDeathNfc=async function(){
  closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;
 }
 async function completeWolfDeathByNfc(victim,wolf,g){
+ const priorityToken=window.WG_PRIORITY?.beginPersonal(wolf?.id,"DEATH_PROCESS",g);
+ const latestBefore=await settings();
+ if(!priorityToken||!window.WG_PRIORITY.personalStillCurrent(priorityToken,latestBefore)){
+   throw new Error("게임 단계가 변경되어 사망처리를 완료할 수 없습니다.");
+ }
+ g=latestBefore;
  const round=Number(g.current_round)||0;
  // 서버에서 먼저 이번 라운드의 사망처리를 예약합니다.
  // 예약에 실패하면 피해자를 DEAD로 변경하지 않습니다.
  const attempt=await db.rpc('create_wolf_attempt',{p_game_round:round,p_wolf_player_id:String(wolf.id),p_victim_player_id:String(victim.id)});
  if(attempt.error)throw new Error(attempt.error.message);
+ const latestDeath=await settings();
+ if(!window.WG_PRIORITY.personalStillCurrent(priorityToken,latestDeath)){
+   if(attempt.data?.id)await db.from('wolf_attempts').delete().eq('id',attempt.data.id).eq('status','PENDING');
+   throw new Error("게임 단계가 변경되어 사망처리를 완료하지 않았습니다.");
+ }
  const attemptId=attempt.data?.id||attempt.data?.[0]?.id||null;
  try{
    const lock=await db.from('players').update({status:'DEAD'}).eq('id',victim.id).eq('status','ALIVE').select('id');
@@ -7862,5 +7915,79 @@ function miniTrace(r){
 })();
 </script>
 
+<script id="wg-central-priority-v1">
+/* 중앙 우선순위 컨트롤러 v1
+ * A~D는 게임 전체 상태, E는 플레이어별 개인 상태로 분리합니다.
+ * 명령을 계속 감시하지 않고 상태 전환/실행 직전에만 검사합니다.
+ * 같은 우선순위의 다른 플레이어 행동은 서로 차단하지 않습니다.
+ * 상위 전역 상태가 되면 이전 상태에서 발생한 하위 명령은 세대가 달라져 무효가 됩니다.
+ * 사망처리는 D 내부의 전환 동안 완료할 수 있으며, 완료 직후 현재 서버 상태를 다시 확인합니다.
+ */
+(function(){
+  const AREA={A:500,B:400,C:300,D:200};
+  const D={EMERGENCY_REPORT:240,NIGHT:230,SABOTAGE:220,PLAY:200};
+  const PERSONAL={DEAD:500,DEATH_PROCESS:400,EMERGENCY:300,SABOTAGE:300,MISSION:100};
+  let globalEpoch=0,lastGlobalKey='',lastUpdatedAt=0;
+  const personalEpoch=new Map();
+  function phase(g){return String(g?.phase||'LOBBY').toUpperCase();}
+  function notice(g){return String(g?.notice||'');}
+  function area(g){
+    const p=phase(g);
+    if(['LOBBY','ROLE_SELECT','ROLE_REVEAL','COUNTDOWN'].includes(p))return 'A';
+    if(p==='FINISHED')return 'B';
+    if(['TRIAL','VOTE','VOTE_RESULT','IDENTITY_REVEAL','INVESTIGATION','NEXT_ROUND_PREP'].includes(p))return 'C';
+    return 'D';
+  }
+  function level(g){
+    const p=phase(g),n=notice(g);
+    if(p==='PLAY' && n.startsWith('EMERGENCY_REPORT|'))return D.EMERGENCY_REPORT;
+    if(p==='PLAY' && n.startsWith('NIGHT_WARNING|'))return D.NIGHT;
+    if(p==='PLAY')return D.PLAY;
+    if(p==='NIGHT')return D.NIGHT;
+    return AREA[area(g)];
+  }
+  function key(g){return [Number(g?.current_round||0),phase(g),notice(g),String(g?.updated_at||'')].join('|');}
+  function observe(g){
+    if(!g)return false;
+    const u=Date.parse(String(g.updated_at||''));
+    if(Number.isFinite(u)&&lastUpdatedAt&&u<lastUpdatedAt)return false;
+    const k=key(g);
+    if(k!==lastGlobalKey){
+      const prev=window.__WG_PRIORITY_LAST_GLOBAL||null;
+      if(prev && (Number(g.current_round||0)!==Number(prev.current_round||0) || phase(g)!==phase(prev) || notice(g)!==notice(prev)))globalEpoch++;
+      lastGlobalKey=k;
+      window.__WG_PRIORITY_LAST_GLOBAL={current_round:g.current_round,phase:g.phase,notice:g.notice,updated_at:g.updated_at};
+    }
+    if(Number.isFinite(u))lastUpdatedAt=Math.max(lastUpdatedAt,u);
+    return true;
+  }
+  function token(g){return {epoch:globalEpoch,round:Number(g?.current_round||0),phase:phase(g),notice:notice(g),updatedAt:String(g?.updated_at||'')};}
+  function globalStillCurrent(t,g){
+    if(!t||!g)return false;
+    return globalEpoch===t.epoch && Number(g.current_round||0)===t.round && phase(g)===t.phase && notice(g)===t.notice;
+  }
+  function personalRank(kind){return PERSONAL[String(kind||'').toUpperCase()]||0;}
+  function beginPersonal(playerId,kind,g){
+    const id=String(playerId||'');
+    const epoch=(personalEpoch.get(id)||0)+1;
+    personalEpoch.set(id,epoch);
+    return {id,kind:String(kind||'').toUpperCase(),rank:personalRank(kind),epoch,global:token(g)};
+  }
+  function invalidatePersonal(playerId){
+    const id=String(playerId||'');
+    personalEpoch.set(id,(personalEpoch.get(id)||0)+1);
+  }
+  function personalStillCurrent(rec,g){
+    if(!rec||!g)return false;
+    if((personalEpoch.get(String(rec.id))||0)!==rec.epoch)return false;
+    const a=area(g),p=phase(g),n=notice(g);
+    if(rec.kind==='DEATH_PROCESS')return a==='D' && p!=='FINISHED';
+    if(rec.kind==='MISSION')return p==='PLAY' && !n.startsWith('EMERGENCY_REPORT|') && !n.startsWith('NIGHT_WARNING|');
+    if(rec.kind==='SABOTAGE'||rec.kind==='EMERGENCY')return p==='PLAY' && !n.startsWith('EMERGENCY_REPORT|') && !n.startsWith('NIGHT_WARNING|');
+    return a==='D';
+  }
+  window.WG_PRIORITY={AREA,D,PERSONAL,phase,notice,area,level,key,observe,token,globalStillCurrent,beginPersonal,invalidatePersonal,personalStillCurrent,get globalEpoch(){return globalEpoch;}};
+})();
+</script>
 </body>
 </html>
