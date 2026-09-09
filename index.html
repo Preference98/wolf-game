@@ -6359,8 +6359,8 @@ async function renderRoleRevealedPlayer(d,g){
   const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   root.innerHTML='<div class="roleRevealedPlayerStage">'+
     '<div class="roleRevealedPlayerResult">'+
-      '<div class="roleRevealedPlayerSentence">'+(emergencyWolf?'축하합니다. 늑대를 찾아내셨습니다':('<span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span>'))+'</div>'+
-      (nextRound?'<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 진행됩니다.</div>':'')+
+      '<div class="roleRevealedPlayerSentence"><span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span></div>'+
+      (nextRound?'<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 시작됩니다.</div>':'')+
     '</div>'+
   '</div>';
 }
