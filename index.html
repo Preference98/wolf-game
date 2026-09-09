@@ -6353,36 +6353,16 @@ async function renderRoleRevealedPlayer(d,g){
   const ending=role==='WOLF'?'였습니다.':'이었습니다.';
   const emergencyTrial=voteResultTrialType(g)==='EMERGENCY';
   const emergencyWolf=emergencyTrial && role==='WOLF';
+  const nextRound=(!emergencyTrial)||emergencyWolf;
   const hasBatchim=(text)=>{const chars=Array.from(String(text||'').trim());const last=chars[chars.length-1]||'';const code=last.charCodeAt(0);return code>=0xAC00&&code<=0xD7A3&&((code-0xAC00)%28)!==0;};
   const particle=hasBatchim(name)?'은':'는';
   const safeName=String(name).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
   root.innerHTML='<div class="roleRevealedPlayerStage">'+
     '<div class="roleRevealedPlayerResult">'+
       '<div class="roleRevealedPlayerSentence">'+(emergencyWolf?'축하합니다. 늑대를 찾아내셨습니다':('<span class="roleRevealedPlayerName">'+safeName+'</span><span class="roleRevealedPlayerWhite">'+particle+'</span> <span class="roleRevealedPlayerRole '+(role==='WOLF'?'wolf':'sheep')+'">'+roleText+'</span><span class="roleRevealedPlayerWhite">'+ending+'</span>'))+'</div>'+
+      (nextRound?'<div class="roleRevealedPlayerNext">잠시 후 다음 라운드가 진행됩니다.</div>':'')+
     '</div>'+
   '</div>';
-
-  // 정체 공개 직후에는 아직 IDENTITY_REVEAL 단계일 수 있으므로,
-  // 실제 서버가 NEXT_ROUND_PREP인지 FINISHED인지 확인한 뒤 다음 문구/최종승리를 결정합니다.
-  // 기존 최종승리 판정 자체를 여기서 다시 만들지 않고, game_settings의 최종 상태만 따릅니다.
-  for(let i=0;i<20 && token===voteRenderToken;i++){
-    const latest=await settings().catch(()=>null);
-    if(!latest)break;
-    const phase=String(latest.phase||'').toUpperCase();
-    if(phase==='FINISHED' && latest.winner){
-      await renderVictory(latest.winner);
-      return;
-    }
-    if(phase==='NEXT_ROUND_PREP'){
-      const nextEl=document.createElement('div');
-      nextEl.className='roleRevealedPlayerNext';
-      nextEl.textContent='잠시 후 다음 라운드가 시작됩니다.';
-      const result=root.querySelector('.roleRevealedPlayerResult');
-      if(result)result.appendChild(nextEl);
-      return;
-    }
-    await new Promise(resolve=>setTimeout(resolve,150));
-  }
 }
 async function boot(){
  try{
