@@ -3347,6 +3347,9 @@ async function routeCore(){
        return;
      }
      if(document.querySelector("#sabotage.screen.active"))return;
+     // 미션 화면은 일반 설정/동기화 이벤트 때문에 본게임 화면으로 되돌리지 않습니다.
+     // NIGHT_WARNING/긴급재판은 위에서 먼저 처리하므로 여기서는 진행 중인 미션을 보호합니다.
+     if(document.querySelector("#mission.screen.active"))return;
      if(sabotageInterruptUntil>gameNow()){
        if(!document.querySelector("#player.screen.active"))await showScreen("player");
        return;
@@ -6042,7 +6045,8 @@ function realtime(){
   // 다른 game_settings 변경까지 무조건 renderPlayer()하지 않도록 값의 변화를 비교합니다.
   if(typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled){
     lastNfcEnabled=g.nfc_enabled;
-    await renderPlayer();
+    // NFC 설정 동기화는 진행 중인 미션을 끊어서는 안 됩니다.
+    if(!document.querySelector("#mission.screen.active"))await renderPlayer();
   }
   if(g.phase==="PLAY" && String(g.notice||"").startsWith("NIGHT_WARNING|")){
     // notice 변경은 아래 공통 route가 처리합니다. 이곳에서 특정 화면을 직접 띄우지 않습니다.
