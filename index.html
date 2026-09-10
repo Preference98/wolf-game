@@ -4067,16 +4067,25 @@ function mergeSabotageRealtimeIntoCache(ev){
 }
 
 function mergeSabotageStateForUi(serverState){
- const cached=window.__sabotageStateCache;
- if(!cached)return serverState;
- const now=gameNow();
- const activeLocationEnds=new Map(serverState?.activeLocationEnds||[]);
- for(const [id,end] of new Map(cached.activeLocationEnds||[])){
-   if(Number(end)>now)activeLocationEnds.set(String(id),Math.max(Number(activeLocationEnds.get(String(id))||0),Number(end)||0));
- }
- const activeLocationIds=new Set([...(serverState?.activeLocationIds||[])].map(String));
- for(const [id,end] of activeLocationEnds){if(Number(end)>now)activeLocationIds.add(String(id));}
- return {...(serverState||{}),activeLocationIds,activeLocationEnds,active:activeLocationIds.size>0||!!serverState?.active};
+  const cached=window.__sabotageStateCache;
+  if(!cached)return serverState;
+  const serverRound=Number(serverState?.round||0);
+  const cachedRound=Number(cached?.round||0);
+  if(serverRound&&cachedRound&&serverRound!==cachedRound)return serverState;
+  const now=gameNow();
+  const activeLocationEnds=new Map(serverState?.activeLocationEnds||[]);
+  // 아직 끝나지 않은 Realtime 종료시각은 서버 조회 결과보다 우선 보존합니다.
+  for(const [id,end] of new Map(cached.activeLocationEnds||[])){
+    const n=Number(end)||0;
+    if(n>now)activeLocationEnds.set(String(id),Math.max(Number(activeLocationEnds.get(String(id))||0),n));
+  }
+  const activeLocationIds=new Set([...(serverState?.activeLocationIds||[])].map(String));
+  for(const [id,end] of activeLocationEnds){
+    if(Number(end)>now)activeLocationIds.add(String(id));
+  }
+  const ends=[...activeLocationEnds.values()].map(Number).filter(Number.isFinite);
+  const activeUntil=Math.max(Number(serverState?.activeUntil||0),Number(cached?.activeUntil||0)>now?Number(cached.activeUntil):0,...ends);
+  return {...(serverState||{}),round:serverRound||cachedRound,activeLocationIds,activeLocationEnds,active:activeLocationIds.size>0||activeUntil>now,activeUntil};
 }
 function setEmergencyButtonState(active){
   const b=el("emergencyReportFloat");
@@ -6382,10 +6391,12 @@ function startSabotageUiWatcher(){
  let expirationRefreshPending=false;
 
  const loadStateOnce=async(round)=>{
-   state=await getSabotageState(round);
-   stateRound=Number(round)||0;
-   window.__sabotageStateCache=state;
- };
+    const fresh=await getSabotageState(round);
+    stateRound=Number(round)||0;
+    // Realtime으로 막 들어온 최신 ends_at을 오래된 조회 결과가 덮어쓰지 않도록 병합합니다.
+    state=mergeSabotageStateForUi(fresh);
+    window.__sabotageStateCache=state;
+  };
 
  const initial=async()=>{
   try{
@@ -6401,7 +6412,10 @@ function startSabotageUiWatcher(){
    if(!state)return;
    // Realtime 최신 캐시가 있으면 watcher의 오래된 closure state보다 우선합니다.
    const cachedState=window.__sabotageStateCache;
-   if(cachedState && Number(cachedState.round||stateRound)===stateRound)state=mergeSabotageStateForUi(cachedState);
+    if(cachedState && Number(cachedState.round||stateRound)===stateRound){
+      state=mergeSabotageStateForUi(cachedState);
+      window.__sabotageStateCache=state;
+    }
    const now=gameNow();
    const activeRemain=Math.max(0,Number(state.activeUntil||0)-now);
    const cooldownRemain=Math.max(0,Number(state.cooldownUntil||0)-now);
@@ -6690,12 +6704,17 @@ function realtime(){
     mergeSabotageRealtimeIntoCache(e);
     // 플레이어 본게임 화면은 서버 재조회보다 먼저 즉시 빨간색/남은 시간을 반영합니다.
     applySabotageEventToPlayerBoard(e);
-    await handleSabotageEvent(e);
+     if(document.querySelector("#player.screen.active"))startSabotageUiWatcher();
+     await handleSabotageEvent(e);
     // 새 이벤트가 들어온 경우에만 최신 상태를 1회 조회합니다.
     const g=await settings().catch(()=>null);
     if(g?.phase==="PLAY"&&g.current_round!=null){
       const freshSabotageState=await getSabotageState(g.current_round).catch(()=>null);
-      if(freshSabotageState)window.__sabotageStateCache=mergeSabotageStateForUi(freshSabotageState);
+      if(freshSabotageState){
+         window.__sabotageStateCache=mergeSabotageStateForUi(freshSabotageState);
+         // 서버 재조회가 끝난 뒤에도 방금 수신한 이벤트의 ends_at을 현재 버튼에 다시 적용합니다.
+         if(document.querySelector("#player.screen.active"))applySabotageEventToPlayerBoard(e);
+       }
     }
   }catch(err){console.warn("늑대방해 Realtime 처리 오류:",err);}
  }).subscribe();
