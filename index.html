@@ -1286,6 +1286,20 @@ body{
 .cleanRoleCardFront{transform:rotateY(180deg);background:#050505}
 .cleanRoleFlipButton{margin-top:24px;min-width:150px;padding:12px 24px;border:1px solid #777;border-radius:10px;background:#151515;color:#fff;font-size:18px;font-weight:900;cursor:pointer}
 @media(max-width:600px){.{width:92vw;gap:8px}.{width:min(100%,105px)}.cleanRoleCard{width:82vw;height:70vh}}
+
+/* FIXED MISSION FLOOR MAP v1 */
+.missionFloorWrap{margin-top:12px}
+.missionFloorGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;max-width:560px;margin:0 auto}
+.missionFloorCell{aspect-ratio:1/1;min-width:0;border:1px solid rgba(180,180,180,.38);background:rgba(110,110,110,.16);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.missionFloorCell .floorText{padding:8px;text-align:center;color:#cfcfcf;font-size:clamp(13px,2.2vw,20px);font-weight:900;line-height:1.2}
+.missionFloorCell .missionLocationButton{width:100%!important;height:100%!important;min-height:0!important;margin:0!important;border-radius:0!important;border:2px solid #6b7280!important}
+.missionFloorNav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:560px;margin:12px auto 0}
+.missionFloorNav button{margin:0!important;width:100%;font-size:17px;font-weight:900}
+.missionFloorNav button.active{border-color:#ffe84a!important;color:#fff7b0!important;box-shadow:0 0 14px rgba(255,210,30,.28)}
+.sabotageBoard.missionFloorGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:15px auto 0}
+.sabotageBoard .sabotageBlock.missionFloorCell{min-height:0;height:auto;aspect-ratio:1/1;border-radius:0;padding:8px;background:rgba(110,110,110,.16);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden}
+.sabotageBoard .sabotageBlock.missionFloorCell b{font-size:clamp(12px,2vw,18px);line-height:1.2}
+@media(max-width:600px){.missionFloorGrid,.sabotageBoard.missionFloorGrid{gap:6px}.missionFloorNav{gap:6px}.missionFloorNav button{font-size:15px}}
 </style>
 
 <style id="spreadsheet-stage-fix-index">
@@ -2845,6 +2859,14 @@ function bindCardSelectionV20(){
 const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
+// 본게임 미션 장소는 3개 층의 고정 페이지를 사용합니다.
+// 같은 게임 안에서는 마지막으로 보고 있던 층을 유지하고, 새 게임에서는 3층으로 초기화합니다.
+const MISSION_FLOOR_LAYOUT={
+  1:{label:"1층",cells:{1:{type:"label",text:"엘리베이터"},3:{id:14},5:{type:"label",text:"CCTV"},7:{type:"label",text:"계단"},8:{id:15},9:{id:12}}},
+  2:{label:"2층",cells:{1:{type:"label",text:"엘리베이터"},3:{id:19},6:{id:18},7:{type:"label",text:"계단"},8:{id:17},9:{id:20}}},
+  3:{label:"3층",cells:{1:{type:"label",text:"엘리베이터"},2:{id:21},3:{type:"label",text:"그레이스홀"},6:{id:22},7:{type:"label",text:"계단"},8:{id:23}}}
+};
+let missionFloorPage=3;
 window.__missionEntryToken=0;
 let missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let sabotageUiTimer=null,sabotageUiLastSignature="";
@@ -3147,10 +3169,11 @@ async function ensureRoundMissionSetup(round){
    });
 }
 
-async function getRoundMissionLocations(round,createIfMissing=true,playerId=null){
+async function getRoundMissionLocations(round,createIfMissing=true,playerId=null,locationIds=null){
  if(createIfMissing)await ensureRoundMissionSetup(round);
  let q=db.from("round_player_mission_locations").select("*").eq("game_round",round);
  if(playerId!=null)q=q.eq("player_id",playerId);
+ if(Array.isArray(locationIds)&&locationIds.length)q=q.in("mission_location_id",locationIds.map(Number));
  const result=await q.order("sort_order").order("id");
  if(result.error)throw new Error("라운드 미션 장소 조회 실패: "+result.error.message);
  const rows=result.data||[];
@@ -3361,11 +3384,15 @@ async function getOrCreateRoundMission(location,round,currentPlayer=null,roundLo
 
 async function allMissions(){const r=await db.from("missions").select("*").order("id");if(r.error)throw new Error("미션 목록 오류\\n"+r.error.message);return r.data||[];}
 async function missions(){return await allMissions();}
-async function activeMissionLocations(){
- const r=await db.from("mission_locations").select("*").order("sort_order").order("id");
+async function activeMissionLocations(locationIds=null){
+ let q=db.from("mission_locations").select("*");
+ if(Array.isArray(locationIds)&&locationIds.length)q=q.in("id",locationIds.map(Number));
+ q=q.order("sort_order").order("id");
+ const r=await q;
  if(r.error)throw new Error("미션 장소 오류\n"+r.error.message);
  const rows=r.data||[];
- if(rows.length!==10)throw new Error("고정 미션 장소 오류: DB에 미션 장소가 정확히 10개 있어야 합니다. 현재 "+rows.length+"개입니다.");
+ // 전체 조회일 때만 고정 10개 검증을 수행합니다. 페이지 조회는 해당 층의 고정 ID만 조회합니다.
+ if(!(Array.isArray(locationIds)&&locationIds.length) && rows.length!==10)throw new Error("고정 미션 장소 오류: DB에 미션 장소가 정확히 10개 있어야 합니다. 현재 "+rows.length+"개입니다.");
  return rows;
 }
 
@@ -3540,6 +3567,8 @@ async function routeCore(){
      return;
 
    case "LOBBY":
+     // 새 게임은 ROUND 1 로비에서 시작하므로 미션 층 선택을 기본값 3층으로 되돌립니다.
+     if(Number(g.current_round)===1)missionFloorPage=3;
      playerGameStartSequenceToken++;
      resetPlayerRoleCardVisualsV18();
      stopAllTimers();await renderLobby(p,g);return;
@@ -4188,6 +4217,47 @@ async function renderEmergencyTrialReady(p,g,showPopup=true,eventId=""){
     openOverlay("🚨","긴급신고 접수","긴급신고가 접수되었습니다.\n잠시 후 늑대재판이 시작됩니다.","alarm",'<button onclick="closeOverlay()">확인</button>');
   }
 }
+function getMissionFloorIds(page){
+ const layout=MISSION_FLOOR_LAYOUT[Number(page)]||MISSION_FLOOR_LAYOUT[3];
+ return [...new Set(Object.values(layout.cells).map(x=>x?.id).filter(id=>id!=null).map(String))];
+}
+function getMissionFloorLocationMap(locations){
+ return new Map((locations||[]).map(x=>[String(x.id),x]));
+}
+function renderMissionFloorNav(activePage,mode="player"){
+ return '<div class="missionFloorNav" aria-label="미션 장소 층 선택">'+[1,2,3].map(page=>
+   '<button type="button" class="secondary '+(Number(activePage)===page?"active":"")+'" onclick="setMissionFloorPage('+page+',\''+mode+'\')">'+MISSION_FLOOR_LAYOUT[page].label+'</button>'
+ ).join('')+'</div>';
+}
+function renderMissionFloorGrid({page,locations,renderCell,mode="player"}){
+ const layout=MISSION_FLOOR_LAYOUT[Number(page)]||MISSION_FLOOR_LAYOUT[3];
+ const locationMap=getMissionFloorLocationMap(locations);
+ let html='<div class="missionFloorWrap"><div class="missionFloorGrid">';
+ for(let cell=1;cell<=9;cell++){
+   const spec=layout.cells[cell];
+   if(spec?.id!=null){
+     const loc=locationMap.get(String(spec.id));
+     html+=loc?renderCell(loc,cell):'<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
+   }else if(spec?.type==="label"){
+     html+='<div class="missionFloorCell" data-floor-cell="'+cell+'"><div class="floorText">'+esc(spec.text)+'</div></div>';
+   }else{
+     html+='<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
+   }
+ }
+ html+='</div>'+renderMissionFloorNav(page,mode)+'</div>';
+ return html;
+}
+async function setMissionFloorPage(page,mode="player"){
+ const next=Math.max(1,Math.min(3,Number(page)||3));
+ missionFloorPage=next;
+ if(mode==="sabotage" && document.querySelector("#sabotage.screen.active")){
+   await refreshSabotageBoard();
+ }else if(mode==="player" && document.querySelector("#player.screen.active")){
+   await renderPlayer();
+ }
+}
+window.setMissionFloorPage=setMissionFloorPage;
+
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
 
@@ -4217,8 +4287,11 @@ async function renderPlayerCore(){
 
   let locs=[],allLocations=[],completedLocations=new Set(),sabotaged=new Set();
   try{
-    allLocations=await activeMissionLocations();
-    locs=await getRoundMissionLocations(g.current_round,true,p.id);
+    const floorIds=getMissionFloorIds(missionFloorPage);
+    const roundLocations=await getRoundMissionLocations(g.current_round,true,p.id,floorIds);
+    // 현재 보고 있는 층에 속한 장소만 본게임 미션 영역에 조회/표시합니다.
+    locs=roundLocations.filter(x=>floorIds.includes(String(x.id)));
+    allLocations=await activeMissionLocations(floorIds);
     completedLocations=await getPlayerCompletedLocationIds(g.current_round,p.id);
     sabotaged=await getSabotagedLocationIds(g.current_round);
     if(isStaleMissionRender())return;
@@ -4243,26 +4316,30 @@ async function renderPlayerCore(){
   const sabotageEnds=sabotageState.activeLocationEnds||new Map();
   const activeIds=new Set(locs.map(x=>String(x.id)));
   box.className="missionBoard";
-  box.innerHTML="";
-  for(const loc of allLocations){
-    const id=String(loc.id);
-    const done=completedLocations.has(id);
-    const active=activeIds.has(id);
-    const sabotagedHere=!done&&active&&sabotaged.has(id);
-    const enabled=!done&&!sabotagedHere&&active;
-    const sabotageEnd=Number(sabotageEnds.get(id)||0);
-    const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
-      ?Math.ceil((sabotageEnd-gameNow())/1000):0;
-    const cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
-    const buttonDisabled=!enabled;
-    const buttonClick=enabled
-      ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
-      :" disabled";
-    const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">사보타지 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>': '<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
-    box.innerHTML+=`<div class="missionBlock ${cls}" data-location-id="${esc(id)}"><button type="button" class="missionLocationButton ${cls}" data-location-id="${esc(id)}"${buttonClick}>`+
-      `<span class="locationName">${esc(loc.name)}</span>${countdown}</button></div>`;
+  box.innerHTML=renderMissionFloorGrid({
+    page:missionFloorPage,locations:allLocations,mode:"player",
+    renderCell:(loc)=>{
+      const id=String(loc.id);
+      const done=completedLocations.has(id);
+      const active=activeIds.has(id);
+      const sabotagedHere=!done&&active&&sabotaged.has(id);
+      const enabled=!done&&!sabotagedHere&&active;
+      const sabotageEnd=Number(sabotageEnds.get(id)||0);
+      const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
+        ?Math.ceil((sabotageEnd-gameNow())/1000):0;
+      const cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
+      const buttonClick=enabled
+        ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
+        :" disabled";
+      const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">사보타지 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>':'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
+      return '<div class="missionFloorCell missionBlock '+cls+'" data-location-id="'+esc(id)+'"><button type="button" class="missionLocationButton '+cls+'" data-location-id="'+esc(id)+'"'+buttonClick+'>'+
+        '<span class="locationName">'+esc(loc.name)+'</span>'+countdown+'</button></div>';
+    }
+  });
+  if(!allLocations.length){
+    // 고정된 층/배치는 유지하되, 실제 장소 데이터가 없을 때만 안내 문구를 별도로 표시합니다.
+    box.innerHTML+='<div class="muted" style="text-align:center;margin-top:8px">현재 층의 미션 장소 정보를 불러오지 못했습니다.</div>';
   }
-  if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
   // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
@@ -4536,10 +4613,12 @@ async function refreshSabotageBoard(){
    const p=await me(),g=await settings();
    if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY")return;
 
-   const all=await activeMissionLocations();
+   const floorIds=getMissionFloorIds(missionFloorPage);
+   const all=await activeMissionLocations(floorIds);
    const assignmentRows=await db.from("round_player_mission_locations")
      .select("mission_location_id,player_id")
-     .eq("game_round",g.current_round);
+     .eq("game_round",g.current_round)
+     .in("mission_location_id",floorIds.map(Number));
    if(assignmentRows.error)throw new Error(assignmentRows.error.message);
 
    const sheep=(await db.from("players").select("id")
@@ -4563,26 +4642,23 @@ async function refreshSabotageBoard(){
 
    const selected=[...selectedSabotageLocationIds];
 
-   board.innerHTML=all.map(loc=>{
-     const id=String(loc.id);
-     const sabotaged=activeSabotageIds.has(id);
-     const available=assignedIds.has(id)&&!sabotaged;
-     const selectedNow=selected.includes(id);
-
-     let status=
-       sabotaged?"현재 늑대방해 진행 중":
-       available?(selectedNow?"선택됨":"늑대방해 가능"):
-       "현재 어떤 양에게도 배정되지 않음";
-
-     return '<button class="sabotageBlock '+
-       (available?"available":"disabled")+
-       (selectedNow?" selected":"")+'" '+
-       (available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')"':'disabled')+
-       ' data-location-id="'+esc(id)+'">'+
-       '<b>'+esc(loc.name)+'</b>'+
-       '<div class="small" style="margin-top:6px">'+status+'</div>'+
-       '</button>';
-   }).join("");
+   board.className="sabotageBoard missionFloorGrid";
+   board.innerHTML=renderMissionFloorGrid({
+     page:missionFloorPage,locations:all,mode:"sabotage",
+     renderCell:(loc)=>{
+       const id=String(loc.id);
+       const sabotaged=activeSabotageIds.has(id);
+       const available=assignedIds.has(id)&&!sabotaged;
+       const selectedNow=selected.includes(id);
+       const status=sabotaged?"현재 늑대방해 진행 중":
+         available?(selectedNow?"선택됨":"늑대방해 가능"):"현재 어떤 양에게도 배정되지 않음";
+       return '<button type="button" class="sabotageBlock missionFloorCell '+
+         (available?"available":"disabled")+(selectedNow?" selected":"")+'" '+
+         (available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')"':'disabled')+
+         ' data-location-id="'+esc(id)+'"><b>'+esc(loc.name)+'</b>'+
+         '<div class="small" style="margin-top:6px">'+status+'</div></button>';
+     }
+   });
 
    window.__sabotageMaxCount=Math.max(1,Math.min(10,
      Number(getRoundRules(g).sabotageLocationCount)||1));
@@ -5554,6 +5630,9 @@ async function resetGame(){
 
    const sabotageReset=await db.from("sabotage_events").delete().gte("id",0);
    if(sabotageReset.error)throw new Error("방해 기록 초기화 실패: "+sabotageReset.error.message); emergencyPopupEventId=null;
+
+   // 새 게임은 항상 기본 페이지인 3층에서 시작합니다.
+   missionFloorPage=3;
 
    // 3) 게임 설정을 초기 로비 상태로 복구
    await set({
