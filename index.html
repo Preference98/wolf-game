@@ -2876,7 +2876,6 @@ let sabotageUiTimer=null,sabotageUiLastSignature="";
 let localSabotageCooldownUntil=0,localSabotageEventId=null;
 let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageEnd=0;
 let sabotageNotificationTimer=null,sabotageNotificationMinId=0,sabotageNotificationStarted=false;
-let sabotageBoardRefreshTimer=null;
 
 let realtimeRenderTimer=null,realtimeRouteTimer=null;
 let routeBusy=false,routeQueued=false,playerRenderBusy=false,playerRenderQueued=false;
@@ -4813,10 +4812,9 @@ async function openSabotageScreen(){
 
  await showScreen("sabotage");
  await refreshSabotageBoard();
-
- // 메뉴를 열어 둔 동안 양의 미션 완료를 즉시 반영합니다.
- if(sabotageBoardRefreshTimer)clearInterval(sabotageBoardRefreshTimer);
- sabotageBoardRefreshTimer=setInterval(refreshSabotageBoard,500);
+ // 미션 완료/늑대방해 변경은 Realtime으로 반영합니다.
+ // 메뉴 전체를 500ms마다 재조회하는 polling은 사용하지 않습니다.
+ startSabotageUiWatcher();
 }
 function toggleSabotageLocation(id){
  const elb=document.querySelector('.sabotageBlock[data-location-id="'+CSS.escape(String(id))+'"]');
@@ -4854,7 +4852,8 @@ async function executeSelectedSabotage(){
  }
 
  selectedSabotageLocationIds=new Set();
- if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
+ // RPC 성공 직후에는 Realtime 이벤트가 상태 캐시를 갱신하고,
+ // UI 카운트다운은 클라이언트에서 처리합니다.
 
  // RPC가 반환한 실제 설정값을 사용하고, 새로고침 시 DB started_at + 설정값으로 복구합니다.
  const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds)||60)));
@@ -4888,7 +4887,6 @@ async function executeSelectedSabotage(){
 }
 function closeSabotageScreen(){
  selectedSabotageLocationIds=new Set();
- if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
  showScreen("player");
  renderPlayer().catch(e=>console.error("늑대방해 화면 복귀 실패:",e));
 }
@@ -6175,7 +6173,6 @@ function stopSabotageUiWatcher(){
  if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}
  if(sabotageEventTimer){clearInterval(sabotageEventTimer);sabotageEventTimer=null;}
  if(sabotageNotificationTimer){clearInterval(sabotageNotificationTimer);sabotageNotificationTimer=null;}
- if(sabotageBoardRefreshTimer){clearInterval(sabotageBoardRefreshTimer);sabotageBoardRefreshTimer=null;}
  sabotageNotificationStarted=false;
  sabotageUiLastSignature="";
 }
@@ -6280,23 +6277,41 @@ async function handleSabotageEvent(e){
 function startSabotageUiWatcher(){
  if(sabotageUiTimer)return;
 
- const uiTick=async()=>{
+ // 최초 1회만 서버 상태를 읽고 이후에는 로컬 시간으로만 카운트다운합니다.
+ // sabotage_events INSERT는 Realtime에서 최신 상태를 다시 읽습니다.
+ let stateRound=0;
+ let state=null;
+ let lastActiveLocationSignature="";
+ let lastCooldownActive=false;
+ let expirationRefreshPending=false;
+
+ const loadStateOnce=async(round)=>{
+   state=await getSabotageState(round);
+   stateRound=Number(round)||0;
+   window.__sabotageStateCache=state;
+ };
+
+ const initial=async()=>{
   try{
    const p=await me(),g=await settings();
    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){stopSabotageUiWatcher();return;}
+   await loadStateOnce(g.current_round);
+   tick();
+  }catch(e){console.warn("늑대방해 UI 초기 상태 조회 오류:",e);}
+ };
 
-   const st=await getSabotageState(g.current_round),now=gameNow();
-
-   // 지속시간과 쿨타임을 완전히 별개의 타이머로 취급합니다.
-   const activeRemain=Math.max(0,st.activeUntil-now);
-   const cooldownRemain=Math.max(0,st.cooldownUntil-now);
+ const tick=async()=>{
+  try{
+   if(!state)return;
+   const now=gameNow();
+   const activeRemain=Math.max(0,Number(state.activeUntil||0)-now);
+   const cooldownRemain=Math.max(0,Number(state.cooldownUntil||0)-now);
    const active=activeRemain>0;
-   // 미션과 긴급신고가 동일한 늑대방해 상태를 사용하도록 공용 상태를 갱신합니다.
    window.__sabotageActiveNow=active;
-   const cooldownTotal=Math.max(1000,Number(st.cooldownSeconds||60)*1000);
-   const locationEnds=st.activeLocationEnds||new Map();
 
-   // ★ 장소별 지속시간을 각 이벤트의 ends_at으로 독립 갱신합니다.
+   const cooldownTotal=Math.max(1000,Number(state.cooldownSeconds||60)*1000);
+   const locationEnds=state.activeLocationEnds||new Map();
+
    document.querySelectorAll(".sabotageCountdown").forEach(x=>{
      const locationId=String(x.getAttribute("data-sabotage-countdown")||"");
      const end=Number(locationEnds.get(locationId)||0);
@@ -6304,21 +6319,17 @@ function startSabotageUiWatcher(){
      x.textContent=remain>0?Math.ceil(remain/1000)+"초":"";
    });
 
-   // 늑대 늑대방해 버튼: cooldown만 사용
    document.querySelectorAll(".sabotageSkill").forEach(skill=>{
      const shade=skill.querySelector(".cooldownShade");
      const icon=skill.querySelector(".skillIcon");
-     const remain=cooldownRemain;
-
-     if(remain>0){
+     if(cooldownRemain>0){
        skill.classList.add("cooling");
        skill.disabled=true;
        skill.removeAttribute("onclick");
        if(shade){
-         shade.textContent=Math.ceil(remain/1000);
+         shade.textContent=Math.ceil(cooldownRemain/1000);
          shade.style.display="flex";
-         shade.style.setProperty("--cooldown-pct",
-           Math.min(100,remain/cooldownTotal*100)+"%");
+         shade.style.setProperty("--cooldown-pct",Math.min(100,cooldownRemain/cooldownTotal*100)+"%");
        }
      }else{
        skill.classList.remove("cooling");
@@ -6330,78 +6341,47 @@ function startSabotageUiWatcher(){
          shade.style.setProperty("--cooldown-pct","0%");
        }
      }
-     if(icon)icon.style.opacity=remain>0?".45":"1";
+     if(icon)icon.style.opacity=cooldownRemain>0?".45":"1";
    });
 
    const dockSab=document.getElementById("dockSabotage");
    if(dockSab){
-     const remain=cooldownRemain;
      const shade=dockSab.querySelector(".cooldownShade");
-     dockSab.style.setProperty("--cd-progress",
-       remain>0?Math.min(100,remain/cooldownTotal*100)+"%":"0%");
-     dockSab.disabled=remain>0;
-     dockSab.classList.toggle("cooling",remain>0);
-     if(remain>0)dockSab.removeAttribute("onclick");
+     dockSab.style.setProperty("--cd-progress",cooldownRemain>0?Math.min(100,cooldownRemain/cooldownTotal*100)+"%":"0%");
+     dockSab.disabled=cooldownRemain>0;
+     dockSab.classList.toggle("cooling",cooldownRemain>0);
+     if(cooldownRemain>0)dockSab.removeAttribute("onclick");
      else dockSab.setAttribute("onclick","closeActionDock();openSabotageScreen()");
      if(shade){
-       shade.textContent=remain>0?Math.ceil(remain/1000):"";
-       shade.style.display=remain>0?"flex":"none";
-       shade.style.setProperty("--cooldown-pct",
-         remain>0?Math.min(100,remain/cooldownTotal*100)+"%":"0%");
+       shade.textContent=cooldownRemain>0?Math.ceil(cooldownRemain/1000):"";
+       shade.style.display=cooldownRemain>0?"flex":"none";
+       shade.style.setProperty("--cooldown-pct",cooldownRemain>0?Math.min(100,cooldownRemain/cooldownTotal*100)+"%":"0%");
      }
    }
 
-   // ★ 종료 처리는 "전체 늑대방해 상태"가 아니라 장소별로 감시합니다.
-   // A가 종료되는 순간 B가 아직 진행 중이어도 A만 즉시 원래 상태로 돌아가야 합니다.
-   // ★ 늑대방해 종료/시작을 "활성 장소 집합"의 변화로 감지합니다.
-   // A가 먼저 시작되고 B가 나중에 시작되어도 각각 독립적으로 추적합니다.
-   // 특히 A가 종료될 때 B가 아직 진행 중이어도 A의 장소만 즉시 복구됩니다.
-   const activeLocationSignature=[...locationEnds.keys()]
-     .map(String).sort().join("|");
-   const locationSignature=[...locationEnds.entries()]
-     .sort((a,b)=>String(a[0]).localeCompare(String(b[0])))
-     .map(([id,end])=>id+"="+end).join("|");
-   const sig=locationSignature+"||LOC="+activeLocationSignature+"||CD="+cooldownRemain;
-   const prev=sabotageUiLastSignature||"";
-   const prevLocPart=prev.split("||LOC=")[0];
-   const prevActivePart=(prev.split("||LOC=")[1]||"").split("||CD=")[0];
-
-   const activeLocationsChanged=prev && prevActivePart!==activeLocationSignature;
-
-   // 첫 실행이 아니라면, 활성 장소 집합이 바뀐 즉시 미션 보드를 다시 그립니다.
-   // 이것이 "늑대방해 종료 → 즉시 미션 입장 가능"을 보장합니다.
-   if(activeLocationsChanged){
-     const screen=document.querySelector(".screen.active")?.id||"";
-
-     if(screen==="player"){
-       try{
-         await renderPlayer();
-       }catch(e){
-         console.warn("늑대방해 장소 상태 실시간 복구 실패:",e);
-       }
-     }else if(screen==="sabotage"){
-       try{
-         await refreshSabotageBoard();
-       }catch(e){
-         console.warn("늑대방해 메뉴 장소 상태 갱신 실패:",e);
-       }
-     }else if(screen==="home"){
-       try{
-         await route();
-       }catch(e){
-         console.warn("늑대방해 상태 화면 갱신 실패:",e);
-       }
-     }
+   // 로컬에서 장소 지속시간이 끝났을 때만 서버 상태를 1회 재확인합니다.
+   const expiredLocation=[...locationEnds.values()].some(end=>Number(end)>0&&Number(end)<=now);
+   if(expiredLocation&&!expirationRefreshPending){
+     expirationRefreshPending=true;
+     try{
+       await loadStateOnce(stateRound);
+       const screen=document.querySelector(".screen.active")?.id||"";
+       if(screen==="player")await renderPlayer().catch(()=>{});
+       else if(screen==="sabotage")await refreshSabotageBoard().catch(()=>{});
+     }finally{expirationRefreshPending=false;}
    }
 
-   sabotageUiLastSignature=sig;
-  }catch(e){
-   console.warn("늑대방해 UI 타이머 오류:",e);
-  }
+   const activeLocationSignature=[...locationEnds.keys()].map(String).sort().join("|");
+   lastActiveLocationSignature=activeLocationSignature;
+   lastCooldownActive=cooldownRemain>0;
+   sabotageUiLastSignature=activeLocationSignature+"||CD="+Math.ceil(cooldownRemain/1000);
+  }catch(e){console.warn("늑대방해 UI 타이머 오류:",e);}
  };
 
- uiTick();
- sabotageUiTimer=setInterval(uiTick,250);
+ // 최초 상태 조회 완료 후 1초 간격의 로컬 UI timer만 시작합니다.
+ initial().then(()=>{
+   if(!sabotageUiTimer)sabotageUiTimer=setInterval(tick,1000);
+ });
 }
 function stopDeathNotificationWatcher(){
  if(deathNotificationTimer){clearInterval(deathNotificationTimer);deathNotificationTimer=null;}
@@ -6602,6 +6582,11 @@ function realtime(){
   try{
     const e=payload.new||{};
     await handleSabotageEvent(e);
+    // 새 이벤트가 들어온 경우에만 최신 상태를 1회 조회합니다.
+    const g=await settings().catch(()=>null);
+    if(g?.phase==="PLAY"&&g.current_round!=null){
+      window.__sabotageStateCache=await getSabotageState(g.current_round).catch(()=>window.__sabotageStateCache||null);
+    }
   }catch(err){console.warn("늑대방해 Realtime 처리 오류:",err);}
  }).subscribe();
 
