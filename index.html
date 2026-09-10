@@ -2876,7 +2876,6 @@ function bindCardSelectionV20(){
         <div class="adminField"><label class="small">늑대방해 방해 지속 시간 (초)</label><input id="sabotageDurationSeconds" type="number" min="5" max="600" step="1" value="30"></div>
         <div class="adminField"><label class="small">늑대방해 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60"><div id="sabotageCooldownDbStatus" class="small muted" style="margin-top:4px"></div></div>
         <div class="adminField"><label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30"></div>
-        <div class="adminField"><label class="small">밤 종료 시 미션 게이지 감소량</label><input id="nightGaugePenalty" type="number" min="0" max="20" step="1" value="1"></div>
         <div class="adminField"><label class="small">밤 종료 시 다음 라운드 시간 감소 (분)</label><input id="nightRoundPenaltyMinutes" type="number" min="0" max="30" step="1" value="1"></div>
         <div class="adminField"><label class="small">🚨 긴급신고 NFC 태그명</label><input id="emergencyNfcTag" type="text" maxlength="100" placeholder="예: 긴급신고"><div class="small muted" style="margin-top:4px">긴급신고 버튼을 누른 뒤 인식할 NFC 태그의 NDEF 텍스트입니다.</div></div>
       </div>
@@ -3244,7 +3243,7 @@ async function settings(){
  return syncGameClock(r.data);
 }
 function serverNowISO(){return new Date(gameNow()).toISOString();}
-const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_gauge_penalty:1,night_round_penalty_minutes:1};
+const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_round_penalty_minutes:1};
 function rule(g,key){const n=Number(g?.[key]);return Number.isFinite(n)?n:GAME_RULE_DEFAULTS[key];}
 function getRoundRemainingMs(g,now=gameNow()){
   const baseMinutes=Number(g?.round_duration_minutes);
@@ -3256,7 +3255,7 @@ function getRoundRemainingMs(g,now=gameNow()){
 }
 function getRoundRules(g){
  const missionsPerSheep=Math.max(1,Math.min(10,Math.floor(rule(g,"missions_per_sheep"))));
- return {wolfCount:Math.max(1,Math.floor(rule(g,"wolf_count"))),missionsPerSheep,activeMissionCount:missionsPerSheep,sabotageDurationSeconds:Math.max(5,Math.floor(rule(g,"sabotage_duration_seconds"))),sabotageCooldownSeconds:Math.max(10,Math.floor(rule(g,"sabotage_cooldown_seconds"))),nightSeconds:Math.max(5,Math.floor(rule(g,"night_duration_seconds"))),nightGaugePenalty:Math.max(0,Math.floor(rule(g,"night_gauge_penalty"))),nightRoundPenaltyMinutes:Math.max(0,Math.floor(rule(g,"night_round_penalty_minutes")))};
+ return {wolfCount:Math.max(1,Math.floor(rule(g,"wolf_count"))),missionsPerSheep,activeMissionCount:missionsPerSheep,sabotageDurationSeconds:Math.max(5,Math.floor(rule(g,"sabotage_duration_seconds"))),sabotageCooldownSeconds:Math.max(10,Math.floor(rule(g,"sabotage_cooldown_seconds"))),nightSeconds:Math.max(5,Math.floor(rule(g,"night_duration_seconds"))),nightRoundPenaltyMinutes:Math.max(0,Math.floor(rule(g,"night_round_penalty_minutes")))};
 }
 
 async function me(){
@@ -3349,7 +3348,7 @@ async function getPlayerCompletedLocationIds(round,playerIdValue){
  return out;
 }
 
-async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
+async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
 async function advanceToNextRoundAfterSheepWin(round,expectedPhase="PLAY"){
  const next=Number(round||0)+1;
  roundMissionSetupReadyRound=0;
@@ -3359,7 +3358,7 @@ async function advanceToNextRoundAfterSheepWin(round,expectedPhase="PLAY"){
    current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,
    notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,
    investigation_started_at:null,round_started_at:null,night_started_at:null,
-   round_time_penalty_total:0,mission_gauge_penalty_total:0
+   round_time_penalty_total:0
  }).eq("id",1).eq("phase",String(expectedPhase||"PLAY")).eq("current_round",Number(round||0)).select("id");
  if(lock.error||!lock.data?.length)return false;
  await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
@@ -3402,7 +3401,7 @@ async function checkMissionGaugeAndWin(round){
    const out=await evaluateSurvivorOutcome(round);
    if(out.ended)return true;
    // 생존자가 3명 이상이면 해당 라운드의 중간 양 승리를 FINISHED로 확정합니다.
-   // 최종 승리와 동일하게 screen.html은 DB의 FINISHED 상태만 보고 승리 화면에 진입합니다.
+   // 다음 라운드 전환도 다른 phase 전환과 동일하게 DB의 phase 변경을 기준으로 합니다.
    const alive=out.alive||[];
    if(alive.length>=3){
      const eventId=String(Date.now())+"-"+String(Math.random()).slice(2,8);
@@ -3411,14 +3410,9 @@ async function checkMissionGaugeAndWin(round){
        phase:"FINISHED",winner:"SHEEP",started:false,notice
      }).eq("id",1).eq("phase","PLAY").eq("current_round",Number(round||0)).select("id");
      if(lock.error||!lock.data?.length)return false;
-     // 5초 뒤 다음 라운드 LOBBY로 전환합니다. DB 조건부 업데이트이므로
-     // screen.html의 동일한 전환 시도와 충돌해도 한쪽만 성공합니다.
-     const transitionKey=String(round||0)+"|"+eventId;
-     sheepRoundWinTransitionKey=transitionKey;
      setTimeout(async()=>{
-       if(sheepRoundWinTransitionKey!==transitionKey)return;
-       try{await advanceToNextRoundAfterSheepWin(round,"FINISHED");}catch(e){console.warn("중간 양 승리 후 다음 라운드 전환 오류:",e);}
-       if(sheepRoundWinTransitionKey===transitionKey)sheepRoundWinTransitionKey="";
+       try{await advanceToNextRoundAfterSheepWin(round,"FINISHED");}
+       catch(e){console.warn("중간 양 승리 후 다음 라운드 전환 오류:",e);}
      },5000);
      return true;
    }
@@ -3951,7 +3945,7 @@ async function markReady(){
    await db.from("mission_completions").delete().eq("game_round",g.current_round);
    await db.from("wolf_attempts").delete().eq("game_round",g.current_round);
    await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
-   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
+   await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0});
    toast("다음 라운드 대기 화면으로 전환했습니다.");
    await renderAdmin();return;
  }
@@ -4028,14 +4022,12 @@ async function finishNight(){
  const g=await settings();
  if(g.phase!=="NIGHT")return;
  const rules=getRoundRules(g);
- const currentPenalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));
  const timePenalty=Math.max(0,Math.floor(Number(g.round_time_penalty_total)||0));
  const r=await db.from("game_settings").update({
    phase:"PLAY",
    night_started_at:null,
    round_started_at:serverNowISO(),
    round_time_penalty_total:timePenalty+rules.nightRoundPenaltyMinutes,
-   mission_gauge_penalty_total:currentPenalty+rules.nightGaugePenalty,
    notice:"낮이 시작되었습니다. 미션을 계속 수행하십시오."
  }).eq("id",1).eq("phase","NIGHT");
  if(r.error)throw new Error("밤 종료 처리 실패: "+r.error.message);
@@ -5660,7 +5652,7 @@ async function renderAdmin(){
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;if(el("emergencyNfcTag"))el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
-  if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
+  if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=renderAdminPlayerList(p);
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
   el("locationList").innerHTML=ls.length?'<div class="deathLocationInfoList">'+ls.map((x,i)=>'<div class="item"><div class="row" style="gap:12px;align-items:center"><b style="min-width:32px">'+(i+1)+'.</b><div style="flex:1"><b>'+esc(x.name||"미지정 장소")+'</b><div class="muted" style="margin-top:4px">ID: '+esc(x.id)+'</div></div></div></div>').join("")+'</div>':"<div class='muted'>등록된 죽은 양 발견 장소가 없습니다.</div>";
@@ -5884,7 +5876,7 @@ async function nextRound(){
   const next=g.current_round+1;
   await clearEmergencyReportRecords(g.current_round);
   await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
-  await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0});
+  await set({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0});
   toast("다음 라운드 대기 상태입니다.");
   await renderAdmin();
  }catch(e){toast("다음 라운드 처리 실패: "+e.message);}finally{done();}
@@ -5983,8 +5975,7 @@ async function resetGame(){
      investigation_started_at:null,
      round_started_at:null,
      night_started_at:null,
-     round_time_penalty_total:0,
-     mission_gauge_penalty_total:0
+     round_time_penalty_total:0
    });
 
    // 4) 브라우저에 남아 있는 플레이어별 미니게임/완료 표시도 제거
@@ -6020,9 +6011,9 @@ async function forceSheepWin(){await finishRound("SHEEP");}
 async function forceWolfWin(){await finishRound("WOLF");}
 const REQUIRED_GAME_SETTINGS_COLUMNS=[
  "wolf_count","missions_per_sheep","sabotage_duration_seconds","sabotage_cooldown_seconds",
- "night_duration_seconds","night_gauge_penalty","night_round_penalty_minutes","round_duration_minutes","investigation_duration_minutes",
+ "night_duration_seconds","night_round_penalty_minutes","round_duration_minutes","investigation_duration_minutes",
  "current_round","phase","ready","started","roles_selected","winner","notice","nfc_enabled","dead_sheep_found","dead_sheep_location",
- "investigation_started_at","round_started_at","night_started_at","round_time_penalty_total","mission_gauge_penalty_total"
+ "investigation_started_at","round_started_at","night_started_at","round_time_penalty_total"
 ];
 async function checkGameSettingsSchema(){
  const r=await db.from("game_settings").select(REQUIRED_GAME_SETTINGS_COLUMNS.join(",")).eq("id",1).maybeSingle();
@@ -6046,7 +6037,6 @@ async function saveGameRules(){
    const sabotageDuration=Math.floor(Number(el("sabotageDurationSeconds").value));
    const sabotageCooldown=Math.floor(Number(el("sabotageCooldownSeconds").value));
    const nightSeconds=Math.floor(Number(el("nightSeconds").value));
-   const gaugePenalty=Math.floor(Number(el("nightGaugePenalty").value));
    const roundPenalty=Math.floor(Number(el("nightRoundPenaltyMinutes").value));
    const emergencyNfcTag=String(el("emergencyNfcTag")?.value||"긴급신고").trim();
    if(!Number.isInteger(wolfCount)||wolfCount<1||wolfCount>=Math.max(2,players.length)){
@@ -6064,9 +6054,6 @@ async function saveGameRules(){
    if(!Number.isInteger(nightSeconds)||nightSeconds<5||nightSeconds>300){
      toast("밤 지속 시간은 5~300초여야 합니다.");return;
    }
-   if(!Number.isInteger(gaugePenalty)||gaugePenalty<0||gaugePenalty>20){
-     toast("밤 게이지 감소량은 0~20이어야 합니다.");return;
-   }
    if(!Number.isInteger(roundPenalty)||roundPenalty<0||roundPenalty>30){
      toast("밤 시간 감소량은 0~30분이어야 합니다.");return;
    }
@@ -6078,7 +6065,6 @@ async function saveGameRules(){
      sabotage_duration_seconds:sabotageDuration,
      sabotage_cooldown_seconds:sabotageCooldown,
      night_duration_seconds:nightSeconds,
-     night_gauge_penalty:gaugePenalty,
      night_round_penalty_minutes:roundPenalty,
      emergency_nfc_tag:emergencyNfcTag,
    };
@@ -6094,7 +6080,7 @@ async function saveGameRules(){
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
    if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
-   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
+   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
    for(const [key,want] of Object.entries(verifyPairs)){
      if(Number(verify.data[key])!==Number(want)){
        throw new Error("저장 확인 실패: DB의 "+key+" 값이 "+verify.data[key]+"로 확인되었습니다. 입력값 "+want+"가 저장되지 않았습니다.");
@@ -6112,7 +6098,6 @@ async function saveGameRules(){
    el("sabotageDurationSeconds").value=rule(latest,"sabotage_duration_seconds");
    el("sabotageCooldownSeconds").value=rule(latest,"sabotage_cooldown_seconds");
    el("nightSeconds").value=rule(latest,"night_duration_seconds");
-   el("nightGaugePenalty").value=rule(latest,"night_gauge_penalty");
    el("nightRoundPenaltyMinutes").value=rule(latest,"night_round_penalty_minutes");
  }catch(e){
    console.error("saveGameRules 오류:",e);
@@ -7128,7 +7113,7 @@ function voteResultTrialEventId(g){
 async function autoNextRoundNoWinner(g){
  const next=Number(g.current_round||0)+1;
  await clearEmergencyReportRecords(g.current_round);
- const lock=await db.from("game_settings").update({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0));
+ const lock=await db.from("game_settings").update({current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0}).eq("id",1).eq("phase","VOTE_RESULT").eq("current_round",Number(g.current_round||0));
  if(lock.error)return;
  if(lock.data?.length===0)return;
  await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");

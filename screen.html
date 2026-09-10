@@ -504,13 +504,12 @@ body{font-family:"Noto Sans KR",Arial,sans-serif}
 #s-role .gameCard:before{content:"WOLF GAME"!important;position:absolute!important;inset:12%!important;display:flex!important;align-items:center!important;justify-content:center!important;width:auto!important;height:auto!important;border:1px solid rgba(220,224,222,.65)!important;border-radius:5px!important;color:#242828!important;font:900 clamp(10px,1.3vw,16px)/1 "Noto Sans KR",Arial,sans-serif!important;letter-spacing:.18em!important;background:radial-gradient(circle,transparent 0 10%,rgba(20,25,25,.12) 11% 12%,transparent 13% 22%,rgba(20,25,25,.1) 23% 24%)!important;opacity:.85!important}
 #s-role .dealerArea{display:none!important}
 html,body,#stage,.screen,.unlock,*{cursor:default!important}button,#unlockBtn{cursor:pointer!important}
-.screenVictory{position:fixed!important;inset:0!important;z-index:2500!important;display:flex!important;align-items:center;justify-content:center;overflow:hidden;text-align:center;background:#000!important}
+.screenVictory{position:fixed!important;inset:0!important;z-index:2500!important;align-items:center;justify-content:center;overflow:hidden;text-align:center;background:#000!important}.screenVictory.active{display:flex!important}
 .screenVictory.wolf{color:#ff3347!important;background:radial-gradient(circle,#5b000b 0,#000 68%)!important}.screenVictory.sheep{color:#58f39a!important;background:radial-gradient(circle,#063d21 0,#000 68%)!important}
 .screenVictoryGlow{position:absolute;inset:-20%;opacity:.65;background:radial-gradient(circle,currentColor 0,transparent 42%);filter:blur(45px);animation:screenVictoryPulse 1.8s ease-in-out infinite}
 .screenVictoryContent{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
 .screenVictoryImage{width:min(46vw,330px);height:min(46vw,330px);filter:drop-shadow(0 0 28px currentColor);animation:screenVictoryImageIn 1.1s cubic-bezier(.2,.8,.2,1) both}.screenVictoryImage svg{width:100%;height:100%}
 .screenVictoryTitle{margin:20px 20px 0;font-family:var(--wolf-rough-font)!important;font-size:clamp(38px,7vw,78px);font-weight:1000;text-shadow:4px 5px 0 #31000d,0 0 28px currentColor;animation:screenVictoryTextIn 1s .35s both}
-.screenVictorySub{margin:10px 20px 0;font-size:clamp(20px,3vw,34px);font-weight:800;text-shadow:0 0 18px currentColor;animation:screenVictoryTextIn 1s .55s both}
 @keyframes screenVictoryPulse{0%,100%{transform:scale(.9);opacity:.45}50%{transform:scale(1.08);opacity:.75}}@keyframes screenVictoryImageIn{from{opacity:0;transform:scale(.5) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes screenVictoryTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
 #s-role .cards{
   position:absolute!important;
@@ -2263,38 +2262,10 @@ async function screenEmergencyOutcomeSequence(g){
 }
 
 async function resultSequence(data){const token=++resultToken;show('s-result');const role=String(data.role||'').toUpperCase();await wait(4500);if(token!==resultToken)return;$('resultName').textContent=data.name||'';$('resultRole').textContent=role==='WOLF'?'늑대':'양';$('resultRole').className='resultRole '+(role==='WOLF'?'':'sheep');$('resultCaption').textContent='입니다.';await wait(6500);if(token!==resultToken)return;const g=await getSettings();if(String(g.phase).toUpperCase()==='TRIAL')show('s-trial');else if(String(g.phase).toUpperCase()==='PLAY')show('s-main')}
-function renderSheepRoundWinScreen(){
- const root=$("s-result");if(!root)return;
- root.className="screen resultScene screenVictory sheep";
- root.innerHTML='<div class="screenVictoryGlow"></div><div class="screenVictoryContent"><div class="screenVictoryImage"><svg viewBox="0 0 300 300"><path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/></svg></div><div class="screenVictoryTitle">양이 승리했습니다.</div><div class="screenVictorySub">잠시 후 다음 라운드가 시작됩니다.</div><div class="screenVictorySub">모두 그레이스홀로 모여주세요.</div></div>';
-}
-async function finishSheepRoundWinAndAdvance(g){
- const notice=String(g.notice||'');
- const m=notice.match(/^SHEEP_ROUND_WIN\|([^|]+)\|([^|]+)\|([^|]+)$/);if(!m)return;
- const round=Number(m[1]||g.current_round||0),eventId=String(m[2]),startedAt=Number(m[3]);
- const key=String(round)+"|"+eventId;
- if(window.__screenSheepRoundWinKey===key)return;
- window.__screenSheepRoundWinKey=key;
- renderSheepRoundWinScreen();
- await wait(Math.max(0,5000-Math.max(0,Date.now()-startedAt)));
- if(window.__screenSheepRoundWinKey!==key)return;
- const latest=await getSettings().catch(()=>null);
- if(!latest||String(latest.phase||'').toUpperCase()!=='FINISHED'||String(latest.notice||'')!==notice)return;
- const lock=await db.from('game_settings').update({
-   current_round:round+1,phase:'LOBBY',started:false,ready:false,roles_selected:false,
-   notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,
-   investigation_started_at:null,round_started_at:null,night_started_at:null,
-   round_time_penalty_total:0,mission_gauge_penalty_total:0
- }).eq('id',1).eq('phase','FINISHED').eq('current_round',round).eq('notice',notice).select('id');
- if(!lock.error&&lock.data?.length){
-   await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');
-   try{await db.rpc('reset_round_mission_progress',{p_game_round:round});}catch(_){}
- }
- window.__screenSheepRoundWinKey='';
-}
 function renderScreenVictory(winner){
  const kind=winner==="WOLF"?"wolf":"sheep",title=winner==="WOLF"?"늑대가 승리했습니다.":"양이 승리했습니다.",root=$("s-result");if(!root)return;
  root.className="screen resultScene screenVictory "+kind;
+ show("s-result");
  root.innerHTML='<div class="screenVictoryGlow"></div><div class="screenVictoryContent"><div class="screenVictoryImage">'+
  (winner==="WOLF"?'<svg viewBox="0 0 300 300"><path d="M62 92 L98 28 L145 65 L155 65 L202 28 L238 92 L226 190 Q211 250 150 270 Q89 250 74 190 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M100 140 Q120 120 140 140 M160 140 Q180 120 200 140" fill="none" stroke="currentColor" stroke-width="11"/><path d="M132 175 Q150 188 168 175" fill="none" stroke="currentColor" stroke-width="11"/></svg>':'<svg viewBox="0 0 300 300"><path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/></svg>')+
  '</div><div class="screenVictoryTitle">'+title+'</div></div>';
@@ -2398,16 +2369,14 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
  if(phase==='FINISHED'){
    stopAllScreenBgm();
    const winner=String(g.winner||'').toUpperCase();
-   const notice=String(g.notice||'');
-   if(winner==='SHEEP'&&notice.startsWith('SHEEP_ROUND_WIN|')){
-     // 중간 승리는 DB phase가 FINISHED일 때만 진입합니다.
-     // await하지 않아 이후 realtime phase 변경(LOBBY/ROLE_SELECT 등)을 막지 않습니다.
-     finishSheepRoundWinAndAdvance(g).catch(e=>console.warn('스크린 중간 양 승리 처리 오류:',e));
-     return;
-   }
+   const isRoundWin=winner==='SHEEP'&&String(g.notice||'').startsWith('SHEEP_ROUND_WIN|');
    if(winner==='WOLF'||winner==='SHEEP'){
      renderScreenVictory(winner);
-     await playScreenEffect(winner==='WOLF'?'sounds/wolf-win.mp3':'sounds/sheep-win.mp3','screen-win-'+winner+'-'+String(g.current_round)).catch(()=>{});
+     const sub=document.createElement('div');
+     sub.className='screenVictorySub';
+     sub.textContent=isRoundWin?'잠시 후 다음 라운드가 시작됩니다.':'모두 그레이스홀로 모여주세요.';
+     $('s-result').querySelector('.screenVictoryContent')?.appendChild(sub);
+     await playScreenEffect(winner==='WOLF'?'sounds/wolf-win.mp3':'sounds/sheep-win.mp3','screen-win-'+winner+'-'+String(g.current_round)+'-'+(isRoundWin?'ROUND':'FINAL')).catch(()=>{});
    }else show('s-idle');
    return;
  }
@@ -2572,7 +2541,7 @@ async function screenVoteResultSequence(g){const token=++screenVoteToken;if(scre
     }
   }
   await wait(5000);}
-async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,mission_gauge_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
+async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
 async function screenResumeEmergencyAfterTrial(g,eventId=""){
   const round=Number(g.current_round||0);
   const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
