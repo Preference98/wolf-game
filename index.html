@@ -5769,6 +5769,9 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken){
 
         window.__missionNfcHandled=true;
         stopMissionNfcScan();
+        // 입장 NFC 인증이 성공하면 팝업을 먼저 닫고 미션 화면으로 전환합니다.
+        // openMissionObject 내부의 비동기 처리 때문에 팝업이 남아 미션 화면을 가리는 것을 방지합니다.
+        closeMissionNfcOverlay();
         await openMissionObject(m,loc,latestPlayer,latestSettings,requestToken,{completed:latestCompleted,sabotageState:latestSabotage,latestSettings});
       }catch(e){
         window.__missionNfcHandled=false;
