@@ -5691,12 +5691,33 @@ function missionNfcModal(message,kind="green",buttons=""){
 }
 async function startMissionLocation(locationId){
   const requestToken=++window.__missionEntryToken;
-  // 클릭 즉시 사용자에게 반응을 보여 서버 조회가 느려도 무반응처럼 보이지 않게 합니다.
-  missionNfcModal("미션 정보를 확인하는 중...","green",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
+  window.__missionNfcEarlyEvent=null;
+  // 로딩 단계부터 브라우저 NFC 리더를 먼저 잡아 Android가 태그를 자체 처리하지 않도록 합니다.
+  let earlyReader=null;
+  let earlyAbort=null;
+  try{
+    if("NDEFReader" in window){
+      earlyReader=new NDEFReader();
+      earlyAbort=new AbortController();
+      window.__missionNfcReader=earlyReader;
+      window.__missionNfcAbortController=earlyAbort;
+      earlyReader.onreading=event=>{
+        if(requestToken!==window.__missionEntryToken)return;
+        window.__missionNfcEarlyEvent=event;
+      };
+      earlyReader.onreadingerror=()=>{};
+      earlyReader.scan({signal:earlyAbort.signal}).catch(e=>{
+        if(e?.name!=="AbortError")console.warn("미션 NFC 선행 스캔 시작 실패:",e);
+      });
+    }
+  }catch(e){
+    console.warn("미션 NFC 선행 스캔 준비 실패:",e);
+  }
+  missionNfcModal("미션 로딩 중...","loading","");
   try{
     const [p,g]=await Promise.all([me(),settings()]);
     if(requestToken!==window.__missionEntryToken)return;
-    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"||wolfDeathProcessActive||window.__sabotageActiveNow===true){toast("현재는 미션에 들어갈 수 없습니다.");return;}
+    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"||wolfDeathProcessActive||window.__sabotageActiveNow===true){toast("현재는 미션에 들어갈 수 없습니다.");stopMissionNfcScan();closeOverlay();return;}
     const [loc,completed,sabotagedNow]=await Promise.all([
       getMissionLocation(locationId),
       getPlayerCompletedLocationIds(g.current_round,p.id),
@@ -5704,21 +5725,20 @@ async function startMissionLocation(locationId){
     ]);
     if(requestToken!==window.__missionEntryToken)return;
     if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
-    if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
-    if(sabotagedNow.has(String(locationId))){toast("현재 늑대방해 중인 장소입니다.");return;}
+    if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");stopMissionNfcScan();closeOverlay();return;}
+    if(sabotagedNow.has(String(locationId))){toast("현재 늑대방해 중인 장소입니다.");stopMissionNfcScan();closeOverlay();return;}
     const roundLocations=await getRoundMissionLocations(g.current_round,false,p.id);
     if(requestToken!==window.__missionEntryToken)return;
-    if(!roundLocations.some(x=>String(x.id)===String(locationId))){toast("이번 라운드에 활성화되지 않은 장소입니다.");return;}
+    if(!roundLocations.some(x=>String(x.id)===String(locationId))){toast("이번 라운드에 활성화되지 않은 장소입니다.");stopMissionNfcScan();closeOverlay();return;}
     const m=await getOrCreateRoundMission(loc,g.current_round,p,roundLocations);
     if(requestToken!==window.__missionEntryToken)return;
     if(g.nfc_enabled===false){
-      // NFC를 사용하지 않는 경우에는 앞에서 보여준 임시 안내창을 즉시 닫고 미션으로 들어갑니다.
       stopMissionNfcScan();
       closeOverlay();
       await openMissionObject(m,loc,p,g,requestToken,{completed,sabotageState:{active:false}});
       return;
     }
-    await startMissionNfcEntry(m,loc,p,g,requestToken);
+    await startMissionNfcEntry(m,loc,p,g,requestToken,earlyReader,earlyAbort);
   }catch(e){
     if(requestToken!==window.__missionEntryToken)return;
     stopMissionNfcScan();
@@ -5726,13 +5746,18 @@ async function startMissionLocation(locationId){
     console.error("미션 입장 오류:",e);toast(e.message||String(e));
   }
 }
-async function startMissionNfcEntry(m,loc,p,g,requestToken){
+async function startMissionNfcEntry(m,loc,p,g,requestToken,existingReader=null,existingAbort=null){
   if(!loc?.nfc_tag){closeMissionNfcOverlay();toast("이 장소에 등록된 미션 태그가 없습니다.");return;}
   if(!("NDEFReader" in window)){closeMissionNfcOverlay();toast("이 브라우저에서는 미션 태그 인식을 사용할 수 없습니다. 관리자에서 NFC 기능을 OFF로 사용해 주세요.");return;}
-  stopMissionNfcScan();window.__missionNfcHandled=false;
-  missionNfcModal("미션태그 인식 중...","green",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
+  if(!existingReader)stopMissionNfcScan();
+  window.__missionNfcHandled=false;
+  missionNfcModal("미션 태그에 태그하세요","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
   try{
-    const reader=new NDEFReader();window.__missionNfcReader=reader;window.__missionNfcAbortController=new AbortController();
+    const reader=existingReader||new NDEFReader();
+    const abortController=existingAbort||new AbortController();
+    window.__missionNfcReader=reader;window.__missionNfcAbortController=abortController;
+    const earlyEvent=window.__missionNfcEarlyEvent;
+    window.__missionNfcEarlyEvent=null;
     reader.onreadingerror=()=>{
       if(requestToken!==window.__missionEntryToken||window.__missionNfcHandled)return;
       missionNfcModal("태그를 읽지 못했습니다. 휴대폰을 태그에 다시 가까이 대주세요.","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
@@ -5742,41 +5767,23 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken){
       try{
         const value=window.__wolfMissionReadNfcText(event);
         if(value!==String(loc.nfc_tag).trim()){
-          missionNfcModal("다른 장소의 태그입니다","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
+          missionNfcModal("다른 미션장소 태그입니다.","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
           return;
         }
         if(requestToken!==window.__missionEntryToken)return;
-
-        // NFC 성공 직전에 현재 상태를 다시 확인합니다.
         const [latestPlayer,latestSettings,latestCompleted,latestSabotage]=await Promise.all([
           me(),settings(),getPlayerCompletedLocationIds(g.current_round,p.id),getSabotageState(g.current_round)
         ]);
         if(requestToken!==window.__missionEntryToken)return;
         if(!latestPlayer||latestPlayer.status!=="ALIVE"||latestSettings.phase!=="PLAY"||wolfDeathProcessActive){
-          closeMissionNfcOverlay();
-          toast("현재는 미션에 들어갈 수 없습니다.");
-          return;
+          closeMissionNfcOverlay();toast("현재는 미션에 들어갈 수 없습니다.");return;
         }
-        if(latestSabotage.active){
-          closeMissionNfcOverlay();
-          toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");
-          return;
-        }
-        if(latestCompleted.has(String(loc.id))){
-          closeMissionNfcOverlay();
-          toast("이미 완료된 미션입니다.");
-          return;
-        }
-
-        // 인증 성공 후에는 취소용 closeMissionNfcOverlay()를 사용하지 않습니다.
-        // 현재 요청 토큰을 그대로 유지한 채 미션 화면 진입을 먼저 완료하고,
-        // 실제 미션 화면 진입이 성공한 뒤에만 NFC 인증 팝업을 닫습니다.
-        stopMissionNfcScan();
+        if(latestSabotage.active){closeMissionNfcOverlay();toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return;}
+        if(latestCompleted.has(String(loc.id))){closeMissionNfcOverlay();toast("이미 완료된 미션입니다.");return;}
         window.__missionNfcHandled=true;
+        stopMissionNfcScan();
         const opened=await openMissionObject(m,loc,latestPlayer,latestSettings,requestToken,{completed:latestCompleted,sabotageState:latestSabotage,latestSettings});
-        if(opened){
-          closeOverlay();
-        }
+        if(opened)closeOverlay();
       }catch(e){
         window.__missionNfcHandled=false;
         stopMissionNfcScan();
@@ -5785,7 +5792,8 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken){
         console.error("미션 입장 NFC 처리 오류:",e);
       }
     };
-    await reader.scan({signal:window.__missionNfcAbortController.signal});
+    if(!existingReader)await reader.scan({signal:abortController.signal});
+    if(earlyEvent)await reader.onreading(earlyEvent);
   }catch(e){
     if(e?.name==="AbortError")return;
     stopMissionNfcScan();closeOverlay();toast("미션 태그 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
@@ -6825,7 +6833,7 @@ window.cancelMissionCompletion=function(btn){
   bridge?.setCurrentMission(null);
   // 화면은 서버 조회를 기다리지 않고 즉시 본게임으로 돌립니다.
   closeOverlay();
-  showScreen("player");
+  showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionCompletionActionBusy=false;
   // 최신 미션 상태/게이지는 백그라운드에서 갱신합니다.
@@ -6843,7 +6851,7 @@ window.confirmMissionCompletion=function(btn){
   bridge?.setCurrentMission(null);
   closeOverlay();
   // 확인 클릭 즉시 본게임 화면을 먼저 보여주고, 무거운 최신화는 뒤에서 수행합니다.
-  showScreen("player");
+  showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionCompletionActionBusy=false;
   Promise.resolve().then(async()=>{
@@ -6879,7 +6887,7 @@ window.cancelMiniMission=function(btn){
   window.__wolfGameBridge?.setCurrentMission(null);
   // 실패 후 복귀도 서버 조회를 기다리지 않고 즉시 본게임으로 전환합니다.
   closeOverlay();
-  showScreen("player");
+  showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionFailureActionBusy=false;
   Promise.resolve(window.__wolfGameBridge?.renderPlayer?.()).catch(e=>console.error("미션실패 후 화면 갱신 오류:",e));
