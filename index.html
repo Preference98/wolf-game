@@ -5412,6 +5412,9 @@ async function getLatestDeadSheep(round){
 async function renderTrial(p,g){
  stopAllTimers();
  closeOverlay();
+ // 관리자가 재판시작을 누르면 플레이어 화면도 반드시 재판 정보 화면으로 전환합니다.
+ // 일반 재판/긴급재판 모두 TRIAL 단계에서 이 함수를 통해 동일하게 진입합니다.
+ await showScreen("trial");
 
  const gauge=await getMissionGauge(g.current_round);
  if(el("trialGaugeText"))el("trialGaugeText").textContent=gauge.percent+"% ("+gauge.completed+"/"+gauge.target+")";
