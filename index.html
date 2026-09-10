@@ -107,12 +107,11 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 }
 .missionBoard .missionLocationButton:not(:disabled):active{transform:scale(.98)}
 .missionBoard .missionLocationButton.active{background:#d6a900;border-color:#ffe16b;color:#151000;box-shadow:0 0 18px rgba(255,214,40,.28)}
-.missionBoard .missionLocationButton.sabotaged{background:#b21f2d;border-color:#ff6975;color:#fff;cursor:not-allowed;opacity:1}
+.missionBoard .missionLocationButton.sabotaged{cursor:not-allowed;opacity:1}
 .missionBoard .missionLocationButton.completed{background:#148a4b;border-color:#56e79a;color:#fff;cursor:not-allowed;opacity:1}
 .missionBoard .missionLocationButton.inactive{background:#555;border-color:#777;color:#ddd;cursor:not-allowed;opacity:.75}
 .missionBoard .missionLocationButton:disabled{transform:none}
 .missionBoard .missionLocationButton .locationName{display:block;color:inherit;font-size:20px;font-weight:1000;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.missionBoard .missionLocationButton .sabotageCountdown{display:block;margin:0;font-size:15px;line-height:1.2;font-weight:1000;color:#fff}
 @media(max-width:600px){
   .missionBoard{gap:10px}
   .missionBoard .missionLocationButton{height:88px;min-height:88px;font-size:19px}
@@ -149,13 +148,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
   text-shadow:0 0 8px #fff08a,0 0 18px rgba(255,210,30,.75);
   animation:missionNeonYellow 1.8s ease-in-out infinite alternate;
 }
-.missionBoard .missionLocationButton.sabotaged{
-  background:linear-gradient(145deg,#4d0710,#160205)!important;
-  border-color:#ff334f!important;color:#ffd5da!important;
-  box-shadow:inset 0 0 25px rgba(255,20,55,.10),0 0 8px rgba(255,35,70,.85),0 0 25px rgba(255,25,55,.48),0 0 48px rgba(255,0,35,.18)!important;
-  text-shadow:0 0 8px #ff9aa8,0 0 17px rgba(255,35,70,.8);
-  animation:missionNeonRed 1.1s ease-in-out infinite alternate;
-}
+.missionBoard .missionLocationButton.sabotaged{cursor:not-allowed!important;}
 .missionBoard .missionLocationButton.completed{
   background:linear-gradient(145deg,#063d25,#03170d)!important;
   border-color:#3cff91!important;color:#caffdf!important;
@@ -173,14 +166,7 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
   position:relative;z-index:2;font-size:clamp(17px,4.4vw,22px)!important;
   letter-spacing:.2px;
 }
-.missionBoard .missionLocationButton .sabotageCountdown{
-  position:relative;z-index:2;min-height:19px;
-  display:flex!important;align-items:center;justify-content:center;
-  font-size:clamp(13px,3.4vw,16px)!important;font-weight:1000!important;
-  letter-spacing:.3px;color:inherit!important;
-}
 @keyframes missionNeonYellow{from{box-shadow:inset 0 0 24px rgba(255,220,45,.06),0 0 7px rgba(255,220,45,.7),0 0 20px rgba(255,210,30,.3)}to{box-shadow:inset 0 0 30px rgba(255,220,45,.12),0 0 10px rgba(255,235,80,1),0 0 30px rgba(255,210,30,.55),0 0 55px rgba(255,190,0,.2)}}
-@keyframes missionNeonRed{from{box-shadow:inset 0 0 24px rgba(255,20,55,.06),0 0 7px rgba(255,35,70,.7),0 0 20px rgba(255,25,55,.3)}to{box-shadow:inset 0 0 30px rgba(255,20,55,.12),0 0 10px rgba(255,75,95,1),0 0 30px rgba(255,25,55,.58),0 0 55px rgba(255,0,35,.22)}}
 @media(max-width:600px){
   .missionBoard{gap:10px!important}
   .missionBoard .missionLocationButton{height:90px!important;min-height:90px!important;border-radius:14px!important}
@@ -1293,6 +1279,16 @@ body{
 .missionFloorCell{aspect-ratio:1/1;min-width:0;border:1px solid rgba(180,180,180,.38);background:rgba(110,110,110,.16);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .missionFloorCell .floorText{padding:8px;text-align:center;color:#cfcfcf;font-size:clamp(13px,2.2vw,20px);font-weight:900;line-height:1.2}
 .missionFloorCell .missionLocationButton{width:100%!important;height:100%!important;min-height:0!important;margin:0!important;border-radius:0!important;border:2px solid #6b7280!important}
+
+.missionFloorMapStage{position:relative;width:100%;max-width:560px;margin:0 auto}
+.missionFloorMapStage .missionFloorGrid{max-width:none;margin:0}
+.sabotageMissionOverlay{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,.68);backdrop-filter:blur(1.5px)}
+.sabotageMissionOverlay.active{display:flex}
+.sabotageMissionOverlayInner{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 2px 8px #000;padding:20px}
+.sabotageMissionOverlayIcon{font-size:clamp(38px,8vw,64px);line-height:1;margin-bottom:10px}
+.sabotageMissionOverlayTitle{font-size:clamp(24px,5vw,38px);font-weight:1000;letter-spacing:.08em}
+.sabotageMissionOverlayLabel{margin-top:18px;font-size:clamp(15px,3vw,20px);font-weight:800;opacity:.9}
+.sabotageMissionOverlayTime{margin-top:4px;font-variant-numeric:tabular-nums;font-size:clamp(30px,7vw,52px);font-weight:1000;letter-spacing:.06em}
 .missionFloorNav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:560px;margin:12px auto 0}
 .missionFloorNav button{margin:0!important;width:100%;font-size:17px;font-weight:900}
 .missionFloorNav button.active{border-color:#ffe84a!important;color:#fff7b0!important;box-shadow:0 0 14px rgba(255,210,30,.28)}
@@ -4433,20 +4429,23 @@ function renderMissionFloorNav(activePage,mode="player"){
 function renderMissionFloorGrid({page,locations,renderCell,mode="player"}){
  const layout=MISSION_FLOOR_LAYOUT[Number(page)]||MISSION_FLOOR_LAYOUT[3];
  const locationMap=getMissionFloorLocationMap(locations);
- let html='<div class="missionFloorWrap"><div class="missionFloorGrid">';
+ let gridHtml='<div class="missionFloorGrid">';
  for(let cell=1;cell<=9;cell++){
    const spec=layout.cells[cell];
    if(spec?.id!=null){
      const loc=locationMap.get(String(spec.id));
-     html+=loc?renderCell(loc,cell):'<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
+     gridHtml+=loc?renderCell(loc,cell):'<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
    }else if(spec?.type==="label"){
-     html+='<div class="missionFloorCell" data-floor-cell="'+cell+'"><div class="floorText">'+esc(spec.text)+'</div></div>';
+     gridHtml+='<div class="missionFloorCell" data-floor-cell="'+cell+'"><div class="floorText">'+esc(spec.text)+'</div></div>';
    }else{
-     html+='<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
+     gridHtml+='<div class="missionFloorCell" data-floor-cell="'+cell+'"></div>';
    }
  }
- html+='</div>'+renderMissionFloorNav(page,mode)+'</div>';
- return html;
+ gridHtml+='</div>';
+ const mapStage=mode==="player"
+   ?'<div class="missionFloorMapStage">'+gridHtml+'<div id="missionSabotageOverlay" class="sabotageMissionOverlay" aria-live="polite"><div class="sabotageMissionOverlayInner"><div class="sabotageMissionOverlayIcon">⚠️</div><div class="sabotageMissionOverlayTitle">늑대방해</div><div class="sabotageMissionOverlayLabel">남은 시간</div><div id="missionSabotageOverlayTime" class="sabotageMissionOverlayTime">00:00</div></div></div></div>'
+   :gridHtml;
+ return '<div class="missionFloorWrap">'+mapStage+renderMissionFloorNav(page,mode)+'</div>';
 }
 async function setMissionFloorPage(page,mode="player"){
  const next=Math.max(1,Math.min(3,Number(page)||3));
@@ -4541,16 +4540,12 @@ async function renderPlayerCore(){
       const active=activeIds.has(id);
       const sabotagedHere=!done&&active&&sabotaged.has(id);
       const enabled=!done&&!sabotagedHere&&active;
-      const sabotageEnd=Number(sabotageEnds.get(id)||0);
-      const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
-        ?Math.ceil((sabotageEnd-gameNow())/1000):0;
       const cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
       const buttonClick=enabled
         ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
         :" disabled";
-      const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">남은 방해시간 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>':'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
       return '<div class="missionFloorCell missionBlock '+cls+'" data-location-id="'+esc(id)+'"><button type="button" class="missionLocationButton '+cls+'" data-location-id="'+esc(id)+'"'+buttonClick+'>'+
-        '<span class="locationName">'+esc(loc.name)+'</span>'+countdown+'</button></div>';
+        '<span class="locationName">'+esc(loc.name)+'</span></button></div>';
     }
   });
   if(!allLocations.length){
@@ -4840,25 +4835,63 @@ function rememberSabotageRealtimeEnd(ev){
     for(const id of new Set(raw.map(String)))window.__sabotageLocationEndsUi.set(id,endsAt);
   }catch(e){console.warn("늑대방해 종료시각 캐시 기록 오류:",e);}
 }
+function formatSabotageOverlayTime(ms){
+  const total=Math.max(0,Math.ceil(Number(ms||0)/1000));
+  const min=Math.floor(total/60);
+  const sec=total%60;
+  return String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+}
+function syncPlayerSabotageOverlay(locationEnds){
+  const overlay=document.getElementById("missionSabotageOverlay");
+  const timeEl=document.getElementById("missionSabotageOverlayTime");
+  if(!overlay||!timeEl)return;
+  const floorIds=new Set(getMissionFloorIds(missionFloorPage).map(String));
+  const now=gameNow();
+  let end=0;
+  for(const [id,value] of new Map(locationEnds||[])){
+    const n=Number(value)||0;
+    if(n>now&&floorIds.has(String(id)))end=Math.max(end,n);
+  }
+  const active=end>now;
+  overlay.classList.toggle("active",active);
+  if(active)timeEl.textContent=formatSabotageOverlayTime(end-now);
+  else timeEl.textContent="00:00";
+}
+function syncPlayerSabotageButtons(locationEnds){
+  const now=gameNow();
+  const ends=new Map(locationEnds||[]);
+  document.querySelectorAll("#player .missionLocationButton[data-location-id]").forEach(button=>{
+    const id=String(button.getAttribute("data-location-id")||"");
+    const end=Number(ends.get(id)||0);
+    const activeSabotage=end>now;
+    const completed=button.classList.contains("completed");
+    const active=button.classList.contains("active")||button.classList.contains("sabotaged");
+    if(activeSabotage&&!completed){
+      button.classList.remove("sabotaged");
+      button.disabled=true;
+      button.setAttribute("aria-disabled","true");
+      button.removeAttribute("onclick");
+      button.style.pointerEvents="none";
+    }else if(!activeSabotage&&!completed&&active){
+      button.classList.remove("sabotaged");
+      button.classList.add("active");
+      button.disabled=false;
+      button.removeAttribute("aria-disabled");
+      button.style.pointerEvents="";
+      button.setAttribute("onclick","event.stopPropagation();startMissionLocation('"+id.replace(/'/g,"\\'")+"')");
+    }
+  });
+}
 function applySabotageCountdownToPlayerBoard(){
   const screen=document.querySelector("#player.screen.active");
   if(!screen)return;
   const now=gameNow();
   const ends=window.__sabotageLocationEndsUi||new Map();
-  document.querySelectorAll("#player .missionLocationButton[data-location-id]").forEach(button=>{
-    const id=String(button.getAttribute("data-location-id")||"");
-    const end=Math.max(Number(ends.get(id)||0),Number(button.getAttribute("data-sabotage-end")||0));
-    const countdown=button.querySelector(".sabotageCountdown");
-    if(end>now){
-      if(button.classList.contains("sabotaged")){
-        button.setAttribute("data-sabotage-end",String(end));
-        if(countdown){countdown.setAttribute("data-sabotage-countdown",id);countdown.textContent="남은 방해시간 "+Math.ceil((end-now)/1000)+"초";}
-      }
-    }else if(button.classList.contains("sabotaged")){
-      button.removeAttribute("data-sabotage-end");
-      if(countdown){countdown.textContent="";countdown.removeAttribute("data-sabotage-countdown");}
-    }
-  });
+  for(const [id,end] of [...ends]){
+    if(Number(end)<=now)ends.delete(id);
+  }
+  syncPlayerSabotageButtons(ends);
+  syncPlayerSabotageOverlay(ends);
 }
 function scheduleSabotageLocationExpiry(locationIds,round){
   const ids=[...new Set((locationIds||[]).map(String))];
@@ -4894,26 +4927,17 @@ function applySabotageEventToPlayerBoard(ev){
    if(!ids.length)return false;
    rememberSabotageRealtimeEnd(ev);
    const endsAt=Date.parse(ev?.ends_at||"");
-   const seconds=endsAt>0?Math.max(0,Math.ceil((endsAt-gameNow())/1000)):0;
    let changed=false;
    for(const id of ids){
      const button=document.querySelector('#player .missionLocationButton[data-location-id="'+CSS.escape(id)+'"]');
-     if(!button)continue;
-     if(button.classList.contains("completed"))continue;
-     if(!button.classList.contains("active")&&!button.classList.contains("sabotaged"))continue;
-     button.classList.remove("active","inactive");
-     button.classList.add("sabotaged");
+     if(!button||button.classList.contains("completed"))continue;
+     const isUsable=button.classList.contains("active")||button.classList.contains("sabotaged");
+     if(!isUsable)continue;
+     button.classList.remove("sabotaged");
      button.disabled=true;
      button.setAttribute("aria-disabled","true");
      button.removeAttribute("onclick");
      button.style.pointerEvents="none";
-     if(endsAt>0)button.setAttribute("data-sabotage-end",String(endsAt));
-     let countdown=button.querySelector(".sabotageCountdown");
-     if(!countdown){countdown=document.createElement("span");countdown.className="sabotageCountdown";button.appendChild(countdown);}
-     countdown.setAttribute("data-sabotage-countdown",id);
-     countdown.textContent=endsAt>0?"남은 방해시간 "+(seconds>0?seconds+"초":"종료"):"남은 방해시간";
-     const block=button.closest(".missionBlock");
-     if(block){block.classList.remove("active","inactive");block.classList.add("sabotaged");}
      changed=true;
    }
    scheduleSabotageLocationExpiry(ids,Number(ev?.game_round||0));
@@ -6600,18 +6624,9 @@ function startSabotageUiWatcher(){
 
    const cooldownTotal=Math.max(1000,Number(state.cooldownSeconds||60)*1000);
    const locationEnds=state.activeLocationEnds||new Map();
-
-   document.querySelectorAll(".sabotageCountdown").forEach(x=>{
-     const locationId=String(x.getAttribute("data-sabotage-countdown")||"");
-     const button=x.closest(".missionLocationButton");
-     const domEnd=Number(button?.getAttribute("data-sabotage-end")||0);
-     const end=Math.max(Number(locationEnds.get(locationId)||0),domEnd);
-     const remain=Math.max(0,end-now);
-     x.textContent=remain>0?"남은 방해시간 "+Math.ceil(remain/1000)+"초":"";
-     if(remain<=0&&button?.classList.contains("sabotaged")){
-       button.removeAttribute("data-sabotage-end");
-     }
-   });
+   // 기존 서버시간/Realtime 기반 종료시각을 그대로 사용하되, 표시만 지도 전체 레이어로 통합합니다.
+   syncPlayerSabotageButtons(locationEnds);
+   syncPlayerSabotageOverlay(locationEnds);
 
    document.querySelectorAll(".sabotageSkill").forEach(skill=>{
      const shade=skill.querySelector(".cooldownShade");
