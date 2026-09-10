@@ -3835,7 +3835,7 @@ function formatRoundTime(ms){
  return String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
 }
 function tickRoundTimer(){
- if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
+ if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=1000){
   clearInterval(roundTimer);roundTimer=null;
   if(!window.__roundExpiredHandled){
     window.__roundExpiredHandled=true;
@@ -3865,6 +3865,9 @@ function startRoundTimer(g){
 async function transitionToNight(){
  const g=await settings();
  if(g.phase!=="PLAY")return;
+ const round=Number(g.current_round)||0;
+ const roundStartedAt=String(g.round_started_at||"");
+ if(!roundStartedAt)return;
  const currentNotice=String(g.notice||"");
  // 긴급신고가 접수된 라운드는 재판준비 상태입니다. 라운드 타이머가 0이 되어도 밤으로 전환하지 않습니다.
  if(currentNotice.startsWith("EMERGENCY_REPORT|")){
@@ -3879,7 +3882,7 @@ async function transitionToNight(){
  const warningNotice="NIGHT_WARNING|"+warningStart;
  const r=await db.from("game_settings").update({
    notice:warningNotice
- }).eq("id",1).eq("phase","PLAY").eq("notice",currentNotice);
+ }).eq("id",1).eq("phase","PLAY").eq("current_round",round).eq("round_started_at",roundStartedAt).eq("notice",currentNotice);
  if(r.error)throw new Error("밤 준비 시작 실패: "+r.error.message);
  // 긴급신고 등 더 높은 우선순위 상태가 먼저 접수된 경우에는 NIGHT_WARNING을 만들지 않습니다.
  if(!r.data?.length)return;
@@ -4033,6 +4036,18 @@ async function clearEmergencyReportRecords(round=null){
   if((remain.data||[]).length)throw new Error("긴급신고 사용 기록이 남아 있습니다.");
 }
 async function clearSabotageRecordsForNewGame(){
+  // 새 게임으로 넘어갈 때 이전 게임의 늑대방해 표시/카운트다운도 함께 폐기합니다.
+  stopSabotageUiWatcher();
+  selectedSabotageLocationIds=new Set();
+  localSabotageCooldownUntil=0;
+  localSabotageEventId=null;
+  lastHandledSabotageEventId=null;
+  lastHandledSabotageEnd=0;
+  sabotageInterruptUntil=0;
+  window.__sabotageStateCache=null;
+  window.__sabotageUiRound=0;
+  if(window.__sabotageLocationEndsUi instanceof Map)window.__sabotageLocationEndsUi.clear();
+  if(window.__seenSabotageNoticeIds instanceof Set)window.__seenSabotageNoticeIds.clear();
   const r=await db.from("sabotage_events").delete().gte("id",0);
   if(r.error)throw new Error("늑대방해 기록 초기화 실패: "+r.error.message);
   window.__sabotageActiveNow=false;
@@ -4968,6 +4983,8 @@ async function openSabotageScreen(){
  closeActionDock();
  const p=await me(),g=await settings();
  if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
 
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
  // 지속시간(active)은 재사용 제한이 아닙니다.
@@ -5000,6 +5017,8 @@ function toggleSabotageLocation(id){
 async function executeSelectedSabotage(){
  const p=await me(),g=await settings(),chosen=[...selectedSabotageLocationIds];
  if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
 
  const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
  // 늑대방해 "지속시간"과 "쿨타임"은 독립입니다.
@@ -5165,6 +5184,14 @@ async function completeWolfDeathByNfc(victim,wolf,g){
  await playSound('death','nfc-death-'+String(victim.id)).catch(()=>{});
  await evaluateSurvivorOutcome(round);
  toast((victim.name||'플레이어')+' 탈락');
+ // 사망처리 중 긴급신고가 먼저 접수되었다면, 사망처리 완료 직후 바로 긴급재판 준비 화면으로 따라잡습니다.
+ const afterDeath=await settings().catch(()=>null);
+ const afterDeathEmergency=afterDeath&&String(afterDeath.phase||'').toUpperCase()==='PLAY'
+   &&String(afterDeath.notice||'').startsWith('EMERGENCY_REPORT|');
+ if(afterDeathEmergency){
+   await renderEmergencyTrialReady(await me().catch(()=>null),afterDeath,true,emergencyNoticeData(afterDeath)?.eventId||'');
+   return;
+ }
  await route();
 }
 
@@ -5775,6 +5802,16 @@ async function startTrial(){
 async function resetGame(){
  clearTimeout(adminGameStartEffectTimer);adminGameStartEffectTimer=null;
  stopAllAdminBgm();
+ // 초기화 버튼을 누르는 순간 이전 게임의 개인 타이머와 늑대방해 상태를 먼저 끊습니다.
+ stopAllTimers();
+ sabotageInterruptUntil=0;
+ window.__sabotageActiveNow=false;
+ window.__sabotageStateCache=null;
+ window.__sabotageUiRound=0;
+ if(window.__sabotageLocationEndsUi instanceof Map)window.__sabotageLocationEndsUi.clear();
+ lastHandledSabotageEventId=null;
+ localSabotageEventId=null;
+ localSabotageCooldownUntil=0;
  const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
    // 1) 게임 진행 데이터 초기화
@@ -6381,6 +6418,10 @@ async function handleSabotageEvent(e){
  }
 
  const startedAt=Date.parse(e.started_at||e.starts_at||e.created_at||"");
+ const roundStartedAt=Date.parse(g.round_started_at||"");
+ // 새 게임은 ROUND 1부터 다시 시작하므로, 이전 게임의 늑대방해가 늦게 도착해도
+ // 현재 게임의 방해로 오인하지 않습니다. 현재 라운드 시작보다 오래된 이벤트는 폐기합니다.
+ if(Number.isFinite(startedAt)&&Number.isFinite(roundStartedAt)&&startedAt<roundStartedAt)return;
  const endsAt=Date.parse(e.ends_at||"");
  const sec=Math.max(0,Math.ceil((endsAt-gameNow())/1000));
 
@@ -6420,9 +6461,8 @@ async function handleSabotageEvent(e){
      if(el("missionResult"))el("missionResult").innerHTML='<div class="notice alert">늑대방해로 인해 미션이 실패 처리되었습니다.</div>';
    }
    closeOverlay();
-   if(!sabotageMenuWasOpen){
-     await showScreen("player");
-   }
+   // 늑대방해가 실행되면 열려 있던 늑대방해 메뉴도 즉시 종료합니다.
+   await showScreen("player");
  } 
 
  // 늑대방해 효과음은 기존 규칙대로 유지합니다.
