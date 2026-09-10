@@ -2981,6 +2981,7 @@ let roundMissionSetupReadyRound=0;
 let roundMissionSetupPromise=null;
 window.__missionEntryToken=0;
 let missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
+let sheepRoundWinTransitionKey="";
 let sabotageUiTimer=null,sabotageUiLastSignature="";
 let localSabotageCooldownUntil=0,localSabotageEventId=null;
 let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageEnd=0;
@@ -3401,17 +3402,20 @@ async function checkMissionGaugeAndWin(round){
    if(dead.error){console.warn("미션 완료 후 늑대 탈락 처리 실패:",dead.error.message);return false;}
    const out=await evaluateSurvivorOutcome(round);
    if(out.ended)return true;
-   // 생존자가 3명 이상이면 해당 라운드의 양 승리를 먼저 FINISHED 상태로 표시합니다.
-   // 최종 승리와 동일하게 screen.html은 DB phase=FINISHED에서만 승리 화면에 진입합니다.
+   // 생존자가 3명 이상이면 해당 라운드의 양 승리 후 다음 라운드로 넘어갑니다.
    const alive=out.alive||[];
    if(alive.length>=3){
-     const u=await db.from("game_settings").update({
-       phase:"FINISHED",winner:"SHEEP",started:false,
-       notice:"SHEEP_ROUND_WIN|"+String(round||0)+"|"+String(Date.now())
-     }).eq("id",1).eq("phase","PLAY").eq("current_round",Number(round||0)).select("id");
-     if(u.error||!u.data?.length)return false;
-     // 중간승리 화면을 5초간 보여준 뒤 다음 라운드 대기화면으로 전환합니다.
-     setTimeout(()=>{advanceToNextRoundAfterSheepWin(round,"FINISHED").catch(e=>console.warn("양 중간승리 후 다음 라운드 전환 오류:",e));},5000);
+     const eventId=String(Date.now())+"-"+String(Math.random()).slice(2,8);
+     const notice="SHEEP_ROUND_WIN|"+String(round||0)+"|"+eventId+"|"+String(Date.now());
+     const lock=await db.from("game_settings").update({phase:"FINISHED",winner:"SHEEP",started:false,notice}).eq("id",1).eq("phase","PLAY").eq("current_round",Number(round||0)).select("id");
+     if(lock.error||!lock.data?.length)return false;
+     const transitionKey=String(round||0)+"|"+eventId;
+     sheepRoundWinTransitionKey=transitionKey;
+     setTimeout(async()=>{
+       if(sheepRoundWinTransitionKey!==transitionKey)return;
+       try{await advanceToNextRoundAfterSheepWin(round,"FINISHED");}catch(e){console.warn("중간 양 승리 후 다음 라운드 전환 오류:",e);}
+       if(sheepRoundWinTransitionKey===transitionKey)sheepRoundWinTransitionKey="";
+     },5000);
      return true;
    }
  }
