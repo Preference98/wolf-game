@@ -44,6 +44,43 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .sabotageBlock.available:hover{border-color:#f87171}.sabotageBlock.selected{border-color:#ef4444;background:#321010;box-shadow:0 0 18px rgba(239,68,68,.3)}
 .sabotageBlock.disabled{opacity:.28;cursor:not-allowed}.sabotageSkillWrap{display:flex;align-items:center;gap:12px;margin:10px 0}.sabotageSkill{position:relative;width:76px;height:76px;padding:0!important;border-radius:14px!important;overflow:hidden;border:2px solid #ef4444!important;background:#171717!important;display:flex;align-items:center;justify-content:center;flex:none}.sabotageSkill .skillIcon{font-size:34px;position:relative;z-index:2}.sabotageSkill .cooldownShade{position:absolute;inset:0;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;z-index:3;font-size:21px;font-weight:1000;color:#fff;text-shadow:0 2px 4px #000}.sabotageSkill.cooling{cursor:not-allowed!important;filter:grayscale(.45)}.sabotageSkill.available{box-shadow:0 0 18px rgba(239,68,68,.35)}.sabotageStatusText{flex:1}.sabotageCountdown{font-size:18px;font-weight:1000;color:#f87171;margin-top:5px}
 @media(max-width:600px){.missionBoard,.sabotageBoard{grid-template-columns:1fr}}
+/* MISSION LOCATION BUTTONS v2 */
+.missionBoard .missionBlock{min-height:0;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;opacity:1;filter:none}
+.missionBoard .missionLocationButton{
+  width:100%;height:92px;min-height:92px;margin:0;padding:10px 12px;
+  border-radius:14px;border:2px solid #666;background:#555;color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  text-align:center;font-size:20px;font-weight:900;line-height:1.2;
+  box-shadow:0 8px 20px rgba(0,0,0,.28);transition:filter .15s,transform .12s,border-color .15s,background .15s;
+}
+.missionBoard .missionLocationButton:not(:disabled):active{transform:scale(.98)}
+.missionBoard .missionLocationButton.active{background:#d6a900;border-color:#ffe16b;color:#151000;box-shadow:0 0 18px rgba(255,214,40,.28)}
+.missionBoard .missionLocationButton.sabotaged{background:#b21f2d;border-color:#ff6975;color:#fff;cursor:not-allowed;opacity:1}
+.missionBoard .missionLocationButton.completed{background:#148a4b;border-color:#56e79a;color:#fff;cursor:not-allowed;opacity:1}
+.missionBoard .missionLocationButton.inactive{background:#555;border-color:#777;color:#ddd;cursor:not-allowed;opacity:.75}
+.missionBoard .missionLocationButton:disabled{transform:none}
+.missionBoard .missionLocationButton .locationName{display:block;color:inherit;font-size:20px;font-weight:1000;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.missionBoard .missionLocationButton .sabotageCountdown{display:block;margin:0;font-size:15px;line-height:1.2;font-weight:1000;color:#fff}
+@media(max-width:600px){
+  .missionBoard{gap:10px}
+  .missionBoard .missionLocationButton{height:88px;min-height:88px;font-size:19px}
+  .missionBoard .missionLocationButton .locationName{font-size:19px}
+}
+/* 미션 인증/결과 팝업 */
+.missionOverlay #modal{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;width:auto!important;max-width:none!important}
+.missionOverlay #modalIcon,.missionOverlay #modalTitle,.missionOverlay #modalButtons{display:none!important}
+.missionOverlay #modalMessage{margin:0!important;padding:0!important;color:#fff!important;font-size:inherit!important;line-height:inherit!important}
+.missionNfcModal{width:min(92vw,430px)!important;padding:28px 22px!important;border-radius:20px!important;text-align:center}
+.missionNfcModal .missionNfcMessage{font-size:22px;font-weight:1000;line-height:1.5;white-space:pre-line}
+.missionNfcModal.green{background:rgba(20,170,85,.52)!important;border:2px solid rgba(100,255,170,.85)!important;box-shadow:0 0 50px rgba(20,255,120,.25)!important;color:#fff}
+.missionNfcModal.red{background:rgba(190,20,35,.58)!important;border:2px solid rgba(255,110,120,.9)!important;box-shadow:0 0 50px rgba(255,30,50,.28)!important;color:#fff}
+.missionNfcModal.success{background:#159447!important;border:3px solid #68ffad!important;box-shadow:0 0 60px rgba(30,255,130,.42)!important;color:#fff}
+.missionNfcModal.failure{background:#c91527!important;border:3px solid #ff7a86!important;box-shadow:0 0 60px rgba(255,20,40,.42)!important;color:#fff}
+.missionNfcModal .missionNfcTitle{font-size:30px;font-weight:1000;margin-bottom:12px}
+.missionNfcModal .missionNfcButton{width:100%;margin-top:18px;background:rgba(0,0,0,.35)!important;border-color:rgba(255,255,255,.5)!important}
+.missionNfcModal.flash{animation:missionNfcFlash .42s ease-in-out 2}
+@keyframes missionNfcFlash{50%{filter:brightness(1.35)}}
+
 .nightAlertStage{background:#050505;color:#fff}
 .nightAlertStage h1{font-size:42px}.nightAlertStage .wolfNightText{color:#ef3340;font-size:32px;font-weight:900}
 
@@ -4005,24 +4042,19 @@ async function renderPlayerCore(){
     const id=String(loc.id);
     const done=completedLocations.has(id);
     const active=activeIds.has(id);
-    const sabotagedHere=sabotaged.has(id);
-    const nfcOk=g.nfc_enabled===false||!loc.nfc_tag||localStorage.getItem("wolf_game_nfc_location")===id;
-    const label=String(loc.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐";
-    let cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
-    let status=done?"✓ 미션 완료":sabotagedHere?"⚠ 늑대방해 중":active?"● 활성 미션":"○ 비활성 미션";
+    const sabotagedHere=!done&&sabotaged.has(id);
+    const enabled=!done&&!sabotagedHere&&active;
     const sabotageEnd=Number(sabotageEnds.get(id)||0);
     const sabotageSeconds=sabotagedHere&&sabotageEnd>gameNow()
       ?Math.ceil((sabotageEnd-gameNow())/1000):0;
-    let action="";
-    if(!done&&!sabotagedHere&&active){
-      action=nfcOk
-        ?'<button onclick="event.stopPropagation();openMissionByLocation(\''+esc(id)+'\')">미션 입장</button>'
-        :'<button class="secondary" onclick="event.stopPropagation();scanNfcForLocation(\''+esc(id)+'\')">NFC 인증</button>';
-    }
-    box.innerHTML+=`<div class="missionBlock ${cls}">
-      <div class="small">${label}</div><h3 style="margin:5px 0">${esc(loc.name)}</h3>
-      <div class="missionBlockStatus">${status}</div>${sabotagedHere?'<div class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">'+(sabotageSeconds>0?sabotageSeconds+"초":"늑대방해 종료")+'</div>':""}${action}
-    </div>`;
+    const cls=done?"completed":sabotagedHere?"sabotaged":active?"active":"inactive";
+    const buttonDisabled=!enabled;
+    const buttonClick=enabled
+      ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
+      :" disabled";
+    const countdown=sabotagedHere?'<span class="sabotageCountdown">사보타지 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>': '<span class="sabotageCountdown">&nbsp;</span>';
+    box.innerHTML+=`<div class="missionBlock ${cls}"><button type="button" class="missionLocationButton ${cls}"${buttonClick}>`+
+      `<span class="locationName">${esc(loc.name)}</span>${countdown}</button></div>`;
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
   // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
@@ -4179,47 +4211,10 @@ async function openMissionObject(m,loc,p,g,requestToken=missionEntryToken,prefli
 }
 
 async function completeCurrentMission(){
- const p=await me(),g=await settings(); if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 행동할 수 없습니다.");return;} if(!currentMission)throw new Error("현재 미션이 없습니다.");
- const locId=currentMission.mission_location_id||currentMission.location_id,completed=await getPlayerCompletedLocationIds(g.current_round,p.id); if(locId!=null&&completed.has(String(locId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
- const sabotageNow=await getSabotagedLocationIds(g.current_round);
- const currentLocId=currentMission.mission_location_id||currentMission.location_id;
- if(currentLocId!=null&&sabotageNow.has(String(currentLocId))){
-   window.__miniOutcomeLocked=true;
-   stopMissionTimer();
-   if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert">늑대방해로 미션 실패</div>';
-   if(el("answer"))el("answer").disabled=true;
-   if(el("answerBtn"))el("answerBtn").disabled=true;
-   el("missionResult").innerHTML='<div class="notice alert">늑대방해로 인해 미션 실패 처리되었습니다.</div>';
-   return;
- }
- // 화면에서 성공 상태가 보여도 서버 기록 전 상위 이벤트가 시작되면 무효입니다.
- const latest=await settings();
- if(!latest||latest.phase!=="PLAY"||wolfDeathProcessActive){toast("상위 이벤트가 시작되어 미션이 무효 처리되었습니다.");return;}
- const latestSabotage=await getSabotageState(latest.current_round);
- if(latestSabotage.active){
-   window.__miniOutcomeLocked=true;
-   stopMissionTimer();
-   if(el("miniGame"))el("miniGame").innerHTML='<div class="notice alert">늑대방해로 미션 실패</div>';
-   if(el("answer"))el("answer").disabled=true;
-   if(el("answerBtn"))el("answerBtn").disabled=true;
-   el("missionResult").innerHTML='<div class="notice alert">늑대방해로 인해 미션 실패 처리되었습니다.</div>';
-   return;
- }
- const r=await db.rpc("complete_player_mission",{
-   p_game_round:latest.current_round,
-   p_player_id:p.id,
-   p_mission_id:currentMission.id
- });
- if(r.error){
-   if(Number(r.status)===404 || /Could not find the function|schema cache/i.test(String(r.error.message||""))){
-     throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
-   }
-   throw new Error(r.error.message);
- }
- if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
+  if(!currentMission)throw new Error("현재 미션이 없습니다.");
+  finishMiniGame(true,"미션을 완료했습니다.");
 }
-
-async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission){toast("현재 미션이 없습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
+async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission){toast("현재 미션이 없습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){finishMiniGame(false,"오답입니다.");return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
 async function enableSound(){
  await unlockSound();
  toast("알림 소리가 활성화되었습니다.");
@@ -5603,19 +5598,86 @@ async function saveMissionLocation(id){
 }
 async function saveMissionLocationNfc(id){const v=el("mnfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("미션 장소 NFC 태그를 저장했습니다.");await renderAdmin()}
 async function saveLocationNfc(id){const v=el("nfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("NFC 태그를 저장했습니다.");await renderAdmin()}
-async function scanNfcForLocation(locationId){
- if(nfcTestMode){localStorage.setItem("wolf_game_nfc_location",String(locationId));toast("NFC 테스트 인증 완료");await renderPlayer();return}
- if(!("NDEFReader" in window)){toast("이 브라우저는 Web NFC를 지원하지 않습니다. 관리자에서 NFC 테스트 모드를 켜세요.");return}
- try{
-  const loc=await getMissionLocation(locationId);if(!loc?.nfc_tag){toast("이 장소에 등록된 NFC 태그가 없습니다.");return}
-  const reader=new NDEFReader();await reader.scan();toast("NFC 태그를 휴대폰에 접촉하세요.");
-  reader.onreading=event=>{
-   const records=event.message?.records||[];let value="";
-   for(const rec of records){try{value+=new TextDecoder(rec.encoding||"utf-8").decode(rec.data)}catch(e){}}
-   if(value.trim()===String(loc.nfc_tag).trim()){localStorage.setItem("wolf_game_nfc_location",String(locationId));toast("NFC 인증 완료");renderPlayer()}else toast("다른 장소의 NFC 태그입니다.");
-  };
- }catch(e){toast("NFC 스캔 실패: "+(e.message||String(e)));}
+function readNfcText(event){
+  const records=event?.message?.records||[];let value="";
+  for(const rec of records){try{value+=new TextDecoder(rec.encoding||"utf-8").decode(rec.data);}catch(_){} }
+  return value.trim();
 }
+function stopMissionNfcScan(){
+  try{window.__missionNfcAbortController?.abort();}catch(_){}
+  window.__missionNfcAbortController=null;
+  window.__missionNfcReader=null;
+  window.__missionNfcHandled=false;
+}
+function closeMissionNfcOverlay(){stopMissionNfcScan();closeOverlay();}
+function missionNfcModal(message,kind="green",buttons=""){
+  const icon=kind==="red"||kind==="failure"?"⚠️":kind==="success"?"✓":"◎";
+  const title=kind==="failure"?"미션실패":kind==="success"?"미션완료":"";
+  el("modalIcon").textContent=icon;
+  el("modalTitle").textContent="";
+  el("modalMessage").innerHTML=`<div class="missionNfcModal ${kind}"><div class="missionNfcTitle">${title}</div><div class="missionNfcMessage">${esc(message)}</div>${buttons||""}</div>`;
+  el("modalButtons").innerHTML="";
+  el("overlay").className="overlay show missionOverlay";
+}
+async function startMissionLocation(locationId){
+  const requestToken=++missionEntryToken;
+  try{
+    const [p,g]=await Promise.all([me(),settings()]);
+    if(requestToken!==missionEntryToken)return;
+    if(!p||p.status!=="ALIVE"||g.phase!=="PLAY"||wolfDeathProcessActive||window.__sabotageActiveNow===true){toast("현재는 미션에 들어갈 수 없습니다.");return;}
+    const [loc,completed,sabotagedNow]=await Promise.all([
+      getMissionLocation(locationId),
+      getPlayerCompletedLocationIds(g.current_round,p.id),
+      getSabotagedLocationIds(g.current_round)
+    ]);
+    if(requestToken!==missionEntryToken)return;
+    if(!loc)throw new Error("미션 장소를 찾을 수 없습니다.");
+    if(completed.has(String(locationId))){toast("이 장소의 미션은 이미 완료했습니다.");return;}
+    if(sabotagedNow.has(String(locationId))){toast("현재 늑대방해 중인 장소입니다.");return;}
+    const roundLocations=await getRoundMissionLocations(g.current_round,false,p.id);
+    if(requestToken!==missionEntryToken)return;
+    if(!roundLocations.some(x=>String(x.id)===String(locationId))){toast("이번 라운드에 활성화되지 않은 장소입니다.");return;}
+    const m=await getOrCreateRoundMission(loc,g.current_round,p,roundLocations);
+    if(requestToken!==missionEntryToken)return;
+    if(g.nfc_enabled===false){
+      await openMissionObject(m,loc,p,g,requestToken,{completed,sabotageState:{active:false}});
+      return;
+    }
+    await startMissionNfcEntry(m,loc,p,g,requestToken);
+  }catch(e){
+    if(requestToken!==missionEntryToken)return;
+    console.error("미션 입장 오류:",e);toast(e.message||String(e));
+  }
+}
+async function startMissionNfcEntry(m,loc,p,g,requestToken){
+  if(!loc?.nfc_tag){toast("이 장소에 등록된 미션 태그가 없습니다.");return;}
+  if(!("NDEFReader" in window)){toast("이 브라우저에서는 미션 태그 인식을 사용할 수 없습니다. 관리자에서 NFC 기능을 OFF로 사용해 주세요.");return;}
+  stopMissionNfcScan();window.__missionNfcHandled=false;
+  missionNfcModal("미션태그 인식 중...","green",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay()">취소</button>');
+  try{
+    const reader=new NDEFReader();window.__missionNfcReader=reader;window.__missionNfcAbortController=new AbortController();
+    reader.onreadingerror=()=>{};
+    reader.onreading=async event=>{
+      if(window.__missionNfcHandled)return;
+      const value=readNfcText(event);
+      if(value!==String(loc.nfc_tag).trim()){
+        missionNfcModal("다른 장소의 태그입니다","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay()">취소</button>');
+        return;
+      }
+      window.__missionNfcHandled=true;
+      stopMissionNfcScan();closeOverlay();
+      await openMissionObject(m,loc,p,g,requestToken,{completed:new Set(),sabotageState:{active:false}});
+    };
+    await reader.scan({signal:window.__missionNfcAbortController.signal});
+  }catch(e){
+    if(e?.name==="AbortError")return;
+    stopMissionNfcScan();closeOverlay();toast("미션 태그 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
+  }
+}
+async function scanNfcForLocation(locationId){
+  await startMissionLocation(locationId);
+}
+
 async function toggleNfc(){
  try{
   const g=await settings();
@@ -6544,74 +6606,104 @@ function finishMiniGame(success,message){
   window.__miniOutcomeLocked=true;
   const bridge=window.__wolfGameBridge;
   if(!bridge){console.error("늑대게임 브리지 초기화 실패");window.__miniOutcomeLocked=false;return;}
-  (async()=>{
-    try{
-      if(success){
-        const p=await bridge.me(),g=await bridge.settings(),current=bridge.getCurrentMission();
-        if(!p||p.status!=="ALIVE"||g.phase!=="PLAY")throw new Error("현재는 미션을 완료할 수 없습니다.");
-        if(!current)throw new Error("현재 미션 정보를 찾을 수 없습니다.");
-        const locationId=current.mission_location_id||current.location_id;
-        const completed=await bridge.getPlayerCompletedLocationIds(g.current_round,p.id);
-        if(locationId!=null&&completed.has(String(locationId)))throw new Error("이 장소의 미션은 이미 완료했습니다.");
-        const r=await bridge.getDb().rpc("complete_player_mission",{
-          p_game_round:g.current_round,
-          p_player_id:p.id,
-          p_mission_id:current.id
-        });
-        if(r.error){
-          if(Number(r.status)===404 || /Could not find the function|schema cache/i.test(String(r.error.message||""))){
-            throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
-          }
-          throw new Error(r.error.message);
-        }
-        if(p.role==="SHEEP"){
-          const won=await bridge.checkMissionGaugeAndWin(g.current_round);
-          if(won){showMiniMissionOutcome(true,message||"미션 게이지가 100%가 되었습니다.");return;}
-        }else if(p.role==="WOLF"){
-          const loc=locationId;if(loc!=null)bridge.markWolfMissionLocationComplete(g.current_round,loc);
-        }
+  if(success){
+    const current=bridge.getCurrentMission();
+    const locId=current?.mission_location_id||current?.location_id;
+    const gPromise=bridge.settings();
+    gPromise.then(async g=>{
+      const p=await bridge.me();
+      if(!p||p.status!=="ALIVE"||g.phase!=="PLAY")throw new Error("현재는 미션을 완료할 수 없습니다.");
+      if(g.nfc_enabled===false){
+        await finalizeMissionSuccess();
+      }else{
+        await startMissionCompletionNfc(current,p,g,locId,message);
       }
-      showMiniMissionOutcome(success,message||(success?"미션 성공!":"미션에 실패했습니다."));
-    }catch(e){window.__miniOutcomeLocked=false;bridge.toast(e.message||String(e));console.error("미니게임 결과 처리 오류:",e);}
-  })();
+    }).catch(e=>{window.__miniOutcomeLocked=false;bridge.toast(e.message||String(e));console.error("미션 완료 준비 오류:",e);});
+    return;
+  }
+  showMiniMissionOutcome(false,message||"미션에 실패했습니다.");
 }
-
-function showMiniMissionOutcome(success,message){
-  const box=document.getElementById("miniGame");
-  if(!box)return;
-
-  const escape=window.__wolfGameBridge?.esc||((v)=>String(v??""));
-  box.innerHTML=`
-    <div class="wolfMiniOutcome ${success?"success":"failure"}">
-      <div class="wolfMiniOutcomeIcon">${success?"✓":"✕"}</div>
-      <div class="wolfMiniOutcomeTitle">${success?"미션 성공!":"미션 실패"}</div>
-      <div class="wolfMiniOutcomeText">${escape(message)}</div>
-      <button class="secondary wolfMiniCancel" type="button" onclick="cancelMiniMission()">돌아가기</button>
-    </div>`;
-
-  clearTimeout(window.__wolfMiniOutcomeTimer);
-  window.__wolfMiniOutcomeTimer=setTimeout(()=>{
-    window.__wolfMiniOutcomeTimer=null;
-    cancelMiniMission();
-  },1000);
-
-  const q=document.getElementById("question");
-  const answer=document.getElementById("answer");
-  const answerBtn=document.getElementById("answerBtn");
-  if(q)q.textContent="";
-  if(answer)answer.style.display="none";
-  if(answerBtn)answerBtn.style.display="none";
-}
-
-
-function cancelMiniMission(){
-  clearTimeout(window.__wolfMiniOutcomeTimer);
-  window.__wolfMiniOutcomeTimer=null;
+async function finalizeMissionSuccess(){
+  const bridge=window.__wolfGameBridge;
+  const p=await bridge.me(),g=await bridge.settings(),current=bridge.getCurrentMission();
+  if(!p||p.status!=="ALIVE"||g.phase!=="PLAY")throw new Error("현재는 미션을 완료할 수 없습니다.");
+  if(!current)throw new Error("현재 미션 정보를 찾을 수 없습니다.");
+  const locationId=current.mission_location_id||current.location_id;
+  const completed=await bridge.getPlayerCompletedLocationIds(g.current_round,p.id);
+  if(locationId!=null&&completed.has(String(locationId)))throw new Error("이 장소의 미션은 이미 완료했습니다.");
+  const r=await bridge.getDb().rpc("complete_player_mission",{p_game_round:g.current_round,p_player_id:p.id,p_mission_id:current.id});
+  if(r.error){
+    if(Number(r.status)===404||/Could not find the function|schema cache/i.test(String(r.error.message||"")))throw new Error("미션 완료 처리 함수가 Supabase에 없습니다. index_v113_mission_completion_fix.sql을 Supabase SQL Editor에서 실행해 주세요.");
+    throw new Error(r.error.message);
+  }
   window.__miniOutcomeLocked=false;
-  window.__wolfGameBridge?.setCurrentMission(null);
-  window.__wolfGameBridge?.renderPlayer?.();
+  bridge.setCurrentMission(null);
+  if(p.role==="SHEEP"){
+    const won=await bridge.checkMissionGaugeAndWin(g.current_round);
+    if(won){await bridge.renderPlayer();return;}
+  }
+  await bridge.renderPlayer();
 }
-
+async function startMissionCompletionNfc(current,p,g,locId,message){
+  const bridge=window.__wolfGameBridge;
+  const loc=await getMissionLocation(locId);
+  if(!loc?.nfc_tag)throw new Error("이 장소에 등록된 미션 태그가 없습니다.");
+  if(!(typeof NDEFReader!=="undefined"&&"NDEFReader" in window))throw new Error("이 브라우저에서는 미션 태그 인식을 사용할 수 없습니다. 관리자에서 NFC 기능을 OFF로 사용해 주세요.");
+  stopMissionNfcScan();window.__missionNfcHandled=false;
+  missionNfcModal("미션태그를 태그해 미션을 완료하세요","green",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion()">미션취소</button>');
+  try{
+    const reader=new NDEFReader();window.__missionNfcReader=reader;window.__missionNfcAbortController=new AbortController();
+    reader.onreadingerror=()=>{};
+    reader.onreading=async event=>{
+      if(window.__missionNfcHandled)return;
+      const value=readNfcText(event);
+      if(value!==String(loc.nfc_tag).trim()){
+        missionNfcModal("다른 장소의 태그입니다","red",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion()">미션취소</button>');
+        const box=document.querySelector("#overlay .missionNfcModal");if(box){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),900);}
+        return;
+      }
+      window.__missionNfcHandled=true;stopMissionNfcScan();
+      try{
+        await finalizeMissionSuccess();
+        const box=document.querySelector("#overlay .missionNfcModal");
+        if(box){box.className="modal missionNfcModal success";box.innerHTML='<div class="missionNfcTitle">미션완료</div><div class="missionNfcMessage">미션이 완료되었습니다.</div>';}
+        else closeOverlay();
+        setTimeout(()=>closeOverlay(),700);
+      }catch(e){window.__miniOutcomeLocked=false;throw e;}
+    };
+    await reader.scan({signal:window.__missionNfcAbortController.signal});
+  }catch(e){
+    if(e?.name==="AbortError")return;
+    stopMissionNfcScan();closeOverlay();window.__miniOutcomeLocked=false;bridge.toast("미션 태그 스캔을 시작할 수 없습니다: "+(e.message||String(e)));
+  }
+}
+window.cancelMissionCompletion=async function(){
+  stopMissionNfcScan();closeOverlay();
+  window.__miniOutcomeLocked=true;
+  const bridge=window.__wolfGameBridge;
+  try{
+    const p=await bridge.me(),g=await bridge.settings(),current=bridge.getCurrentMission();
+    if(current&&p?.status==="ALIVE"&&g.phase==="PLAY"){
+      // 취소 시 서버의 완료 기록은 만들지 않고 미션만 종료합니다.
+    }
+  }catch(_){ }
+  window.__miniOutcomeLocked=false;
+  bridge.setCurrentMission(null);
+  await bridge.renderPlayer?.();
+};
+function showMiniMissionOutcome(success,message){
+  if(success){
+    missionNfcModal(message||"미션이 완료되었습니다.","success","");
+    setTimeout(()=>closeOverlay(),700);
+    return;
+  }
+  missionNfcModal("미션실패","failure",'<button class="secondary missionNfcButton" type="button" onclick="cancelMiniMission()">돌아가기</button>');
+}
+function cancelMiniMission(){
+  clearTimeout(window.__wolfMiniOutcomeTimer);window.__wolfMiniOutcomeTimer=null;
+  stopMissionNfcScan();closeOverlay();window.__miniOutcomeLocked=false;
+  window.__wolfGameBridge?.setCurrentMission(null);window.__wolfGameBridge?.renderPlayer?.();
+}
 
 // 독립 테스트용 성공/실패 API를 본 게임의 성공/실패 처리에 연결합니다.
 function testerSuccess(message){finishMiniGame(true,message);}
