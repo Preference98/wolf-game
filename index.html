@@ -5918,7 +5918,28 @@ async function resetGame(){
  localSabotageCooldownUntil=0;
  const done=busy(document.getElementById("resetGameBtn"),"초기화 중...");
  try{
-   // 1) 게임 진행 데이터 초기화
+   // 1) 게임 진행 상태를 가장 먼저 초기화합니다.
+   // 보조 데이터 초기화 중 오류가 발생하더라도 이전 승리 상태가 남아
+   // 스크린에 다시 나타나는 일이 없도록 game_settings를 먼저 로비 상태로 되돌립니다.
+   const resetSettingsFirst=await db.from("game_settings").update({
+     current_round:1,
+     phase:"LOBBY",
+     started:false,
+     ready:false,
+     roles_selected:false,
+     notice:"",
+     winner:null,
+     dead_sheep_found:false,
+     dead_sheep_location:null,
+     investigation_started_at:null,
+     round_started_at:null,
+     night_started_at:null,
+     round_time_penalty_total:0,
+     mission_gauge_penalty_total:0
+   }).eq("id",1);
+   if(resetSettingsFirst.error)throw new Error("게임 상태 초기화 실패: "+resetSettingsFirst.error.message);
+
+   // 2) 게임 진행 데이터 초기화
    // 새로 추가된 테이블이 아직 DB에 없는 경우에도 기존 게임 초기화까지 실패하지 않도록
    // 테이블별로 처리합니다.
    const resetTable=async(table,filter)=>{
@@ -5973,7 +5994,7 @@ async function resetGame(){
      started:false,
      ready:false,
      roles_selected:false,
-     notice:"게임 시작을 기다리고 있습니다.",
+     notice:"",
      winner:null,
      dead_sheep_found:false,
      dead_sheep_location:null,
