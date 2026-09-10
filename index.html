@@ -280,6 +280,11 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .victorySub{margin-top:18px;font-size:clamp(20px,3.5vw,34px);font-weight:700;animation:victoryTextIn 1s .55s both}
 .victoryStage.sheep{color:#58f39a}.victoryStage.wolf{color:#ff3347}
 @keyframes victoryIn{from{opacity:0}to{opacity:1}}@keyframes victoryPulse{0%,100%{transform:scale(.9);opacity:.45}50%{transform:scale(1.08);opacity:.75}}@keyframes victoryImageIn{from{opacity:0;transform:scale(.5) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes victoryTextIn{from{opacity:0;transform:translateY(25px);filter:blur(8px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+.sheepRoundWinStage{position:fixed!important;inset:0!important;z-index:1100!important;display:flex!important;align-items:center;justify-content:center;overflow:hidden;text-align:center;background:radial-gradient(circle,#063d21 0,#000 72%);color:#58f39a;animation:victoryIn .7s ease-out both}
+.sheepRoundWinContent{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;padding:30px;box-sizing:border-box}
+.sheepRoundWinTitle{font-size:clamp(30px,5vw,64px);font-weight:1000;letter-spacing:-.04em;text-shadow:0 0 24px currentColor,0 0 55px currentColor;animation:victoryTextIn 1s .15s both}
+.sheepRoundWinSub{margin-top:22px;font-size:clamp(22px,3.5vw,42px);font-weight:900;color:#fff;text-shadow:0 2px 12px #000;animation:victoryTextIn 1s .35s both}
+
 
 
 /* PLAYER UI UPDATE v32 */
@@ -2813,7 +2818,7 @@ function bindCardSelectionV20(){
 
 <section id="gameCountdown" class="screen">
 <div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
-</section><section id="victory" class="screen"></section>
+</section><section id="victory" class="screen"></section><section id="sheepRoundWin" class="screen"></section>
 
 <section id="sabotage" class="screen sabotageFullScreen">
  <div class="sabotageFullHeader"><h1>늑대방해</h1><p id="sabotageInstruction" class="srOnly"></p></div>
@@ -3355,15 +3360,17 @@ async function advanceToNextRoundAfterSheepWin(round,expectedPhase="PLAY"){
  roundMissionSetupReadyRound=0;
  roundMissionSetupPromise=null;
  await clearEmergencyReportRecords();
+ const roundWinNotice="SHEEP_ROUND_WIN|"+String(round||0)+"|"+String(Date.now());
  const lock=await db.from("game_settings").update({
    current_round:next,phase:"LOBBY",started:false,ready:false,roles_selected:false,
-   notice:"다음 라운드 대기 중",winner:null,dead_sheep_found:false,dead_sheep_location:null,
+   notice:roundWinNotice,winner:null,dead_sheep_found:false,dead_sheep_location:null,
    investigation_started_at:null,round_started_at:null,night_started_at:null,
    round_time_penalty_total:0,mission_gauge_penalty_total:0
  }).eq("id",1).eq("phase",String(expectedPhase||"PLAY")).eq("current_round",Number(round||0)).select("id");
  if(lock.error||!lock.data?.length)return false;
  await db.from("players").update({role:"UNASSIGNED",card_selected:false,card_position:null}).eq("status","ALIVE");
  try{await db.rpc("reset_round_mission_progress",{p_game_round:Number(round||0)});}catch(e){console.warn("다음 라운드 미션 초기화 오류:",e);}
+ scheduleSheepRoundWinTransition();
  return true;
 }
 
@@ -3692,6 +3699,12 @@ async function routeCore(){
      return;
 
    case "LOBBY":
+     if(String(g.notice||"").startsWith("SHEEP_ROUND_WIN|")){
+       playerGameStartSequenceToken++;
+       await renderSheepRoundWin();
+       scheduleSheepRoundWinTransition();
+       return;
+     }
      // 새 게임은 ROUND 1 로비에서 시작하므로 미션 층 선택을 기본값 3층으로 되돌립니다.
      if(Number(g.current_round)===1)missionFloorPage=3;
      playerGameStartSequenceToken++;
@@ -5983,6 +5996,9 @@ async function resetGame(){
 
    // 5) 관리자 화면/플레이어 화면 갱신
    stopAllTimers();
+   if(window.__sheepRoundWinTransitionTimer){clearTimeout(window.__sheepRoundWinTransitionTimer);window.__sheepRoundWinTransitionTimer=null;}
+   if(el("victory"))el("victory").innerHTML="";
+   if(el("sheepRoundWin"))el("sheepRoundWin").innerHTML="";
    currentMission=null;
    window.__miniOutcomeLocked=false;
    if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
@@ -6444,6 +6460,22 @@ async function removePlayer(id,name){
    toast("플레이어 퇴장 실패: "+(e.message||String(e)));
  }
 }
+async function renderSheepRoundWin(){
+ stopAllTimers();
+ await showScreen("sheepRoundWin");
+ el("sheepRoundWin").innerHTML='<div class="sheepRoundWinStage"><div class="sheepRoundWinContent"><div class="sheepRoundWinTitle">잠시 후 다음라운드가 시작됩니다.</div><div class="sheepRoundWinSub">모두 그레이스홀로 모여주세요.</div></div></div>';
+}
+function scheduleSheepRoundWinTransition(){
+ if(window.__sheepRoundWinTransitionTimer)return;
+ window.__sheepRoundWinTransitionTimer=setTimeout(async()=>{
+  window.__sheepRoundWinTransitionTimer=null;
+  try{
+   const g=await settings();
+   if(g.phase!=="LOBBY"||!String(g.notice||"").startsWith("SHEEP_ROUND_WIN|"))return;
+   await set({notice:"다음 라운드 대기 중",winner:null});
+  }catch(e){console.warn("다음 라운드 대기 전환 실패:",e);}
+ },5000);
+}
 async function renderVictory(winner){
  stopAllTimers();
  const kind=winner==="WOLF"?"wolf":"sheep";
@@ -6792,6 +6824,23 @@ function realtime(){
   }
   if(g.phase==="PLAY" && String(g.notice||"").startsWith("NIGHT_WARNING|")){
     // notice 변경은 아래 공통 route가 처리합니다. 이곳에서 특정 화면을 직접 띄우지 않습니다.
+  }
+  const roundWinNotice=String(g.notice||"").startsWith("SHEEP_ROUND_WIN|");
+  if(roundWinNotice){
+   if(lastNotice!==g.notice || !document.querySelector("#sheepRoundWin.screen.active")){
+    lastNotice=g.notice;
+    playerGameStartSequenceToken++;
+    await renderSheepRoundWin();
+   }
+   scheduleSheepRoundWinTransition();
+   return;
+  }
+  if(g.phase==="LOBBY" && !g.winner && document.querySelector("#victory.screen.active")){
+   if(window.__sheepRoundWinTransitionTimer){clearTimeout(window.__sheepRoundWinTransitionTimer);window.__sheepRoundWinTransitionTimer=null;}
+   el("victory").innerHTML="";
+   await showScreen("lobby");
+   lastNotice=g.notice||"";
+   return;
   }
   if(g.winner==="SHEEP" && g.winner!==lastNotice){
    lastNotice="WIN_SHEEP"; await renderVictory("SHEEP"); return;
