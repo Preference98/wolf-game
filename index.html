@@ -1300,6 +1300,107 @@ body{
 .sabotageBoard .sabotageBlock.missionFloorCell{min-height:0;height:auto;aspect-ratio:1/1;border-radius:0;padding:8px;background:rgba(110,110,110,.16);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden}
 .sabotageBoard .sabotageBlock.missionFloorCell b{font-size:clamp(12px,2vw,18px);line-height:1.2}
 @media(max-width:600px){.missionFloorGrid,.sabotageBoard.missionFloorGrid{gap:6px}.missionFloorNav{gap:6px}.missionFloorNav button{font-size:15px}}
+
+/* WOLF SABOTAGE FULL-SCREEN MENU v3 */
+.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
+#sabotage.sabotageFullScreen{
+  min-height:100dvh;
+  height:100dvh;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  padding:clamp(18px,3vh,34px) clamp(18px,4vw,64px) clamp(20px,3vh,34px);
+  gap:0;
+  overflow:hidden;
+}
+#sabotage.sabotageFullScreen .sabotageFullHeader{
+  flex:0 0 auto;
+  text-align:center;
+  padding:0 0 clamp(14px,2vh,24px);
+}
+#sabotage.sabotageFullScreen .sabotageFullHeader h1{
+  margin:0;
+  font-size:clamp(30px,4vw,48px);
+  font-weight:1000;
+}
+#sabotage.sabotageFullScreen .sabotageFullBody{
+  flex:1 1 auto;
+  min-height:0;
+  width:min(100%,800px);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+#sabotage.sabotageFullScreen #sabotageBoard{
+  width:100%;
+  max-width:800px;
+  margin:0 auto;
+  display:block;
+}
+#sabotage.sabotageFullScreen #sabotageBoard .missionFloorWrap{
+  width:100%;
+  margin:0;
+}
+#sabotage.sabotageFullScreen #sabotageBoard .missionFloorGrid{
+  width:100%;
+  max-width:800px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(8px,1.2vw,14px);
+}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell{
+  aspect-ratio:1/1;
+  min-height:0;
+  width:auto;
+  padding:clamp(8px,1.4vw,16px);
+  border-radius:10px;
+}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell b{
+  font-size:clamp(15px,2.2vw,24px);
+}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell .small{
+  font-size:clamp(11px,1.4vw,15px);
+  line-height:1.25;
+}
+#sabotage.sabotageFullScreen #sabotageBoard .missionFloorNav{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:clamp(8px,1.2vw,14px);
+  width:100%;
+  max-width:800px;
+  margin:clamp(14px,2vh,22px) auto 0;
+}
+#sabotage.sabotageFullScreen #sabotageBoard .missionFloorNav button{
+  margin:0!important;
+  min-height:54px;
+  font-size:clamp(16px,2vw,22px);
+  font-weight:1000;
+}
+#sabotage.sabotageFullScreen .sabotageFullFooter{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:clamp(10px,1.5vw,18px);
+  width:min(100%,800px);
+  margin:clamp(18px,3vh,30px) auto 0;
+}
+#sabotage.sabotageFullScreen .sabotageFullFooter button{
+  min-height:58px;
+  margin:0;
+  font-size:clamp(17px,2vw,23px);
+  font-weight:1000;
+}
+@media(max-width:600px){
+  #sabotage.sabotageFullScreen{padding:16px 12px 20px}
+  #sabotage.sabotageFullScreen .sabotageFullBody{justify-content:flex-start;padding-top:8px;overflow:auto}
+  #sabotage.sabotageFullScreen #sabotageBoard .missionFloorGrid{gap:6px}
+  #sabotage.sabotageFullScreen #sabotageBoard .missionFloorNav{gap:6px;margin-top:10px}
+  #sabotage.sabotageFullScreen #sabotageBoard .missionFloorNav button{min-height:48px}
+  #sabotage.sabotageFullScreen .sabotageFullFooter{gap:8px;margin-top:16px}
+}
 </style>
 
 <style id="spreadsheet-stage-fix-index">
@@ -2709,9 +2810,12 @@ function bindCardSelectionV20(){
 <div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
 </section><section id="victory" class="screen"></section>
 
-<section id="sabotage" class="screen">
- <button class="secondary" onclick="closeSabotageScreen()">← 취소</button>
- <div class="card"><h1>🛑 늑대방해</h1><p id="sabotageInstruction" class="muted"></p><div id="sabotageBoard" class="sabotageBoard"></div><div class="row"><button class="secondary" style="flex:1" onclick="closeSabotageScreen()">취소</button><button class="danger" style="flex:1" onclick="executeSelectedSabotage()">실행</button></div></div>
+<section id="sabotage" class="screen sabotageFullScreen">
+ <div class="sabotageFullHeader"><h1>늑대방해</h1><p id="sabotageInstruction" class="srOnly"></p></div>
+ <div class="sabotageFullBody">
+  <div id="sabotageBoard" class="sabotageBoard"></div>
+ </div>
+ <div class="sabotageFullFooter"><button class="secondary" onclick="closeSabotageScreen()">취소</button><button class="danger" onclick="executeSelectedSabotage()">실행</button></div>
 </section>
 
 <section id="mission" class="screen">
