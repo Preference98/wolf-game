@@ -5004,9 +5004,8 @@ async function renderTrial(p,g){
    }).join(""):'<div class="muted">등록된 미션 장소가 없습니다.</div>';
  }
 
- // 재판 시작 영화 연출은 Screen 전용입니다.
- // 플레이어는 재판 본 화면으로 바로 진입합니다.
- await showScreen("trial");
+ // renderPlayer()는 본게임 화면만 갱신합니다.
+ // 재판 화면으로의 전환은 routeCore()의 TRIAL 단계에서만 담당합니다.
 }
 async function renderPlayer(){
  stopPlayerTrialBgm();
