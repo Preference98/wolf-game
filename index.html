@@ -2432,6 +2432,75 @@ function bindCardSelectionV20(){
 .roleRevealedPlayerRole.wolf{color:#ef3340!important}
 .roleRevealedPlayerNext{margin-top:42px;font-size:clamp(22px,3.5vw,46px);font-weight:900;line-height:1.35;color:#fff!important;word-break:keep-all}
 </style>
+<style id="mini-game-preparation-v1">
+.miniGamePrepare{
+  min-height:clamp(360px,55vh,560px);
+  width:min(94vw,820px);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  border:2px solid #374151;
+  border-radius:24px;
+  background:radial-gradient(circle at 50% 42%,rgba(59,130,246,.16),transparent 34%),linear-gradient(145deg,#111827,#05070b);
+  box-shadow:0 0 50px rgba(0,0,0,.55),inset 0 0 50px rgba(96,165,250,.06);
+  overflow:hidden;
+  position:relative;
+}
+.miniGamePrepare:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(120deg,transparent 20%,rgba(255,255,255,.05) 50%,transparent 80%);
+  transform:translateX(-100%);
+  animation:miniPrepareSweep 1.5s ease-in-out infinite;
+  pointer-events:none;
+}
+.miniGamePreparePulse{
+  width:76px;height:76px;border-radius:50%;
+  border:3px solid #60a5fa;
+  box-shadow:0 0 0 10px rgba(96,165,250,.08),0 0 32px rgba(96,165,250,.55);
+  animation:miniPreparePulse 1s ease-in-out infinite;
+  position:relative;z-index:1;
+}
+.miniGamePrepareLabel{
+  margin-top:28px;font-size:13px;letter-spacing:.28em;font-weight:900;
+  color:#93c5fd;position:relative;z-index:1;
+}
+.miniGamePrepareTitle{
+  margin-top:7px;font-size:clamp(30px,6vw,52px);line-height:1.1;font-weight:1000;
+  color:#fff;text-shadow:0 0 24px rgba(96,165,250,.4);position:relative;z-index:1;
+}
+.miniGamePrepareSub{
+  margin-top:12px;font-size:clamp(15px,2.5vw,21px);color:#cbd5e1;
+  position:relative;z-index:1;
+}
+.miniGamePrepareBar{
+  width:min(70vw,420px);height:8px;margin-top:28px;border-radius:999px;
+  background:#1f2937;overflow:hidden;position:relative;z-index:1;
+}
+.miniGamePrepareBar span{
+  display:block;width:100%;height:100%;transform-origin:left center;
+  background:#60a5fa;box-shadow:0 0 16px rgba(96,165,250,.75);
+  animation:miniPrepareProgress 1.5s linear forwards;
+}
+.miniGamePrepareTime{
+  margin-top:12px;font-size:12px;letter-spacing:.18em;color:#64748b;font-weight:900;
+  position:relative;z-index:1;
+}
+@keyframes miniPreparePulse{
+  0%,100%{transform:scale(.88);opacity:.72}
+  50%{transform:scale(1.08);opacity:1}
+}
+@keyframes miniPrepareProgress{
+  from{transform:scaleX(0)}to{transform:scaleX(1)}
+}
+@keyframes miniPrepareSweep{
+  0%{transform:translateX(-100%)}65%,100%{transform:translateX(100%)}
+}
+</style>
 </head>
 <body class="wolf-v181">
 <div id="fadeLayer" class="fadeLayer"></div><div class="wrap">
@@ -7036,6 +7105,10 @@ function launchMiniGame(m){
   }[m.mini_game_type]||miniWiring;
 
   // 이전 미니게임에서 남아 있을 수 있는 타이머/포인터 정리
+  if(window.__miniPrepareTimer){
+    clearTimeout(window.__miniPrepareTimer);
+    window.__miniPrepareTimer=null;
+  }
   ["wire","match","direction","memory","safe","shape","trace"].forEach(k=>{
     const fn=window["__"+k+"Cleanup"];
     if(typeof fn==="function"){
@@ -7046,11 +7119,34 @@ function launchMiniGame(m){
 
   const container=el("miniGame");
   if(!container)return;
-  container.innerHTML="";
-  try{f(container);}catch(e){
-    console.error("미니게임 실행 오류:",e);
-    testerFailure("미니게임 실행 오류: "+(e.message||String(e)));
-  }
+
+  // 모든 미니게임은 실제 게임 시작 전에 1.5초 준비단계를 가집니다.
+  // 빈 화면/렉처럼 느껴지지 않도록 준비 중임을 명확하게 표시합니다.
+  container.innerHTML=`
+    <div class="miniGamePrepare" aria-live="polite">
+      <div class="miniGamePreparePulse"></div>
+      <div class="miniGamePrepareLabel">MINI GAME</div>
+      <div class="miniGamePrepareTitle">게임 준비 중...</div>
+      <div class="miniGamePrepareSub">잠시 후 미니게임이 시작됩니다</div>
+      <div class="miniGamePrepareBar"><span></span></div>
+      <div class="miniGamePrepareTime">READY</div>
+    </div>`;
+
+  const prepTimer=setTimeout(()=>{
+    if(window.__miniPrepareTimer===prepTimer) window.__miniPrepareTimer=null;
+
+    // 준비 중에 미션화면에서 이탈했다면 미니게임을 새로 실행하지 않습니다.
+    // 미션 진입/퇴장 로직 자체는 건드리지 않고 준비단계만 안전하게 중단합니다.
+    if(!document.querySelector("#mission.screen.active")) return;
+
+    container.innerHTML="";
+    try{f(container);}catch(e){
+      console.error("미니게임 실행 오류:",e);
+      testerFailure("미니게임 실행 오류: "+(e.message||String(e)));
+    }
+  },1500);
+
+  window.__miniPrepareTimer=prepTimer;
 }
 
 function miniWiring(r){
@@ -7077,7 +7173,7 @@ function miniWiring(r){
         연결 완료 <b id="wireCount">0</b> / ${colors.length}
       </div>
       <div id="wireTimer" class="status info" style="margin:10px auto;max-width:700px">
-        남은 시간 <b>5초</b>
+        남은 시간 <b>7초</b>
       </div>
       <div id="wireSuccess" style="display:none;margin:12px auto;max-width:700px;padding:18px;border-radius:14px;background:#052e16;border:3px solid #22c55e;color:#bbf7d0;font-size:24px;font-weight:900">
         🎉 미션 성공!
@@ -7105,7 +7201,7 @@ function miniWiring(r){
   let wiringCompleted=false;
   let successShown=false;
   let wiringFinished=false;
-  let remaining=5;
+  let remaining=7;
   let wiringTimer=null;
 
   function finishWiringFailure(){
@@ -7123,11 +7219,11 @@ function miniWiring(r){
 
     wireTimerEl.innerHTML="✕ <b>시간 초과</b>";
     wireTimerEl.className="status failure";
-    wireStatusEl.innerHTML="✕ <b>미션 실패!</b><br>5초 안에 모든 배선을 연결하지 못했습니다.";
+    wireStatusEl.innerHTML="✕ <b>미션 실패!</b><br>7초 안에 모든 배선을 연결하지 못했습니다.";
     wireStatusEl.className="status failure";
 
     if(typeof testerFailure==="function"){
-      testerFailure("5초 안에 모든 배선을 연결하지 못했습니다.");
+      testerFailure("7초 안에 모든 배선을 연결하지 못했습니다.");
     }
   }
 
@@ -7395,7 +7491,7 @@ function miniWiring(r){
     });
   });
 
-  // 게임 시작과 동시에 5초 제한시간을 시작합니다.
+  // 준비단계가 끝난 뒤 7초 제한시간을 시작합니다.
   wiringTimer=setInterval(()=>{
     if(wiringFinished || wiringCompleted){
       clearInterval(wiringTimer);
@@ -8113,17 +8209,12 @@ function miniTrace(r){
   let finished=false;
   let dragging=false;
   let progress=0;
-  let remaining=5;
-  let traceTimer=null;
 
   r.innerHTML=`
     <div class="traceGame">
       <div class="traceTitle">〰️ 선 따라가기</div>
       <div id="traceStatus" class="status info">
         <b>START ●</b>를 누른 상태로 파란 선을 따라 <b>GOAL</b>까지 이동하세요.
-      </div>
-      <div id="traceTimer" class="status info">
-        ⏱ 남은 시간 <b>5초</b>
       </div>
 
       <div class="traceBoard" id="traceBoard">
@@ -8141,7 +8232,7 @@ function miniTrace(r){
 
       <p class="muted">
         <b>START의 ●를 누르고 있는 상태로 드래그</b>하세요.<br>
-        파란 선에서 크게 벗어나면 즉시 실패하고, GOAL까지 도착하면 성공합니다.
+        파란 선에서 크게 벗어나면 실패하고, GOAL까지 도착하면 성공합니다. 판정 범위가 넓으며 시간 제한은 없습니다.
       </p>
     </div>`;
 
@@ -8150,7 +8241,6 @@ function miniTrace(r){
   const path=r.querySelector("#tracePath");
   const dot=r.querySelector("#traceDot");
   const status=r.querySelector("#traceStatus");
-  const timerEl=r.querySelector("#traceTimer");
 
   // SVG path 자체를 기준으로 판정합니다.
   // 화면에 보이는 선과 판정 경로가 서로 다른 문제가 생기지 않습니다.
@@ -8199,8 +8289,6 @@ function miniTrace(r){
     if(finished)return;
     finished=true;
     dragging=false;
-    clearInterval(traceTimer);
-    traceTimer=null;
     try{board.releasePointerCapture?.(window.__tracePointerId)}catch(e){}
     status.innerHTML="✕ <b>미션 실패!</b><br>선에서 벗어났습니다.";
     status.className="status failure";
@@ -8212,8 +8300,6 @@ function miniTrace(r){
     if(finished)return;
     finished=true;
     dragging=false;
-    clearInterval(traceTimer);
-    traceTimer=null;
     setDotAt(totalLength);
     status.innerHTML="🎉 <b>미션 성공!</b><br>START에서 GOAL까지 선을 따라갔습니다.";
     status.className="status success";
@@ -8228,8 +8314,8 @@ function miniTrace(r){
 
     const nearest=nearestOnPath(point);
 
-    // 실제 화면상의 파란 선에서 22 SVG px 이상 벗어나면 실패.
-    if(nearest.distance>30){
+    // 실제 화면상의 파란 선에서 70 SVG px 이상 벗어나면 실패.
+    if(nearest.distance>70){
       fail();
       return;
     }
@@ -8252,7 +8338,7 @@ function miniTrace(r){
     const nearest=nearestOnPath(point);
 
     // START 근처에서만 잡을 수 있습니다.
-    if(nearest.length<=35 && nearest.distance<=30){
+    if(nearest.length<=70 && nearest.distance<=70){
       dragging=true;
       progress=0;
       window.__tracePointerId=ev.pointerId;
@@ -8276,25 +8362,7 @@ function miniTrace(r){
   board.addEventListener("pointerup",up);
   board.addEventListener("pointercancel",up);
 
-  traceTimer=setInterval(()=>{
-    if(finished){
-      clearInterval(traceTimer);
-      traceTimer=null;
-      return;
-    }
-    remaining--;
-    timerEl.innerHTML=`⏱ 남은 시간 <b>${remaining}초</b>`;
-    if(remaining<=2) timerEl.className="status failure";
-    if(remaining<=0){
-      clearInterval(traceTimer);
-      traceTimer=null;
-      fail();
-    }
-  },1000);
-
   window.__traceCleanup=()=>{
-    clearInterval(traceTimer);
-    traceTimer=null;
     finished=true;
     dragging=false;
     try{board.releasePointerCapture(window.__tracePointerId)}catch(e){}
