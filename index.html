@@ -4407,7 +4407,7 @@ async function renderPlayerCore(){
       const buttonClick=enabled
         ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
         :" disabled";
-      const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">사보타지 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>':'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
+      const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">남은 방해시간 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>':'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
       return '<div class="missionFloorCell missionBlock '+cls+'" data-location-id="'+esc(id)+'"><button type="button" class="missionLocationButton '+cls+'" data-location-id="'+esc(id)+'"'+buttonClick+'>'+
         '<span class="locationName">'+esc(loc.name)+'</span>'+countdown+'</button></div>';
     }
@@ -4711,7 +4711,7 @@ function applySabotageCountdownToPlayerBoard(){
     if(end>now){
       if(button.classList.contains("sabotaged")){
         button.setAttribute("data-sabotage-end",String(end));
-        if(countdown){countdown.setAttribute("data-sabotage-countdown",id);countdown.textContent="사보타지 "+Math.ceil((end-now)/1000)+"초";}
+        if(countdown){countdown.setAttribute("data-sabotage-countdown",id);countdown.textContent="남은 방해시간 "+Math.ceil((end-now)/1000)+"초";}
       }
     }else if(button.classList.contains("sabotaged")){
       button.removeAttribute("data-sabotage-end");
@@ -4770,7 +4770,7 @@ function applySabotageEventToPlayerBoard(ev){
      let countdown=button.querySelector(".sabotageCountdown");
      if(!countdown){countdown=document.createElement("span");countdown.className="sabotageCountdown";button.appendChild(countdown);}
      countdown.setAttribute("data-sabotage-countdown",id);
-     countdown.textContent=endsAt>0?"사보타지 "+(seconds>0?seconds+"초":"종료"):"사보타지";
+     countdown.textContent=endsAt>0?"남은 방해시간 "+(seconds>0?seconds+"초":"종료"):"남은 방해시간";
      const block=button.closest(".missionBlock");
      if(block){block.classList.remove("active","inactive");block.classList.add("sabotaged");}
      changed=true;
@@ -6505,7 +6505,7 @@ function startSabotageUiWatcher(){
      const domEnd=Number(button?.getAttribute("data-sabotage-end")||0);
      const end=Math.max(Number(locationEnds.get(locationId)||0),domEnd);
      const remain=Math.max(0,end-now);
-     x.textContent=remain>0?"사보타지 "+Math.ceil(remain/1000)+"초":"";
+     x.textContent=remain>0?"남은 방해시간 "+Math.ceil(remain/1000)+"초":"";
      if(remain<=0&&button?.classList.contains("sabotaged")){
        button.removeAttribute("data-sabotage-end");
      }
