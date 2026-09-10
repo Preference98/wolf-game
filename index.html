@@ -2663,7 +2663,7 @@ function bindCardSelectionV20(){
 <section id="player" class="screen">
 <div id="noticeBox"></div>
 <div class="card"><div class="row"><h1 id="stateTitle" class="playerStatusTitle" style="flex:1">양 생존 중...</h1><span class="pill" id="round"></span><button class="secondary" onclick="playerLogout()">로그아웃</button></div>
-<div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><div class="row"><b>미션 게이지</b><span id="missionGaugeText">0 / 0 (0%)</span></div><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
+<div class="muted">남은 게임 시간</div><div id="roundTimer" class="timer roundTimer">15:00</div><p class="muted" id="phase"></p><div class="missionGaugeWrap"><b>미션 게이지</b><div class="missionGauge"><div id="missionGaugeBar"></div></div></div></div> <div class="card"><h2>미션</h2><div id="totalMissionCount" class="totalMissionCount">총 미션 <b>0개</b></div><p class="muted">완료된 미션의 종류와 개수는 공개되지 않습니다.</p><div id="missions"></div></div>
 <button class="secondary" style="width:100%;margin-bottom:20px" onclick="enableSound()">🔊 알림 소리 테스트</button>
 <div id="actionDock" class="actionDock"></div><button id="emergencyReportFloat" class="emergencyReportFloat" type="button" onclick="window.emergencyReportButtonPressed()">🚨 긴급신고</button>
 </section>
@@ -2752,7 +2752,7 @@ function bindCardSelectionV20(){
 <section id="trial" class="screen">
  <div class="trialScreen">
    <div class="trialGauge">
-     <div class="row"><b>미션 게이지</b><b id="trialGaugeText">0%</b></div>
+     <div class="row"><b>미션 게이지</b></div>
      <div class="trialGaugeBar"><div id="trialGaugeFill" class="trialGaugeFill" style="width:0%"></div></div>
    </div>
    <div class="card" style="max-width:900px;margin:0 auto">
@@ -3349,7 +3349,7 @@ async function getPlayerCompletedLocationIds(round,playerIdValue){
  return out;
 }
 
-async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const sheep=players.filter(x=>x.role==="SHEEP");const target=sheep.length*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
+async function getMissionGauge(round){const g=await settings();const players=(await db.from("players").select("id,role")).data||[];const wolfCount=players.filter(x=>x.role==="WOLF").length;const target=Math.max(0,players.length-wolfCount)*Math.max(1,Math.floor(rule(g,"missions_per_sheep")));const sheep=players.filter(x=>x.role==="SHEEP");if(!target)return {completed:0,target:0,percent:0,sheepCount:sheep.length};const cs=await comps(round),ids=[...new Set(cs.map(x=>String(x.mission_id)).filter(Boolean))];let completed=0;if(ids.length){const mr=await db.from("missions").select("id,mission_location_id,location_id").in("id",ids);if(mr.error)throw new Error("게이지 계산용 미션 조회 실패: "+mr.error.message);const map=new Map((mr.data||[]).map(x=>[String(x.id),x])),u=new Set();for(const c of cs){if(!sheep.some(x=>String(x.id)===String(c.player_id)))continue;const m=map.get(String(c.mission_id));if(!m)continue;const loc=m.mission_location_id??m.location_id;if(loc!=null)u.add(String(c.player_id)+"|"+String(loc));}completed=u.size;}const penalty=Math.max(0,Math.floor(Number(g.mission_gauge_penalty_total)||0));completed=Math.max(0,completed-penalty);return {completed,target,percent:Math.min(100,Math.round(completed/target*100)),sheepCount:sheep.length};}
 async function advanceToNextRoundAfterSheepWin(round,expectedPhase="PLAY"){
  const next=Number(round||0)+1;
  roundMissionSetupReadyRound=0;
@@ -4522,7 +4522,7 @@ async function renderPlayerCore(){
   el("round").textContent="ROUND "+g.current_round;
   el("phase").textContent=g.notice||g.phase;
   el("totalMissionCount").innerHTML='전체 장소 <b>10개</b> · 이번 라운드 활성 장소 <b>'+locs.length+'개</b>';
-  el("missionGaugeText").textContent=gauge.completed+" / "+gauge.target+" ("+gauge.percent+"%)"; el("missionGaugeBar").style.width=gauge.percent+"%";
+  el("missionGaugeBar").style.width=gauge.percent+"%";
   el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"");
 
   const box=el("missions");
@@ -5506,7 +5506,6 @@ async function renderTrial(p,g){
  await showScreen("trial");
 
  const gauge=await getMissionGauge(g.current_round);
- if(el("trialGaugeText"))el("trialGaugeText").textContent=gauge.percent+"% ("+gauge.completed+"/"+gauge.target+")";
  if(el("trialGaugeFill"))el("trialGaugeFill").style.width=gauge.percent+"%";
 
  const completed=await getPlayerCompletedLocationIds(g.current_round,p.id);
@@ -5643,7 +5642,7 @@ async function renderAdmin(){
     ?await getRoundMissionLocationUnion(g.current_round,false)
     :[];
   const gauge=await getMissionGauge(g.current_round);
-   el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
+   el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지</div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
   el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;if(el("emergencyNfcTag"))el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
   if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=renderAdminPlayerList(p);
