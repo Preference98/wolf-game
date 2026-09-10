@@ -2615,6 +2615,15 @@ function bindCardSelectionV20(){
 @keyframes miniPrepareSweep{
   0%{transform:translateX(-100%)}65%,100%{transform:translateX(100%)}
 }
+
+/* WOLF SABOTAGE FLOOR SELECTION / ELIGIBILITY v4 */
+#sabotage.sabotageFullScreen #sabotageBoard .missionFloorNav button.sabotageSelectedFloor{border-color:#ff4b4b!important;background:#5a1111!important;color:#fff!important;box-shadow:0 0 0 3px rgba(255,75,75,.28),0 0 22px rgba(255,45,45,.32)!important}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell{opacity:1!important;cursor:default!important;color:#fff;border:3px solid transparent;transition:transform .12s,box-shadow .15s,filter .15s}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell.sabotageEligible{background:#a91825!important;border-color:#ff5b68!important;box-shadow:0 0 20px rgba(255,45,60,.24)}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell.sabotageCompleted{background:#13864a!important;border-color:#51d993!important;box-shadow:0 0 16px rgba(40,210,125,.18)}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell.sabotageUnavailable{background:#555!important;border-color:#777!important;color:#ddd!important;box-shadow:none!important}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell.sabotageCurrentlyActive{outline:4px solid #ffd43b;outline-offset:-7px}
+#sabotage.sabotageFullScreen #sabotageBoard .sabotageBlock.missionFloorCell b{margin:0}
 </style>
 </head>
 <body class="wolf-v181">
@@ -2868,7 +2877,6 @@ function bindCardSelectionV20(){
       <div class="adminSettingGrid">
         <div class="adminField"><label class="small">늑대 수</label><input id="wolfCount" type="number" min="1" max="20" step="1" value="1"></div>
         <div class="adminField"><label class="small">양 1인당 미션 수 <b>(= 라운드 활성 미션 장소 수)</b></label><input id="missionsPerSheep" type="number" min="1" max="10" step="1" value="5"></div>
-        <div class="adminField"><label class="small">늑대방해 방해 장소 수</label><input id="sabotageLocationCount" type="number" min="1" max="10" step="1" value="1"></div>
         <div class="adminField"><label class="small">늑대방해 방해 지속 시간 (초)</label><input id="sabotageDurationSeconds" type="number" min="5" max="600" step="1" value="30"></div>
         <div class="adminField"><label class="small">늑대방해 쿨타임 (초)</label><input id="sabotageCooldownSeconds" type="number" min="10" max="1800" step="1" value="60"><div id="sabotageCooldownDbStatus" class="small muted" style="margin-top:4px"></div></div>
         <div class="adminField"><label class="small">밤 지속 시간 (초)</label><input id="nightSeconds" type="number" min="5" max="300" step="1" value="30"></div>
@@ -2971,6 +2979,7 @@ const MISSION_FLOOR_LAYOUT={
   3:{label:"3층",cells:{1:{type:"label",text:"엘리베이터"},2:{id:21},3:{type:"label",text:"그레이스홀"},6:{id:22},7:{type:"label",text:"계단"},8:{id:23}}}
 };
 let missionFloorPage=3;
+let selectedSabotageFloor=3;
 // 라운드 미션 배정은 층 이동 때마다 다시 실행하지 않고 라운드당 1회만 준비합니다.
 let roundMissionSetupReadyRound=0;
 let roundMissionSetupPromise=null;
@@ -3239,7 +3248,7 @@ async function settings(){
  return syncGameClock(r.data);
 }
 function serverNowISO(){return new Date(gameNow()).toISOString();}
-const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_location_count:1,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_gauge_penalty:1,night_round_penalty_minutes:1};
+const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_gauge_penalty:1,night_round_penalty_minutes:1};
 function rule(g,key){const n=Number(g?.[key]);return Number.isFinite(n)?n:GAME_RULE_DEFAULTS[key];}
 function getRoundRemainingMs(g,now=gameNow()){
   const baseMinutes=Number(g?.round_duration_minutes);
@@ -3251,7 +3260,7 @@ function getRoundRemainingMs(g,now=gameNow()){
 }
 function getRoundRules(g){
  const missionsPerSheep=Math.max(1,Math.min(10,Math.floor(rule(g,"missions_per_sheep"))));
- return {wolfCount:Math.max(1,Math.floor(rule(g,"wolf_count"))),missionsPerSheep,activeMissionCount:missionsPerSheep,sabotageLocationCount:Math.max(1,Math.min(10,Math.floor(rule(g,"sabotage_location_count")))),sabotageDurationSeconds:Math.max(5,Math.floor(rule(g,"sabotage_duration_seconds"))),sabotageCooldownSeconds:Math.max(10,Math.floor(rule(g,"sabotage_cooldown_seconds"))),nightSeconds:Math.max(5,Math.floor(rule(g,"night_duration_seconds"))),nightGaugePenalty:Math.max(0,Math.floor(rule(g,"night_gauge_penalty"))),nightRoundPenaltyMinutes:Math.max(0,Math.floor(rule(g,"night_round_penalty_minutes")))};
+ return {wolfCount:Math.max(1,Math.floor(rule(g,"wolf_count"))),missionsPerSheep,activeMissionCount:missionsPerSheep,sabotageDurationSeconds:Math.max(5,Math.floor(rule(g,"sabotage_duration_seconds"))),sabotageCooldownSeconds:Math.max(10,Math.floor(rule(g,"sabotage_cooldown_seconds"))),nightSeconds:Math.max(5,Math.floor(rule(g,"night_duration_seconds"))),nightGaugePenalty:Math.max(0,Math.floor(rule(g,"night_gauge_penalty"))),nightRoundPenaltyMinutes:Math.max(0,Math.floor(rule(g,"night_round_penalty_minutes")))};
 }
 
 async function me(){
@@ -4150,7 +4159,8 @@ async function clearEmergencyReportRecords(round=null){
 async function clearSabotageRecordsForNewGame(){
   // 새 게임으로 넘어갈 때 이전 게임의 늑대방해 표시/카운트다운도 함께 폐기합니다.
   stopSabotageUiWatcher();
-  selectedSabotageLocationIds=new Set();
+  missionFloorPage=3;
+  selectedSabotageFloor=3;
   localSabotageCooldownUntil=0;
   localSabotageEventId=null;
   lastHandledSabotageEventId=null;
@@ -4413,9 +4423,12 @@ function getMissionFloorLocationMap(locations){
  return new Map((locations||[]).map(x=>[String(x.id),x]));
 }
 function renderMissionFloorNav(activePage,mode="player"){
- return '<div class="missionFloorNav" aria-label="미션 장소 층 선택">'+[1,2,3].map(page=>
-   '<button type="button" class="secondary '+(Number(activePage)===page?"active":"")+'" onclick="setMissionFloorPage('+page+',\''+mode+'\')">'+MISSION_FLOOR_LAYOUT[page].label+'</button>'
- ).join('')+'</div>';
+ const selected=Number(mode==="sabotage"?selectedSabotageFloor:activePage);
+ return '<div class="missionFloorNav" aria-label="미션 장소 층 선택">'+[1,2,3].map(page=>{
+   const active=Number(activePage)===page;
+   const selectedClass=mode==="sabotage"&&selected===page?" sabotageSelectedFloor":"";
+   return '<button type="button" class="secondary '+(active?"active ":"")+selectedClass+'" onclick="setMissionFloorPage('+page+',\''+mode+'\')">'+MISSION_FLOOR_LAYOUT[page].label+'</button>';
+ }).join('')+'</div>';
 }
 function renderMissionFloorGrid({page,locations,renderCell,mode="player"}){
  const layout=MISSION_FLOOR_LAYOUT[Number(page)]||MISSION_FLOOR_LAYOUT[3];
@@ -4438,6 +4451,7 @@ function renderMissionFloorGrid({page,locations,renderCell,mode="player"}){
 async function setMissionFloorPage(page,mode="player"){
  const next=Math.max(1,Math.min(3,Number(page)||3));
  missionFloorPage=next;
+ if(mode==="sabotage")selectedSabotageFloor=next;
  if(mode==="sabotage" && document.querySelector("#sabotage.screen.active")){
    await refreshSabotageBoard();
  }else if(mode==="player" && document.querySelector("#player.screen.active")){
@@ -4908,81 +4922,123 @@ function applySabotageEventToPlayerBoard(ev){
  }catch(e){console.warn("늑대방해 즉시 UI 반영 오류:",e);return false;}
 }
 
-let selectedSabotageLocationIds=new Set();
 let sabotageInterruptUntil=0;
-// 미션과 긴급신고가 함께 사용하는 현재 늑대방해 상태입니다.
-// 서버를 별도로 반복 조회하지 않고 startSabotageUiWatcher가 갱신합니다.
+// 늑대방해는 장소 하나하나를 선택하지 않고, 선택한 층 전체를 방해합니다.
 window.__sabotageActiveNow=false;
-async function getGloballyCompletedLocationIds(round){
- try{
-   return await getCompletedLocationIds(round);
- }catch(e){
-   console.warn("완료 장소 조회 실패:",e);
-   return new Set();
+
+async function getSabotageFloorEligibility(round,floorIds,activeSabotageIds=new Set()){
+ const ids=(floorIds||[]).map(String);
+ if(!ids.length)return {eligibleIds:new Set(),sheepAssignedIds:new Set(),completedIds:new Set()};
+ const [assignmentResult,sheepResult]=await Promise.all([
+   db.from("round_player_mission_locations").select("mission_location_id,player_id").eq("game_round",round).in("mission_location_id",ids.map(Number)),
+   db.from("players").select("id").eq("status","ALIVE").eq("role","SHEEP")
+ ]);
+ if(assignmentResult.error)throw new Error("늑대방해 대상 배정 조회 실패: "+assignmentResult.error.message);
+ if(sheepResult.error)throw new Error("생존 양 조회 실패: "+sheepResult.error.message);
+ const sheepIds=new Set((sheepResult.data||[]).map(x=>String(x.id)));
+ const assignmentRows=(assignmentResult.data||[]).filter(x=>sheepIds.has(String(x.player_id)));
+ const sheepAssignedIds=new Set(assignmentRows.map(x=>String(x.mission_location_id)));
+ let completionRows=[];
+ if(sheepIds.size){
+   const c=await db.from("mission_completions").select("mission_id,player_id").eq("game_round",round).in("player_id",[...sheepIds]);
+   if(c.error)throw new Error("양 미션 완료 상태 조회 실패: "+c.error.message);
+   completionRows=c.data||[];
  }
+ const missionIds=[...new Set(completionRows.map(x=>String(x.mission_id)).filter(Boolean))];
+ const missionMap=new Map();
+ if(missionIds.length){
+   const m=await db.from("missions").select("id,mission_location_id,location_id").in("id",missionIds);
+   if(m.error)throw new Error("양 미션 완료 장소 조회 실패: "+m.error.message);
+   for(const row of (m.data||[]))missionMap.set(String(row.id),String(row.mission_location_id??row.location_id??""));
+ }
+ const completedKeys=new Set();
+ for(const row of completionRows){
+   const locId=missionMap.get(String(row.mission_id));
+   if(locId)completedKeys.add(String(row.player_id)+"|"+locId);
+ }
+ const eligibleIds=new Set(),completedIds=new Set();
+ for(const locationId of sheepAssignedIds){
+   const assignedSheep=assignmentRows.filter(x=>String(x.mission_location_id)===locationId);
+   const uncleared=assignedSheep.some(x=>!completedKeys.has(String(x.player_id)+"|"+locationId));
+   if(uncleared&&!activeSabotageIds.has(locationId))eligibleIds.add(locationId);
+   if(!uncleared)completedIds.add(locationId);
+ }
+ return {eligibleIds,sheepAssignedIds,completedIds};
 }
 
 async function refreshSabotageBoard(){
  const board=el("sabotageBoard");
  if(!board || !document.querySelector("#sabotage.screen.active"))return;
-
  try{
    const p=await me(),g=await settings();
    if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY")return;
-
-   const floorIds=getMissionFloorIds(missionFloorPage);
+   const floorIds=getMissionFloorIds(selectedSabotageFloor);
    const all=await activeMissionLocations(floorIds);
-   const assignmentRows=await db.from("round_player_mission_locations")
-     .select("mission_location_id,player_id")
-     .eq("game_round",g.current_round)
-     .in("mission_location_id",floorIds.map(Number));
-   if(assignmentRows.error)throw new Error(assignmentRows.error.message);
-
-   const sheep=(await db.from("players").select("id")
-     .eq("status","ALIVE").eq("role","SHEEP")).data||[];
-   const sheepIds=new Set(sheep.map(x=>String(x.id)));
-   const assignedIds=new Set((assignmentRows.data||[])
-     .filter(x=>sheepIds.has(String(x.player_id)))
-     .map(x=>String(x.mission_location_id)));
-
-   // 현재 규칙에서는 다른 플레이어가 완료한 장소도 다시 수행할 수 있습니다.
-   // 따라서 전역 완료 여부는 늑대방해 장소 선택 제한에 사용하지 않습니다.
    const sabotageState=await getSabotageState(g.current_round);
    const activeSabotageIds=sabotageState.activeLocationIds||new Set();
-
-   // 현재 진행 중인 늑대방해 장소는 선택 상태에서도 즉시 제거합니다.
-   for(const id of [...selectedSabotageLocationIds]){
-     if(!assignedIds.has(String(id)) || activeSabotageIds.has(String(id))){
-       selectedSabotageLocationIds.delete(String(id));
-     }
-   }
-
-   const selected=[...selectedSabotageLocationIds];
-
+   const eligibility=await getSabotageFloorEligibility(g.current_round,floorIds,activeSabotageIds);
    board.className="sabotageBoard missionFloorGrid";
-   board.innerHTML=renderMissionFloorGrid({
-     page:missionFloorPage,locations:all,mode:"sabotage",
-     renderCell:(loc)=>{
-       const id=String(loc.id);
-       const sabotaged=activeSabotageIds.has(id);
-       const available=assignedIds.has(id)&&!sabotaged;
-       const selectedNow=selected.includes(id);
-       const status=sabotaged?"현재 늑대방해 진행 중":
-         available?(selectedNow?"선택됨":"늑대방해 가능"):"현재 어떤 양에게도 배정되지 않음";
-       return '<button type="button" class="sabotageBlock missionFloorCell '+
-         (available?"available":"disabled")+(selectedNow?" selected":"")+'" '+
-         (available?'onclick="toggleSabotageLocation(\''+esc(id)+'\')"':'disabled')+
-         ' data-location-id="'+esc(id)+'"><b>'+esc(loc.name)+'</b>'+
-         '<div class="small" style="margin-top:6px">'+status+'</div></button>';
-     }
-   });
-
-   window.__sabotageMaxCount=Math.max(1,Math.min(10,
-     Number(getRoundRules(g).sabotageLocationCount)||1));
- }catch(e){
-   console.warn("늑대방해 장소 실시간 갱신 실패:",e);
- }
+   board.innerHTML=renderMissionFloorGrid({page:selectedSabotageFloor,locations:all,mode:"sabotage",renderCell:(loc)=>{
+     const id=String(loc.id);
+     const eligible=eligibility.eligibleIds.has(id);
+     const sheepAssigned=eligibility.sheepAssignedIds.has(id);
+     const completed=eligibility.completedIds.has(id);
+     const sabotaged=activeSabotageIds.has(id);
+     const stateClass=eligible?"sabotageEligible":(sheepAssigned&&completed?"sabotageCompleted":"sabotageUnavailable");
+     const activeClass=sabotaged?" sabotageCurrentlyActive":"";
+     return '<div class="sabotageBlock missionFloorCell '+stateClass+activeClass+'" data-location-id="'+esc(id)+'" aria-label="'+esc(loc.name)+'"><b>'+esc(loc.name)+'</b></div>';
+   }});
+ }catch(e){console.warn("늑대방해 장소 실시간 갱신 실패:",e);}
 }
+
+async function openSabotageScreen(){
+ closeActionDock();
+ const p=await me(),g=await settings();
+ if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
+ const st=await getSabotageState(g.current_round),now=gameNow();
+ if(st.cooldownUntil>now){toast("늑대방해 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
+ missionFloorPage=3;
+ selectedSabotageFloor=3;
+ el("sabotageInstruction").textContent="층을 선택하면 해당 층의 모든 미션장소가 실제 방해 대상이 됩니다.";
+ await showScreen("sabotage");
+ await refreshSabotageBoard();
+ startSabotageUiWatcher();
+}
+
+async function executeSelectedSabotage(){
+ const p=await me(),g=await settings();
+ if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
+ if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
+ const st=await getSabotageState(g.current_round),now=gameNow();
+ if(st.cooldownUntil>now){toast("늑대방해 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");return;}
+ const floorIds=getMissionFloorIds(selectedSabotageFloor);
+ const all=await activeMissionLocations(floorIds);
+ const chosen=[...new Set(all.map(x=>String(x.id)))];
+ if(!chosen.length){toast("현재 선택한 층에는 미션장소가 없습니다.");return;}
+ const r=await db.rpc("execute_sabotage_v151",{p_game_round:g.current_round,p_wolf_player_id:String(p.id),p_location_ids:chosen});
+ if(r.error){console.error("execute_sabotage 오류:",r.error);toast("늑대방해 실행 실패: "+(r.error.message||"알 수 없는 오류"));return;}
+ const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds)||60)));
+ const configuredDuration=Math.max(5,Math.min(600,Math.floor(Number(g.sabotage_duration_seconds)||30)));
+ const rpcData=r.data&&typeof r.data==="object"&&!Array.isArray(r.data)?r.data:(Array.isArray(r.data)?r.data[0]:null);
+ const responseCooldown=Number(rpcData?.cooldown_seconds),responseDuration=Number(rpcData?.duration_seconds),responseEventId=String(rpcData?.event_id||"");
+ if(!Number.isFinite(responseCooldown)||responseCooldown!==configuredCooldown)throw new Error("늑대방해 쿨타임 적용값 검증 실패: 관리자 설정 "+configuredCooldown+"초 / 서버 적용 "+(Number.isFinite(responseCooldown)?responseCooldown+"초":"확인 불가"));
+ if(!Number.isFinite(responseDuration)||responseDuration!==configuredDuration)throw new Error("늑대방해 지속시간 적용값 검증 실패: 관리자 설정 "+configuredDuration+"초 / 서버 적용 "+(Number.isFinite(responseDuration)?responseDuration+"초":"확인 불가"));
+ localSabotageEventId=responseEventId||null;
+ localSabotageCooldownUntil=gameNow()+responseCooldown*1000;
+ closeSabotageScreen();
+ startSabotageUiWatcher();
+}
+function closeSabotageScreen(){
+ missionFloorPage=3;
+ selectedSabotageFloor=3;
+ closeOverlay();
+ showScreen("player");
+ renderPlayer().catch(e=>console.error("늑대방해 화면 복귀 실패:",e));
+}
+async function useSabotage(){await openSabotageScreen();}
 
 async function startSabotageNotificationWatcher(){
  if(sabotageNotificationStarted)return;
@@ -5090,103 +5146,6 @@ async function handleSabotageNotification(n){
  );
  await playSound("sabotage","notification-sabotage-"+String(n.id)).catch(()=>{});
 }
-
-async function openSabotageScreen(){
- closeActionDock();
- const p=await me(),g=await settings();
- if(!p||p.status!=="ALIVE"||p.role!=="WOLF"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
- if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
- if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
- const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
- if(st.cooldownUntil>now){
-   toast("늑대방해 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");
-   return;
- }
- selectedSabotageLocationIds=new Set();
- window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(rules.sabotageLocationCount)||1));
- el("sabotageInstruction").textContent="활성 미션 장소 중 방해할 장소를 최대 "+rules.sabotageLocationCount+"곳 선택하십시오.";
- await showScreen("sabotage");
- await refreshSabotageBoard();
- startSabotageUiWatcher();
-}
-function toggleSabotageLocation(id){
- const elb=document.querySelector('.sabotageBlock[data-location-id="'+CSS.escape(String(id))+'"]');
- if(selectedSabotageLocationIds.has(String(id))){
-   selectedSabotageLocationIds.delete(String(id));elb?.classList.remove("selected");
-   return;
- }
- const gCount=Math.max(1,Number(window.__sabotageMaxCount)||1);
- if(selectedSabotageLocationIds.size>=gCount){toast("늑대방해 장소는 최대 "+gCount+"곳까지 선택할 수 있습니다.");return;}
- selectedSabotageLocationIds.add(String(id));elb?.classList.add("selected");
-}
-async function executeSelectedSabotage(){
- const p=await me(),g=await settings(),chosen=[...selectedSabotageLocationIds];
- if(!p||p.role!=="WOLF"||p.status!=="ALIVE"||g.phase!=="PLAY"){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
- if(String(g.notice||"").startsWith("NIGHT_WARNING|")||String(g.notice||"").startsWith("EMERGENCY_REPORT|")){toast("현재는 늑대방해를 사용할 수 없습니다.");return;}
- if(getRoundRemainingMs(g)<=1000){toast("밤 전환 직전에는 늑대방해를 사용할 수 없습니다.");return;}
-
- const rules=getRoundRules(g),st=await getSabotageState(g.current_round),now=gameNow();
- // 늑대방해 "지속시간"과 "쿨타임"은 독립입니다.
- // 지속시간이 아직 남아 있어도 쿨타임이 끝났다면 다시 사용할 수 있습니다.
- if(st.cooldownUntil>now){
-   toast("늑대방해 쿨타임: "+Math.ceil((st.cooldownUntil-now)/1000)+"초");
-   return;
- }
- if(!chosen.length){toast("늑대방해할 장소를 선택해 주세요.");return;}
- if(chosen.length>rules.sabotageLocationCount){toast("설정된 수보다 많은 장소를 선택했습니다.");return;}
-
- const r=await db.rpc("execute_sabotage_v151",{
-   p_game_round:g.current_round,
-   p_wolf_player_id:String(p.id),
-   p_location_ids:chosen
- });
- if(r.error){
-   console.error("execute_sabotage 오류:",r.error);
-   toast("늑대방해 실행 실패: "+(r.error.message||"알 수 없는 오류"));
-   return;
- }
-
- selectedSabotageLocationIds=new Set();
- // RPC 성공 직후에는 Realtime 이벤트가 상태 캐시를 갱신하고,
- // UI 카운트다운은 클라이언트에서 처리합니다.
-
- // RPC가 반환한 실제 설정값을 사용하고, 새로고침 시 DB started_at + 설정값으로 복구합니다.
- const configuredCooldown=Math.max(10,Math.min(1800,Math.floor(Number(g.sabotage_cooldown_seconds)||60)));
- const configuredDuration=Math.max(5,Math.min(600,Math.floor(Number(g.sabotage_duration_seconds)||30)));
- const rpcData=r.data&&typeof r.data==="object"&&!Array.isArray(r.data)?r.data:(Array.isArray(r.data)?r.data[0]:null);
- const responseCooldown=Number(rpcData?.cooldown_seconds);
- const responseDuration=Number(rpcData?.duration_seconds);
- const responseEventId=String(rpcData?.event_id||"");
-
- if(!Number.isFinite(responseCooldown)||responseCooldown!==configuredCooldown){
-
-   console.error("v151 늑대방해 쿨타임 적용값 오류:",{
-     configuredCooldown,responseCooldown,eventId:responseEventId,rpcData
-   });
-   throw new Error("늑대방해 쿨타임 적용값 검증 실패: 관리자 설정 "+configuredCooldown+"초 / 서버 적용 "+(Number.isFinite(responseCooldown)?responseCooldown+"초":"확인 불가"));
- }
-
- if(!Number.isFinite(responseDuration)||responseDuration!==configuredDuration){
-   console.error("v152 늑대방해 지속시간 서버 설정 불일치:",{
-     configuredDuration,responseDuration,eventId:responseEventId,rpcData
-   });
-   throw new Error("늑대방해 지속시간 적용값 검증 실패: 관리자 설정 "+configuredDuration+"초 / 서버 적용 "+(Number.isFinite(responseDuration)?responseDuration+"초":"확인 불가"));
- }
-
- // 여기에는 오직 '쿨타임'만 들어갑니다. 지속시간은 절대 더하지/대체하지 않습니다.
- localSabotageEventId=responseEventId||null;
- localSabotageCooldownUntil=gameNow()+responseCooldown*1000;
-
- closeSabotageScreen();
- startSabotageUiWatcher();
-}
-function closeSabotageScreen(){
- selectedSabotageLocationIds=new Set();
- closeOverlay();
- showScreen("player");
- renderPlayer().catch(e=>console.error("늑대방해 화면 복귀 실패:",e));
-}
-async function useSabotage(){await openSabotageScreen();}
 
 async function renderSabotageStatus(g,p){
  if(!roleIsWolf(p.role)||g.phase!=="PLAY")return "";
@@ -5661,7 +5620,7 @@ async function renderAdmin(){
     :[];
   const gauge=await getMissionGauge(g.current_round);
    el("stats").innerHTML='<div class="stat">ROUND<b>'+g.current_round+'</b></div><div class="stat">생존<b>'+p.filter(x=>x.status==="ALIVE").length+'</b></div><div class="stat">미션 게이지<b>'+gauge.completed+'/'+gauge.target+' ('+gauge.percent+'%)</b></div><div class="stat">상태<b>'+esc(g.phase)+'</b></div>';
-  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;if(el("emergencyNfcTag"))el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageLocationCount").value=rule(g,"sabotage_location_count");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
+  el("roundMinutes").value=g.round_duration_minutes||15;el("investigationMinutes").value=g.investigation_duration_minutes||5;if(el("emergencyNfcTag"))el("emergencyNfcTag").value=String(g.emergency_nfc_tag||"긴급신고");el("wolfCount").value=rule(g,"wolf_count");el("missionsPerSheep").value=rule(g,"missions_per_sheep");el("sabotageDurationSeconds").value=rule(g,"sabotage_duration_seconds");el("sabotageCooldownSeconds").value=rule(g,"sabotage_cooldown_seconds");
   if(el("sabotageCooldownDbStatus"))el("sabotageCooldownDbStatus").textContent="DB 적용값: "+rule(g,"sabotage_cooldown_seconds")+"초";el("nightSeconds").value=rule(g,"night_duration_seconds");el("nightGaugePenalty").value=rule(g,"night_gauge_penalty");el("nightRoundPenaltyMinutes").value=rule(g,"night_round_penalty_minutes");
   el("playerList").innerHTML=renderAdminPlayerList(p);
   await renderAdminMissionStatus(p,g.current_round,roundMissionLocations,c);
@@ -6021,7 +5980,7 @@ async function finishRound(winner){
 async function forceSheepWin(){await finishRound("SHEEP");}
 async function forceWolfWin(){await finishRound("WOLF");}
 const REQUIRED_GAME_SETTINGS_COLUMNS=[
- "wolf_count","missions_per_sheep","sabotage_location_count","sabotage_duration_seconds","sabotage_cooldown_seconds",
+ "wolf_count","missions_per_sheep","sabotage_duration_seconds","sabotage_cooldown_seconds",
  "night_duration_seconds","night_gauge_penalty","night_round_penalty_minutes","round_duration_minutes","investigation_duration_minutes",
  "current_round","phase","ready","started","roles_selected","winner","notice","nfc_enabled","dead_sheep_found","dead_sheep_location",
  "investigation_started_at","round_started_at","night_started_at","round_time_penalty_total","mission_gauge_penalty_total"
@@ -6045,7 +6004,6 @@ async function saveGameRules(){
    const players=(await db.from("players").select("id").eq("status","ALIVE")).data||[];
    const wolfCount=Math.floor(Number(el("wolfCount").value));
    const perSheep=Math.floor(Number(el("missionsPerSheep").value));
-   const sabotageCount=Math.floor(Number(el("sabotageLocationCount").value));
    const sabotageDuration=Math.floor(Number(el("sabotageDurationSeconds").value));
    const sabotageCooldown=Math.floor(Number(el("sabotageCooldownSeconds").value));
    const nightSeconds=Math.floor(Number(el("nightSeconds").value));
@@ -6057,9 +6015,6 @@ async function saveGameRules(){
    }
    if(!Number.isInteger(perSheep)||perSheep<1||perSheep>10){
      toast("양 1인당 미션 수는 1~10개여야 합니다.");return;
-   }
-   if(!Number.isInteger(sabotageCount)||sabotageCount<1||sabotageCount>10){
-     toast("늑대방해 장소 수는 1~10개여야 합니다.");return;
    }
    if(!Number.isInteger(sabotageDuration)||sabotageDuration<5||sabotageDuration>600){
      toast("늑대방해 방해 지속 시간은 5~600초여야 합니다.");return;
@@ -6081,7 +6036,6 @@ async function saveGameRules(){
    const payload={
      wolf_count:wolfCount,
      missions_per_sheep:perSheep,
-     sabotage_location_count:sabotageCount,
      sabotage_duration_seconds:sabotageDuration,
      sabotage_cooldown_seconds:sabotageCooldown,
      night_duration_seconds:nightSeconds,
@@ -6101,7 +6055,7 @@ async function saveGameRules(){
    const verify=await db.from("game_settings").select("*").eq("id",1).maybeSingle();
    if(verify.error)throw new Error("게임 규칙 저장 확인 실패: "+verify.error.message);
    if(!verify.data)throw new Error("게임 설정 id=1을 찾을 수 없습니다.");
-   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_location_count:sabotageCount,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
+   const verifyPairs={wolf_count:wolfCount,missions_per_sheep:perSheep,sabotage_duration_seconds:sabotageDuration,sabotage_cooldown_seconds:sabotageCooldown,night_duration_seconds:nightSeconds,night_gauge_penalty:gaugePenalty,night_round_penalty_minutes:roundPenalty,emergency_nfc_tag:emergencyNfcTag};
    for(const [key,want] of Object.entries(verifyPairs)){
      if(Number(verify.data[key])!==Number(want)){
        throw new Error("저장 확인 실패: DB의 "+key+" 값이 "+verify.data[key]+"로 확인되었습니다. 입력값 "+want+"가 저장되지 않았습니다.");
@@ -6116,7 +6070,6 @@ async function saveGameRules(){
    const latest=await settings();
    el("wolfCount").value=rule(latest,"wolf_count");
    el("missionsPerSheep").value=rule(latest,"missions_per_sheep");
-   el("sabotageLocationCount").value=rule(latest,"sabotage_location_count");
    el("sabotageDurationSeconds").value=rule(latest,"sabotage_duration_seconds");
    el("sabotageCooldownSeconds").value=rule(latest,"sabotage_cooldown_seconds");
    el("nightSeconds").value=rule(latest,"night_duration_seconds");
@@ -7284,7 +7237,7 @@ async function boot(){
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.openMissionByLocation=openMissionByLocation;window.startMissionLocation=startMissionLocation;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
 window.openLocationChoice=openLocationChoice;window.toggleActionDock=toggleActionDock;window.closeActionDock=closeActionDock;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
-window.savePlayerNfcTag=savePlayerNfcTag;window.cancelWolfDeathNfc=cancelWolfDeathNfc;window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.toggleSabotageLocation=toggleSabotageLocation;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;
+window.savePlayerNfcTag=savePlayerNfcTag;window.cancelWolfDeathNfc=cancelWolfDeathNfc;window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.skipToGame=skipToGame;window.testNight=testNight;window.nextRound=nextRound;window.startTrial=startTrial;window.startVote=startVote;window.submitVote=submitVote;window.confirmVote=confirmVote;window.confirmIdentity=confirmIdentity;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
 window.markReady=markReady;
