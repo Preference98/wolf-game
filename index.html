@@ -4190,9 +4190,19 @@ async function renderEmergencyTrialReady(p,g,showPopup=true,eventId=""){
 }
 async function renderPlayerCore(){
   if(document.querySelector("#sabotage.screen.active"))return;
+
+  // 미션 진입 중에 이미 실행 중이던 renderPlayer가 늦게 완료되어
+  // 미션 화면을 #player로 덮어쓰는 것을 방지합니다.
+  const renderMissionToken=window.__missionEntryToken??0;
+  const isStaleMissionRender=()=>{
+    if((window.__missionEntryToken??0)!==renderMissionToken)return true;
+    if(document.querySelector("#mission.screen.active"))return true;
+    return false;
+  };
   stopGameStartBgm();
   stopMissionTimer();
   const p=await me(),g=await settings();
+  if(isStaleMissionRender())return;
   window.__lastPlayer=p;
   window.__lastSettings=g;
 
@@ -4211,6 +4221,7 @@ async function renderPlayerCore(){
     locs=await getRoundMissionLocations(g.current_round,true,p.id);
     completedLocations=await getPlayerCompletedLocationIds(g.current_round,p.id);
     sabotaged=await getSabotagedLocationIds(g.current_round);
+    if(isStaleMissionRender())return;
     // 완료 표시는 항상 현재 플레이어의 DB 기록만 사용합니다.
     // 다른 플레이어/늑대의 완료 상태를 이 플레이어의 장소에 섞지 않습니다.
   }catch(e){
@@ -4261,6 +4272,7 @@ async function renderPlayerCore(){
   }
   // 플레이어 화면을 먼저 활성화한 뒤 긴급신고 상태를 계산합니다.
   // 화면 전환과 1초 갱신기가 서로 다른 시점에 실행되어 버튼 상태를 덮어쓰는 경합을 막습니다.
+  if(isStaleMissionRender())return;
   showScreen("player");
   startSabotageUiWatcher();
   await updateEmergencyButton(g,p);
@@ -6928,6 +6940,13 @@ function el(id){
 function finishMiniGame(success,message){
   if(window.__miniOutcomeLocked)return;
   window.__miniOutcomeLocked=true;
+  // 이전 미니게임의 늦은 타이머/콜백이 새 미션에 결과를 표시하지 못하게 합니다.
+  const miniMissionToken=window.__miniMissionToken??window.__missionEntryToken??0;
+  if((window.__missionEntryToken??0)!==miniMissionToken){
+    window.__miniOutcomeLocked=false;
+    return;
+  }
+
   const bridge=window.__wolfGameBridge;
   if(!bridge){console.error("늑대게임 브리지 초기화 실패");window.__miniOutcomeLocked=false;return;}
   if(success){
@@ -7093,6 +7112,7 @@ function testerSuccess(message){finishMiniGame(true,message);}
 function testerFailure(message){finishMiniGame(false,message);}
 
 function launchMiniGame(m){
+  window.__miniMissionToken=window.__missionEntryToken??0;
   window.__miniOutcomeLocked=false;
   const f={
     WIRING:miniWiring,
