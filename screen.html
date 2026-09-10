@@ -1899,7 +1899,7 @@ async function ensureCentralServerClock(force=false){
   for(let i=0;i<3;i++){
    const t0=performance.now();
    try{
-    const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1&_clock="+Date.now(),{method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+    const r=await fetch(SUPABASE_URL+"/rest/v1/game_settings?select=id&limit=1",{method:"GET",cache:"no-store",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
     const t1=performance.now();
     const serverMs=Date.parse(r.headers.get("date")||"");
     if(Number.isFinite(serverMs))samples.push({rtt:t1-t0,offset:serverMs-(Date.now()-(t1-t0)/2)});
@@ -2251,24 +2251,11 @@ function clearSheepRoundWinScreenState(){
   window.__screenSheepRoundWinKey='';
 }
 function scheduleSheepRoundWinScreenTransition(g){
+  // 중간승리 화면은 자동으로 사라지지 않습니다.
+  // 관리자 초기화/다음 상태 변경이 DB에 반영되면 handlePhase()가 전환합니다.
   if(!isSheepRoundWinNotice(g))return;
-  const key='screen-sheep-round-win-'+String(g.notice||'');
-  if(window.__screenSheepRoundWinKey===key&&window.__screenSheepRoundWinTimer)return;
-  window.__screenSheepRoundWinKey=key;
-  if(window.__screenSheepRoundWinTimer)clearTimeout(window.__screenSheepRoundWinTimer);
-  window.__screenSheepRoundWinTimer=setTimeout(async()=>{
-    window.__screenSheepRoundWinTimer=null;
-    try{
-      const latest=await getSettings();
-      if(isSheepRoundWinNotice(latest)){
-        // 관리자 초기화/다음 단계 전환이 오기 전까지는 중간승리 화면을 유지합니다.
-        scheduleSheepRoundWinScreenTransition(latest);
-        return;
-      }
-      clearSheepRoundWinScreenState();
-      await handlePhase(latest);
-    }catch(e){}
-  },1000);
+  window.__screenSheepRoundWinKey='screen-sheep-round-win-'+String(g.notice||'');
+  if(window.__screenSheepRoundWinTimer){clearTimeout(window.__screenSheepRoundWinTimer);window.__screenSheepRoundWinTimer=null;}
 }
 
 async function handlePhase(g,initial=false){

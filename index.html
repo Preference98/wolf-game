@@ -5936,8 +5936,13 @@ async function resetGame(){
      night_started_at:null,
      round_time_penalty_total:0,
      mission_gauge_penalty_total:0
-   }).eq("id",1);
+   }).eq("id",1).select("id,phase,notice,winner,started,ready,roles_selected,current_round");
    if(resetSettingsFirst.error)throw new Error("게임 상태 초기화 실패: "+resetSettingsFirst.error.message);
+   if(!resetSettingsFirst.data?.length)throw new Error("게임 상태 초기화 실패: game_settings(id=1)을 수정하지 못했습니다.");
+   const resetState=resetSettingsFirst.data[0];
+   if(String(resetState.phase||"").toUpperCase()!=="LOBBY" || String(resetState.notice||"")!=="" || resetState.winner!==null || resetState.started!==false || resetState.ready!==false || resetState.roles_selected!==false){
+     throw new Error("게임 상태 초기화 확인 실패: 이전 승리 상태가 남아 있습니다.");
+   }
 
    // 2) 게임 진행 데이터 초기화
    // 새로 추가된 테이블이 아직 DB에 없는 경우에도 기존 게임 초기화까지 실패하지 않도록
