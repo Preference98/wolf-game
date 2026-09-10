@@ -20,7 +20,37 @@ window.showPlayerScreenImmediate = function(){
     target.classList.add("active");
     target.style.display="block";
   }
+}
+window.markCurrentMissionCompletedImmediately = function(){
+  try{
+    const mission=window.__wolfGameBridge?.getCurrentMission?.();
+    const locationId=mission?.mission_location_id ?? mission?.location_id;
+    if(locationId==null)return false;
+    const id=String(locationId);
+    const selectors=[
+      '#player [data-location-id="'+CSS.escape(id)+'"]',
+      '#player [data-mission-location-id="'+CSS.escape(id)+'"]',
+      '#player button[data-location-id="'+CSS.escape(id)+'"]',
+      '#player button[data-mission-location-id="'+CSS.escape(id)+'"]'
+    ];
+    let target=null;
+    for(const selector of selectors){
+      target=document.querySelector(selector);
+      if(target)break;
+    }
+    if(!target)return false;
+    target.classList.add("completed");
+    target.disabled=true;
+    target.setAttribute("aria-disabled","true");
+    target.onclick=null;
+    target.removeAttribute("onclick");
+    return true;
+  }catch(e){
+    console.warn("완료 미션 즉시 UI 반영 실패:",e);
+    return false;
+  }
 };
+;
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -5691,10 +5721,33 @@ async function saveMissionLocation(id){
 }
 async function saveMissionLocationNfc(id){const v=el("mnfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("미션 장소 NFC 태그를 저장했습니다.");await renderAdmin()}
 async function saveLocationNfc(id){const v=el("nfc_"+id)?.value.trim()||null;const r=await db.from("mission_locations").update({nfc_tag:v}).eq("id",id);if(r.error){toast("NFC 저장 실패: "+r.error.message);return}toast("NFC 태그를 저장했습니다.");await renderAdmin()}
+function readNfcRecordTexts(event){
+  const records=event?.message?.records||[];
+  const values=[];
+  for(const rec of records){
+    try{
+      const data=rec?.data;
+      if(!data)continue;
+      let value="";
+      if(typeof data==="string"){
+        value=data;
+      }else{
+        value=new TextDecoder(rec.encoding||"utf-8").decode(data);
+      }
+      value=String(value).replace(/\u0000/g,"").trim();
+      if(value)values.push(value);
+    }catch(e){}
+  }
+  return values;
+}
 function readNfcText(event){
-  const records=event?.message?.records||[];let value="";
-  for(const rec of records){try{value+=new TextDecoder(rec.encoding||"utf-8").decode(rec.data);}catch(_){} }
-  return value.trim();
+  return readNfcRecordTexts(event).join("").trim();
+}
+function nfcTagMatches(event, expected){
+  const target=String(expected??"").trim();
+  if(!target)return false;
+  const values=readNfcRecordTexts(event);
+  return values.some(v=>v===target);
 }
 function stopMissionNfcScan(){
   try{window.__missionNfcAbortController?.abort();}catch(_){}
@@ -5789,7 +5842,7 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken,existingReader=null,e
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
-        if(value!==String(loc.nfc_tag).trim()){
+        if(!nfcTagMatches(event,loc.nfc_tag)){
           missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
           return;
         }
@@ -6813,7 +6866,7 @@ async function startMissionCompletionNfc(current,p,g,locId,message){
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
-        if(value!==String(loc.nfc_tag).trim()){
+        if(!nfcTagMatches(event,loc.nfc_tag)){
           window.missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
           const box=document.querySelector("#overlay .missionNfcModal");if(box){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),900);}
           return;
@@ -6850,6 +6903,7 @@ window.cancelMissionCompletion=function(btn){
   window.__missionCompletionActionBusy=true;
   if(btn){btn.disabled=true;btn.classList.add("busy");btn.textContent="처리중...";}
   window.__missionEntryToken++;
+  window.markCurrentMissionCompletedImmediately();
   window.stopMissionNfcScan();
   window.__miniOutcomeLocked=true;
   const bridge=window.__wolfGameBridge;
