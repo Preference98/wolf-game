@@ -6463,7 +6463,12 @@ async function removePlayer(id,name){
 async function renderSheepRoundWin(){
  stopAllTimers();
  await showScreen("sheepRoundWin");
- el("sheepRoundWin").innerHTML='<div class="sheepRoundWinStage"><div class="sheepRoundWinContent"><div class="sheepRoundWinTitle">잠시 후 다음라운드가 시작됩니다.</div><div class="sheepRoundWinSub">모두 그레이스홀로 모여주세요.</div></div></div>';
+ const title="양이 승리했습니다.";
+ el("sheepRoundWin").innerHTML=
+ '<div class="victoryStage sheep" style="color:#58f39a"><div class="victoryGlow"></div><div class="victoryContent">'+
+ '<div class="victoryImage"><svg viewBox="0 0 300 300" aria-label="'+title+'">'+
+ '<path d="M83 115 Q58 65 82 38 Q110 56 126 92 Q150 78 174 92 Q190 56 218 38 Q242 65 217 115 Q229 150 213 193 Q195 238 150 258 Q105 238 87 193 Q71 150 83 115 Z" fill="none" stroke="currentColor" stroke-width="12"/><path d="M112 143 Q125 130 138 143 M162 143 Q175 130 188 143" fill="none" stroke="currentColor" stroke-width="10"/><path d="M132 178 Q150 190 168 178" fill="none" stroke="currentColor" stroke-width="10"/>'+
+ '</svg></div><div class="victoryTitle">'+title+'</div><div class="victorySub">잠시 후 다음 라운드가 시작됩니다.<br>모두 그레이스홀로 모여주세요.</div></div></div>';
 }
 function scheduleSheepRoundWinTransition(){
  if(window.__sheepRoundWinTransitionTimer)return;
@@ -6827,6 +6832,17 @@ function realtime(){
   }
   const roundWinNotice=String(g.notice||"").startsWith("SHEEP_ROUND_WIN|");
   if(roundWinNotice){
+   // 양이 중간승리를 달성하는 순간 늑대는 이미 탈락 상태입니다.
+   // 늑대가 설정 Realtime을 먼저 받아도 중간승리 화면을 보여주지 않고 즉시 탈락 화면을 유지합니다.
+   const currentPlayer=await me().catch(()=>null);
+   if(currentPlayer && String(currentPlayer.status||"").toUpperCase()!=="ALIVE"){
+    if(window.__sheepRoundWinTransitionTimer){clearTimeout(window.__sheepRoundWinTransitionTimer);window.__sheepRoundWinTransitionTimer=null;}
+    playerGameStartSequenceToken++;
+    stopAllTimers();
+    await showScreen("trialLock");
+    el("trialLock").innerHTML='<div class="lock"><div><div class="symbol">☠️</div><h1 class="deathLockTitle">탈락</h1><p class="muted">탈락한 플레이어는 더 이상 게임에 참여할 수 없습니다.</p><p class="small">게임 전체 초기화 전까지 참여할 수 없습니다.</p></div></div>';
+    return;
+   }
    if(lastNotice!==g.notice || !document.querySelector("#sheepRoundWin.screen.active")){
     lastNotice=g.notice;
     playerGameStartSequenceToken++;
