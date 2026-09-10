@@ -21,35 +21,38 @@ window.showPlayerScreenImmediate = function(){
     target.style.display="block";
   }
 }
-window.markCurrentMissionCompletedImmediately = function(){
+window.markCurrentMissionCompletedImmediately = function(locationIdOverride=null){
   try{
     const mission=window.__wolfGameBridge?.getCurrentMission?.();
-    const locationId=mission?.mission_location_id ?? mission?.location_id;
+    const locationId=locationIdOverride ?? mission?.mission_location_id ?? mission?.location_id;
     if(locationId==null)return false;
     const id=String(locationId);
-    const selectors=[
-      '#player [data-location-id="'+CSS.escape(id)+'"]',
-      '#player [data-mission-location-id="'+CSS.escape(id)+'"]',
-      '#player button[data-location-id="'+CSS.escape(id)+'"]',
-      '#player button[data-mission-location-id="'+CSS.escape(id)+'"]'
-    ];
+    const buttons=document.querySelectorAll('#player .missionLocationButton[data-location-id]');
     let target=null;
-    for(const selector of selectors){
-      target=document.querySelector(selector);
-      if(target)break;
+    for(const button of buttons){
+      if(String(button.getAttribute("data-location-id"))===id){
+        target=button;
+        break;
+      }
     }
     if(!target)return false;
+    target.classList.remove("active","inactive","sabotaged");
     target.classList.add("completed");
+    const block=target.closest(".missionBlock");
+    if(block){
+      block.classList.remove("active","inactive","sabotaged");
+      block.classList.add("completed");
+    }
     target.disabled=true;
     target.setAttribute("aria-disabled","true");
-    target.onclick=null;
     target.removeAttribute("onclick");
+    target.style.pointerEvents="none";
     return true;
   }catch(e){
     console.warn("완료 미션 즉시 UI 반영 실패:",e);
     return false;
   }
-};
+};;
 ;
 </script>
 
@@ -4176,13 +4179,17 @@ async function renderPlayerCore(){
       ?' onclick="event.stopPropagation();startMissionLocation(\''+esc(id)+'\')"'
       :" disabled";
     const countdown=sabotagedHere?'<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">사보타지 '+(sabotageSeconds>0?sabotageSeconds+"초":"종료")+'</span>': '<span class="sabotageCountdown" data-sabotage-countdown="'+esc(id)+'">&nbsp;</span>';
-    box.innerHTML+=`<div class="missionBlock ${cls}"><button type="button" class="missionLocationButton ${cls}"${buttonClick}>`+
+    box.innerHTML+=`<div class="missionBlock ${cls}" data-location-id="${esc(id)}"><button type="button" class="missionLocationButton ${cls}" data-location-id="${esc(id)}"${buttonClick}>`+
       `<span class="locationName">${esc(loc.name)}</span>${countdown}</button></div>`;
   }
   if(!allLocations.length)box.innerHTML='<div class="muted">미션 장소를 불러오지 못했습니다.</div>';
   // v130부터 죽은 양 발견 버튼은 actionDock에서 관리하므로
   // 기존 deadSheepBtn을 직접 참조하지 않습니다.
   renderActionDock(g,p);
+  if(window.__missionJustCompletedLocationId!=null){
+    window.markCurrentMissionCompletedImmediately(window.__missionJustCompletedLocationId);
+    window.__missionJustCompletedLocationId=null;
+  }
   // 플레이어 화면을 먼저 활성화한 뒤 긴급신고 상태를 계산합니다.
   // 화면 전환과 1초 갱신기가 서로 다른 시점에 실행되어 버튼 상태를 덮어쓰는 경합을 막습니다.
   showScreen("player");
@@ -6916,7 +6923,6 @@ window.cancelMissionCompletion=function(btn){
   window.__missionCompletionActionBusy=true;
   if(btn){btn.disabled=true;btn.classList.add("busy");btn.textContent="처리중...";}
   window.__missionEntryToken++;
-  window.markCurrentMissionCompletedImmediately();
   window.stopMissionNfcScan();
   window.__miniOutcomeLocked=true;
   const bridge=window.__wolfGameBridge;
@@ -6935,6 +6941,9 @@ window.confirmMissionCompletion=function(btn){
   window.__missionCompletionActionBusy=true;
   if(btn){btn.disabled=true;btn.classList.add("busy");btn.textContent="처리중...";}
   window.__missionEntryToken++;
+  const completedLocationId=window.__wolfGameBridge?.getCurrentMission?.()?.mission_location_id ?? window.__wolfGameBridge?.getCurrentMission?.()?.location_id ?? null;
+  if(completedLocationId!=null)window.__missionJustCompletedLocationId=String(completedLocationId);
+  window.markCurrentMissionCompletedImmediately(completedLocationId);
   window.stopMissionNfcScan();
   window.__miniOutcomeLocked=true;
   const bridge=window.__wolfGameBridge;
