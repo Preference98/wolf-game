@@ -141,10 +141,10 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .missionOverlay #modalMessage{margin:0!important;padding:0!important;color:#fff!important;font-size:inherit!important;line-height:inherit!important}
 .missionNfcModal{width:min(92vw,430px)!important;padding:28px 22px!important;border-radius:20px!important;text-align:center}
 .missionNfcModal .missionNfcMessage{font-size:22px;font-weight:1000;line-height:1.5;white-space:pre-line}
-.missionNfcModal.green{background:rgba(20,170,85,.52)!important;border:2px solid rgba(100,255,170,.85)!important;box-shadow:0 0 50px rgba(20,255,120,.25)!important;color:#fff}
-.missionNfcModal.red{background:rgba(190,20,35,.58)!important;border:2px solid rgba(255,110,120,.9)!important;box-shadow:0 0 50px rgba(255,30,50,.28)!important;color:#fff}
-.missionNfcModal.success{background:#159447!important;border:3px solid #68ffad!important;box-shadow:0 0 60px rgba(30,255,130,.42)!important;color:#fff}
-.missionNfcModal.failure{background:#c91527!important;border:3px solid #ff7a86!important;box-shadow:0 0 60px rgba(255,20,40,.42)!important;color:#fff}
+.missionNfcModal.loading{background:#666!important;border:3px solid #aaa!important;box-shadow:0 0 50px rgba(180,180,180,.28)!important;color:#fff}
+.missionNfcModal.ready{background:#d8a600!important;border:3px solid #ffe56b!important;box-shadow:0 0 60px rgba(255,220,40,.42)!important;color:#fff}
+.missionNfcModal.green,.missionNfcModal.success{background:#159447!important;border:3px solid #68ffad!important;box-shadow:0 0 60px rgba(30,255,130,.42)!important;color:#fff}
+.missionNfcModal.red,.missionNfcModal.failure{background:#c91527!important;border:3px solid #ff7a86!important;box-shadow:0 0 60px rgba(255,20,40,.42)!important;color:#fff}
 .missionNfcModal .missionNfcTitle{font-size:30px;font-weight:1000;margin-bottom:12px}
 .missionNfcModal .missionNfcButton{width:100%;margin-top:18px;background:rgba(0,0,0,.35)!important;border-color:rgba(255,255,255,.5)!important}
 .missionNfcModal.flash{animation:missionNfcFlash .42s ease-in-out 2}
@@ -2939,6 +2939,12 @@ function showError(id,m){el(id).innerHTML='<div class="errorbox">'+esc(m)+'</div
 
 function openOverlay(icon,title,msg,kind="",buttons){el("modalIcon").textContent=icon;el("modalTitle").textContent=title;el("modalMessage").textContent=msg||"";el("modalButtons").innerHTML=buttons||'<button onclick="closeOverlay()">확인</button>';el("overlay").className="overlay show "+kind;}
 function closeOverlay(){el("overlay").className="overlay";}
+function showPlayerScreenImmediate(){
+ syncLoginLobbyChrome("player");
+ document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("active");x.style.display="none";});
+ const target=el("player");
+ if(target){target.classList.add("active");target.style.display="block";}
+}
 function confirmAction(title,msg,action){pendingAdminAction=action;openOverlay("⚠️",title,msg,"",'<div style="display:flex;gap:9px"><button class="secondary" style="flex:1" onclick="closeOverlay()">취소</button><button style="flex:1" onclick="runConfirmedAdminAction()">확인</button></div>');}
 async function runConfirmedAdminAction(){const a=pendingAdminAction;pendingAdminAction=null;await activateStageAudio();closeOverlay();if(a&&window[a])await window[a]();}
 
@@ -5760,14 +5766,14 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken,existingReader=null,e
     window.__missionNfcEarlyEvent=null;
     reader.onreadingerror=()=>{
       if(requestToken!==window.__missionEntryToken||window.__missionNfcHandled)return;
-      missionNfcModal("태그를 읽지 못했습니다. 휴대폰을 태그에 다시 가까이 대주세요.","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
+      missionNfcModal("태그를 읽지 못했습니다. 휴대폰을 태그에 다시 가까이 대주세요.","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
     };
     reader.onreading=async event=>{
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
         if(value!==String(loc.nfc_tag).trim()){
-          missionNfcModal("다른 미션장소 태그입니다.","red",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
+          missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
           return;
         }
         if(requestToken!==window.__missionEntryToken)return;
@@ -6746,7 +6752,7 @@ function finishMiniGame(success,message){
       if(!p||p.status!=="ALIVE"||g.phase!=="PLAY")throw new Error("현재는 미션을 완료할 수 없습니다.");
       if(g.nfc_enabled===false){
         await finalizeMissionSuccess();
-        showMiniMissionOutcome(true,message||"미션이 완료되었습니다.");
+        showMiniMissionOutcome(true);
       }else{
         await startMissionCompletionNfc(current,p,g,locId,message);
       }
@@ -6775,23 +6781,23 @@ async function startMissionCompletionNfc(current,p,g,locId,message){
   const bridge=window.__wolfGameBridge;
   // 함수 진입 즉시 창을 보여주고, 장소/NFC 정보 조회가 느려도 무반응처럼 보이지 않게 합니다.
   window.stopMissionNfcScan();window.__missionNfcHandled=false;
-  window.missionNfcModal("미션태그 정보를 확인하는 중...","green",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
+  window.missionNfcModal("미션태그 정보를 확인하는 중...","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
   try{
     const loc=await window.__wolfMissionGetLocation(locId);
     if(!loc?.nfc_tag)throw new Error("이 장소에 등록된 미션 태그가 없습니다.");
     if(!(typeof NDEFReader!=="undefined"&&"NDEFReader" in window))throw new Error("이 브라우저에서는 미션 태그 인식을 사용할 수 없습니다. 관리자에서 NFC 기능을 OFF로 사용해 주세요.");
-    window.missionNfcModal("미션태그를 태그해 미션을 완료하세요","green",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
+    window.missionNfcModal("미션 태그에 태그하세요","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
     const reader=new NDEFReader();window.__missionNfcReader=reader;window.__missionNfcAbortController=new AbortController();
     reader.onreadingerror=()=>{
       if(window.__missionNfcHandled)return;
-      window.missionNfcModal("태그를 읽지 못했습니다. 휴대폰을 태그에 다시 가까이 대주세요.","red",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
+      window.missionNfcModal("태그를 읽지 못했습니다. 휴대폰을 태그에 다시 가까이 대주세요.","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
     };
     reader.onreading=async event=>{
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
         if(value!==String(loc.nfc_tag).trim()){
-          window.missionNfcModal("다른 장소의 태그입니다","red",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
+          window.missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
           const box=document.querySelector("#overlay .missionNfcModal");if(box){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),900);}
           return;
         }
@@ -6800,12 +6806,12 @@ async function startMissionCompletionNfc(current,p,g,locId,message){
         window.stopMissionNfcScan();
 
         // NFC 성공 후 서버 완료 기록이 끝날 때까지는 완료 화면으로 바꾸지 않습니다.
-        window.missionNfcModal("미션 완료 처리 중...","green",'<button class="secondary missionNfcButton busy" type="button" disabled>처리중...</button>');
+        window.missionNfcModal("미션 완료 처리 중...","ready",'<button class="secondary missionNfcButton busy" type="button" disabled>처리중...</button>');
         await finalizeMissionSuccess();
 
         // 서버 완료 기록이 성공한 순간, 창을 유지한 채 완료 문구와 [확인]만 보여줍니다.
         window.__miniOutcomeLocked=true;
-        window.missionNfcModal("미션이 완료되었습니다","success",'<button class="secondary missionNfcButton" type="button" onclick="confirmMissionCompletion(this)">확인</button>');
+        window.missionNfcModal("미션성공","success",'<button class="secondary missionNfcButton" type="button" onclick="confirmMissionCompletion(this)">확인</button>');
       }catch(e){
         window.__missionNfcHandled=false;
         window.stopMissionNfcScan();
@@ -6868,12 +6874,11 @@ window.confirmMissionCompletion=function(btn){
 
 function showMiniMissionOutcome(success,message){
   if(success){
-    // NFC 사용 여부와 관계없이 성공 결과는 자동으로 닫지 않고 [확인]으로 마무리합니다.
     window.__miniOutcomeLocked=true;
-    window.missionNfcModal(message||"미션이 완료되었습니다.","success",'<button class="secondary missionNfcButton" type="button" onclick="confirmMissionCompletion(this)">확인</button>');
+    window.missionNfcModal("미션성공","success",'<button class="secondary missionNfcButton" type="button" onclick="confirmMissionCompletion(this)">확인</button>');
     return;
   }
-  window.missionNfcModal("미션실패","failure",'<button class="secondary missionNfcButton" type="button" onclick="cancelMiniMission(this)">돌아가기</button>');
+  window.missionNfcModal("미션실패","failure",'<button class="secondary missionNfcButton" type="button" onclick="cancelMiniMission(this)">닫기</button>');
 }
 window.cancelMiniMission=function(btn){
   if(window.__missionFailureActionBusy)return;
