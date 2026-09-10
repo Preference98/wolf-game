@@ -3137,6 +3137,14 @@ async function settings(){
 function serverNowISO(){return new Date(gameNow()).toISOString();}
 const GAME_RULE_DEFAULTS={wolf_count:1,missions_per_sheep:5,sabotage_location_count:1,sabotage_duration_seconds:30,sabotage_cooldown_seconds:60,night_duration_seconds:30,night_gauge_penalty:1,night_round_penalty_minutes:1};
 function rule(g,key){const n=Number(g?.[key]);return Number.isFinite(n)?n:GAME_RULE_DEFAULTS[key];}
+function getRoundRemainingMs(g,now=gameNow()){
+  const baseMinutes=Number(g?.round_duration_minutes);
+  const penaltyMinutes=Math.max(0,Number(g?.round_time_penalty_total)||0);
+  const minutes=Math.max(1,(Number.isFinite(baseMinutes)&&baseMinutes>0?baseMinutes:15)-penaltyMinutes);
+  const startedMs=Date.parse(g?.round_started_at||"");
+  if(!Number.isFinite(startedMs))return 0;
+  return Math.max(0,startedMs+minutes*60*1000-now);
+}
 function getRoundRules(g){
  const missionsPerSheep=Math.max(1,Math.min(10,Math.floor(rule(g,"missions_per_sheep"))));
  return {wolfCount:Math.max(1,Math.floor(rule(g,"wolf_count"))),missionsPerSheep,activeMissionCount:missionsPerSheep,sabotageLocationCount:Math.max(1,Math.min(10,Math.floor(rule(g,"sabotage_location_count")))),sabotageDurationSeconds:Math.max(5,Math.floor(rule(g,"sabotage_duration_seconds"))),sabotageCooldownSeconds:Math.max(10,Math.floor(rule(g,"sabotage_cooldown_seconds"))),nightSeconds:Math.max(5,Math.floor(rule(g,"night_duration_seconds"))),nightGaugePenalty:Math.max(0,Math.floor(rule(g,"night_gauge_penalty"))),nightRoundPenaltyMinutes:Math.max(0,Math.floor(rule(g,"night_round_penalty_minutes")))};
