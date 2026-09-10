@@ -4036,6 +4036,7 @@ async function clearSabotageRecordsForNewGame(){
   const r=await db.from("sabotage_events").delete().gte("id",0);
   if(r.error)throw new Error("늑대방해 기록 초기화 실패: "+r.error.message);
   window.__sabotageActiveNow=false;
+}
 
 // Realtime으로 도착한 최신 사보타지의 장소별 종료시각을 즉시 캐시에 병합합니다.
 // 이후 카운트다운은 이 캐시를 우선 사용하므로 DB 재조회 타이밍에 영향을 받지 않습니다.
@@ -4076,7 +4077,6 @@ function mergeSabotageStateForUi(serverState){
  const activeLocationIds=new Set([...(serverState?.activeLocationIds||[])].map(String));
  for(const [id,end] of activeLocationEnds){if(Number(end)>now)activeLocationIds.add(String(id));}
  return {...(serverState||{}),activeLocationIds,activeLocationEnds,active:activeLocationIds.size>0||!!serverState?.active};
-}
 }
 function setEmergencyButtonState(active){
   const b=el("emergencyReportFloat");
