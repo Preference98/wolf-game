@@ -199,19 +199,6 @@ input,textarea,select{width:100%;padding:12px;border-radius:8px;border:1px solid
 .missionNfcModal .missionNfcTitle{font-size:30px;font-weight:1000;margin-bottom:12px}
 .missionNfcModal .missionNfcButton{width:100%;margin-top:18px;background:rgba(0,0,0,.35)!important;border-color:rgba(255,255,255,.5)!important}
 .missionNfcModal.flash{animation:missionNfcFlash .42s ease-in-out 2}
-.sabotagePopupModal{width:min(94vw,620px)!important;max-width:620px!important;padding:22px!important;border:2px solid #a6000c!important;border-radius:20px!important;background:linear-gradient(145deg,#111,#050505)!important;box-shadow:0 0 80px rgba(240,0,0,.28)!important;text-align:center}
-.sabotagePopupModal .sabotagePopupTitle{font-family:Cinzel,"Noto Sans KR",serif;font-size:32px;font-weight:1000;margin:0 0 16px;text-shadow:0 0 12px #f00000}
-.sabotagePopupModal .sabotagePopupBoard{width:100%;margin:0 auto 16px}
-.sabotagePopupModal .sabotageBoard.missionFloorGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 auto}
-.sabotagePopupModal .sabotageBoard .sabotageBlock.missionFloorCell{aspect-ratio:1/1;min-height:0;padding:7px;border-radius:7px}
-.sabotagePopupModal .sabotageBoard .sabotageBlock.missionFloorCell b{font-size:clamp(13px,2.5vw,19px)}
-.sabotagePopupModal .sabotageBoard .sabotageBlock.missionFloorCell .small{font-size:clamp(9px,1.7vw,12px);line-height:1.25}
-.sabotagePopupModal .missionFloorNav{grid-template-columns:repeat(3,1fr);gap:7px;max-width:none;margin:10px auto 0}
-.sabotagePopupModal .missionFloorNav button{font-size:16px;padding:10px 8px}
-.sabotagePopupModal .sabotagePopupActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:2px}
-.sabotagePopupModal .sabotagePopupActions button{margin:0;width:100%;font-size:17px;padding:12px}
-@media(max-width:600px){.sabotagePopupModal{padding:17px!important;width:min(94vw,500px)!important}.sabotagePopupModal .sabotagePopupTitle{font-size:27px;margin-bottom:12px}.sabotagePopupModal .sabotageBoard.missionFloorGrid{gap:5px}.sabotagePopupModal .missionFloorNav{gap:5px}.sabotagePopupModal .missionFloorNav button{font-size:14px;padding:9px 5px}.sabotagePopupModal .sabotagePopupActions button{font-size:16px}}
-
 @keyframes missionNfcFlash{50%{filter:brightness(1.35)}}
 
 .nightAlertStage{background:#050505;color:#fff}
@@ -2722,7 +2709,10 @@ function bindCardSelectionV20(){
 <div class="fullStage show"><div><div id="countdownNum" class="countNum">5</div><h1 id="countdownTitle"></h1></div></div>
 </section><section id="victory" class="screen"></section>
 
-<section id="sabotage" class="screen" aria-hidden="true"></section>
+<section id="sabotage" class="screen">
+ <button class="secondary" onclick="closeSabotageScreen()">← 취소</button>
+ <div class="card"><h1>🛑 늑대방해</h1><p id="sabotageInstruction" class="muted"></p><div id="sabotageBoard" class="sabotageBoard"></div><div class="row"><button class="secondary" style="flex:1" onclick="closeSabotageScreen()">취소</button><button class="danger" style="flex:1" onclick="executeSelectedSabotage()">실행</button></div></div>
+</section>
 
 <section id="mission" class="screen">
 <button class="secondary missionBackButton" type="button" onclick="renderPlayer()">← 돌아가기</button>
@@ -4344,7 +4334,7 @@ function renderMissionFloorGrid({page,locations,renderCell,mode="player"}){
 async function setMissionFloorPage(page,mode="player"){
  const next=Math.max(1,Math.min(3,Number(page)||3));
  missionFloorPage=next;
- if(mode==="sabotage" && document.querySelector("#sabotagePopupModal")){
+ if(mode==="sabotage" && document.querySelector("#sabotage.screen.active")){
    await refreshSabotageBoard();
  }else if(mode==="player" && document.querySelector("#player.screen.active")){
    await renderPlayer();
@@ -4830,7 +4820,7 @@ async function getGloballyCompletedLocationIds(round){
 
 async function refreshSabotageBoard(){
  const board=el("sabotageBoard");
- if(!board || !document.querySelector("#sabotagePopupModal"))return;
+ if(!board || !document.querySelector("#sabotage.screen.active"))return;
 
  try{
    const p=await me(),g=await settings();
@@ -5010,13 +5000,8 @@ async function openSabotageScreen(){
  }
  selectedSabotageLocationIds=new Set();
  window.__sabotageMaxCount=Math.max(1,Math.min(10,Number(rules.sabotageLocationCount)||1));
- const title=esc("늑대방해");
- el("modalIcon").textContent="";
- el("modalTitle").textContent="";
- el("modalMessage").innerHTML=`<div id="sabotagePopupModal" class="sabotagePopupModal"><div class="sabotagePopupTitle">${title}</div><p id="sabotageInstruction" class="muted" style="margin:0 0 10px"></p><div id="sabotageBoard" class="sabotagePopupBoard sabotageBoard"></div><div class="sabotagePopupActions"><button class="secondary" type="button" onclick="closeSabotageScreen()">취소</button><button class="danger" type="button" onclick="executeSelectedSabotage()">실행</button></div></div>`;
- el("modalButtons").innerHTML="";
- el("overlay").className="overlay show sabotageOverlay";
  el("sabotageInstruction").textContent="활성 미션 장소 중 방해할 장소를 최대 "+rules.sabotageLocationCount+"곳 선택하십시오.";
+ await showScreen("sabotage");
  await refreshSabotageBoard();
  startSabotageUiWatcher();
 }
@@ -6461,7 +6446,7 @@ async function handleSabotageEvent(e){
 
  // 늑대방해가 발생한 순간 화면을 먼저 끊습니다.
  // DB 조회/음원 재생을 기다리다가 미션/늑대방해 메뉴가 남는 문제가 없도록 합니다.
- const sabotageMenuWasOpen=activeScreen==="sabotage" || !!document.querySelector("#sabotagePopupModal");
+ const sabotageMenuWasOpen=activeScreen==="sabotage";
  const missionWasInterrupted=activeScreen==="mission";
 
  if(!deathProtected){
@@ -6619,7 +6604,7 @@ function startSabotageUiWatcher(){
        await loadStateOnce(stateRound);
        const screen=document.querySelector(".screen.active")?.id||"";
        if(screen==="player")await renderPlayer().catch(()=>{});
-       else if(document.querySelector("#sabotagePopupModal"))await refreshSabotageBoard().catch(()=>{});
+       else if(document.querySelector("#sabotage.screen.active"))await refreshSabotageBoard().catch(()=>{});
      }finally{expirationRefreshPending=false;}
    }
 
@@ -6776,7 +6761,7 @@ function realtime(){
   const readyChanged=lastRealtimeReady!==null && Boolean(g.ready)!==Boolean(lastRealtimeReady);
   lastRealtimeReady=g.ready;
   if(phaseChanged || noticeChanged || roundChanged || readyChanged || (typeof g.nfc_enabled!=="undefined" && g.nfc_enabled!==lastNfcEnabled)){
-    if(document.querySelector("#sabotagePopupModal"))closeSabotageScreen();
+    if(document.querySelector("#sabotage.screen.active"))closeSabotageScreen();
     if(realtimeRouteTimer)clearTimeout(realtimeRouteTimer);
     realtimeRouteTimer=setTimeout(async()=>{
       realtimeRouteTimer=null;
@@ -6796,7 +6781,7 @@ function realtime(){
          // 게임 시작 직후 개인별 미션 생성 과정에서 여러 INSERT가 연속 발생하더라도
          // 화면을 매 INSERT마다 재구성하지 않습니다.
          if(g.phase==="PLAY"){
-          if(document.querySelector("#sabotagePopupModal")){
+          if(document.querySelector("#sabotage.screen.active")){
             await refreshSabotageBoard();
           }else if(!document.querySelector("#mission.screen.active")){
             await renderPlayer();
