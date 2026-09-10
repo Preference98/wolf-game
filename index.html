@@ -4245,22 +4245,22 @@ async function openMission(id){
 async function openMissionObject(m,loc,p,g,requestToken=window.__missionEntryToken,preflight=null){
   const completed=preflight?.completed||await getPlayerCompletedLocationIds(g.current_round,p.id);
   const locationId=loc?.id??m.mission_location_id??m.location_id;
-  if(requestToken!==window.__missionEntryToken)return;
+  if(requestToken!==window.__missionEntryToken)return false;
   const latest=preflight?.latestSettings||g;
-  if(requestToken!==window.__missionEntryToken||latest.phase!=="PLAY"||wolfDeathProcessActive)return;
+  if(requestToken!==window.__missionEntryToken||latest.phase!=="PLAY"||wolfDeathProcessActive)return false;
   const sabotageState=preflight?.sabotageState||await getSabotageState(latest.current_round);
-  if(requestToken!==window.__missionEntryToken)return;
-  if(sabotageState.active){toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return;}
+  if(requestToken!==window.__missionEntryToken)return false;
+  if(sabotageState.active){toast("현재 늑대방해 중에는 미션에 들어갈 수 없습니다.");return false;}
   if(locationId!=null&&completed.has(String(locationId))){
     toast("이미 완료된 미션입니다.");
-    return;
+    return false;
   }
 
   window.__miniOutcomeLocked=false;
   currentMission=m;
 
   const miniGame=el("miniGame");
-  if(!miniGame)return;
+  if(!miniGame)return false;
   miniGame.innerHTML="";
 
   const isPuzzle=String(m.concept_type||"").toUpperCase()==="PUZZLE";
@@ -4277,6 +4277,7 @@ async function openMissionObject(m,loc,p,g,requestToken=window.__missionEntryTok
     </div>`;
     el("question").textContent=m.question||"문제가 없습니다.";
   }else launchMiniGame(m);
+  return true;
 }
 
 async function completeCurrentMission(){
@@ -5767,12 +5768,15 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken){
           return;
         }
 
-        window.__missionNfcHandled=true;
+        // 인증 성공 후에는 취소용 closeMissionNfcOverlay()를 사용하지 않습니다.
+        // 현재 요청 토큰을 그대로 유지한 채 미션 화면 진입을 먼저 완료하고,
+        // 실제 미션 화면 진입이 성공한 뒤에만 NFC 인증 팝업을 닫습니다.
         stopMissionNfcScan();
-        // 입장 NFC 인증이 성공하면 팝업을 먼저 닫고 미션 화면으로 전환합니다.
-        // openMissionObject 내부의 비동기 처리 때문에 팝업이 남아 미션 화면을 가리는 것을 방지합니다.
-        closeMissionNfcOverlay();
-        await openMissionObject(m,loc,latestPlayer,latestSettings,requestToken,{completed:latestCompleted,sabotageState:latestSabotage,latestSettings});
+        window.__missionNfcHandled=true;
+        const opened=await openMissionObject(m,loc,latestPlayer,latestSettings,requestToken,{completed:latestCompleted,sabotageState:latestSabotage,latestSettings});
+        if(opened){
+          closeOverlay();
+        }
       }catch(e){
         window.__missionNfcHandled=false;
         stopMissionNfcScan();
