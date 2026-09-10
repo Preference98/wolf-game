@@ -1759,8 +1759,8 @@ function stopScreenNightBgm(){stopScreenSound("nightBgm");}
 async function renderScreenNight(g){
  const started=Date.parse(g.night_started_at||"");
  if(!Number.isFinite(started))return;
- const threeWolfMode=String(g.notice||'').startsWith('THREE_WOLF_MODE|');
- const duration=threeWolfMode?0:Math.max(5,Number(g.night_duration_seconds)||30)*1000;
+ const deathmatchMode=String(g.game_mode||'').toUpperCase()==='DEATHMATCH';
+ const duration=deathmatchMode?0:Math.max(5,Number(g.night_duration_seconds)||30)*1000;
  const endAt=started+duration;
  const key="night-"+String(g.current_round)+"-"+String(g.night_started_at);
  if(window.__screenNightKey===key)return;
@@ -1773,7 +1773,7 @@ async function renderScreenNight(g){
  const tick=async()=>{
    const left=Math.max(0,endAt-screenNow());
    if(timerEl)timerEl.textContent=String(Math.floor(left/60000)).padStart(2,'0')+":"+String(Math.floor(left/1000)%60).padStart(2,'0');
-   if(left<=0 && !threeWolfMode){
+   if(left<=0 && !deathmatchMode){
      if(screenNightTimerHandle){clearInterval(screenNightTimerHandle);screenNightTimerHandle=null;}
      stopScreenNightBgm();
      await playScreenEffect('sounds/morning.mp3','screen-morning-'+String(g.current_round)).catch(()=>{});
@@ -2064,13 +2064,13 @@ async function countdownSequence(g){
    await wait(4000);if(token!==seqToken)return;
    const latest=await getSettings();
    if(String(latest.phase).toUpperCase()==='COUNTDOWN'){
-     const threeWolfMode=String(latest.notice||'').startsWith('THREE_WOLF_MODE|');
+     const deathmatchMode=String(latest.game_mode||'').toUpperCase()==='DEATHMATCH';
      const startedAt=serverNowISO();
-     const r=threeWolfMode
-       ?await db.from('game_settings').update({phase:'NIGHT',night_started_at:startedAt,round_started_at:null,notice:'THREE_WOLF_MODE|'+String(latest.current_round||0)}).eq('id',1).eq('phase','COUNTDOWN')
+     const r=deathmatchMode
+       ?await db.from('game_settings').update({phase:'NIGHT',night_started_at:startedAt,round_started_at:null,notice:'데스메치 밤이 시작되었습니다.'}).eq('id',1).eq('phase','COUNTDOWN')
        :await db.from('game_settings').update({phase:'PLAY',notice:'게임이 시작되었습니다.',round_started_at:startedAt}).eq('id',1).eq('phase','COUNTDOWN');
      if(!r.error){
-       if(threeWolfMode) await handlePhase({...latest,phase:'NIGHT',notice:'THREE_WOLF_MODE|'+String(latest.current_round||0),night_started_at:startedAt,round_started_at:null});
+       if(deathmatchMode) await handlePhase({...latest,phase:'NIGHT',notice:'데스메치 밤이 시작되었습니다.',night_started_at:startedAt,round_started_at:null});
        else await handlePhase({...latest,phase:'PLAY',notice:'게임이 시작되었습니다.',round_started_at:startedAt});
      }
    }
@@ -2396,8 +2396,8 @@ if(phase==='ROLE_REVEAL'){await roleRevealSequence();return;}
  if(phase==='FINISHED'){
    stopAllScreenBgm();
    const winner=String(g.winner||'').toUpperCase();
-   const isSoloWin=winner==='WOLF'&&String(g.notice||'').startsWith('THREE_WOLF_MODE_WIN|');
-   const isRoundWin=winner==='SHEEP'&&String(g.notice||'').startsWith('SHEEP_ROUND_WIN|');
+   const isSoloWin=String(g.notice||'').startsWith('DEATHMATCH_WIN|');
+   const isRoundWin=String(g.notice||'').startsWith('SHEEP_ROUND_WIN|')||String(g.notice||'').startsWith('WOLF_ROUND_WIN|');
    if(isSoloWin){
      renderScreenSoloVictory();
      await playScreenEffect('sounds/ending.mp3','screen-ending-'+String(g.current_round)).catch(()=>{});
@@ -2510,10 +2510,34 @@ function screenApplyVoteEvent(d){const ev=String(d?.event_id||'');if(!ev)return;
 async function renderScreenVoteBoard(g,finalData=null){const playersR=await db.from('players').select('id,name,status').order('created_at').order('id');if(playersR.error){console.warn('스크린 투표 플레이어 조회 실패:',playersR.error.message);return;}const players=(playersR.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE'||(finalData&&String(x.id)===String(finalData.player_id)));const ev=screenVoteEvent(g);if(!finalData&&ev){if(screenLiveVoteEvent!==ev){screenLiveVoteEvent=ev;screenLiveVotes=new Map();}const fetched=await screenVoteData(g.current_round,ev);for(const [v,d] of fetched)screenLiveVotes.set(v,d);}const counts=new Map();if(finalData){for(const [id,c] of Object.entries(finalData.counts||{}))counts.set(String(id),Number(c)||0);}else{for(const d of screenLiveVotes.values()){const candidate=String(d.candidate_id||'');if(candidate)counts.set(candidate,(counts.get(candidate)||0)+1);}}const total=finalData?Number(finalData.total||players.length):players.length;const winnerId=finalData&&!finalData.no_execution?String(finalData.player_id):'';const title=$('screenVoteTitleCards');if(title){title.innerHTML='';['늑','대','투','표'].forEach(x=>{const i=document.createElement('img');i.src='assets/vote_'+x+'.png';i.alt=x;title.appendChild(i);});}const root=$('screenVotePlayers');if(!root)return;root.innerHTML=players.map(p=>{const id=String(p.id),count=Number(counts.get(id)||0),winner=winnerId===id;return '<div class="screenVotePlayer '+(finalData?(winner?'winner':'dim'):'')+'"><img src="assets/'+(winner?'sheep_dead.png':'sheep_alive.png')+'" alt=""><div class="screenVotePlayerName">'+safeText(p.name||'')+'</div><div class="screenVoteCount">'+count+'/'+total+'</div></div>';}).join('');}
 async function screenVoteSequence(g){const token=++screenVoteToken;screenLiveVoteEvent=screenVoteEvent(g);screenLiveVotes=new Map();stopAllScreenBgm();await screenPlayVoteBgm();show('s-vote');await renderScreenVoteBoard(g);if(screenVoteBoardTimer)clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=setInterval(async()=>{try{const latest=await getSettings();if(String(latest.phase).toUpperCase()!=='VOTE'){clearInterval(screenVoteBoardTimer);screenVoteBoardTimer=null;return;}await renderScreenVoteBoard(latest);}catch(e){console.warn('스크린 실시간 투표 갱신 오류:',e);}},700);if(token!==screenVoteToken)return;}
 async function screenVoteResultData(round,eventId){if(eventId&&screenVoteResultCache.has(eventId))return screenVoteResultCache.get(eventId);const r=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','VOTE_RESULT').order('id',{ascending:false}).limit(50);if(r.error){console.warn('스크린 투표결과 조회 실패:',r.error.message);return null;}for(const n of r.data||[]){try{const d=JSON.parse(n.message||'{}');if(String(d.round)!==String(round))continue;if(eventId&&String(d.event_id)!==String(eventId))continue;if(d.event_id)screenVoteResultCache.set(String(d.event_id),d);return d;}catch(_){}}return null;}
+async function screenAdvanceAfterIntermediateWin(round){
+ const next=Number(round||0)+1;
+ const current=await getSettings().catch(()=>null);
+ const mode=String(current?.game_mode||'').toUpperCase()==='DEATHMATCH'?'DEATHMATCH':'DEATHMATCH';
+ const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,night_started_at:null,round_time_penalty_total:0,game_mode:mode}).eq('id',1).eq('phase','FINISHED').eq('current_round',Number(round||0)).select('id');
+ if(lock.error||!lock.data?.length)return false;
+ await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');
+ try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(round||0)});}catch(_){}
+ return true;
+}
+
 async function screenEvaluateFinalVictory(round){
   const r=await db.from('players').select('id,role,status');
-  if(r.error){console.warn('스크린 최종승리 조건 확인 실패:',r.error.message);return {ended:false};}
+  if(r.error){console.warn('스크린 승리 조건 확인 실패:',r.error.message);return {ended:false};}
   const alive=(r.data||[]).filter(x=>String(x.status||'').toUpperCase()==='ALIVE');
+  const g=await getSettings().catch(()=>null);
+  const dm=String(g?.game_mode||'').toUpperCase()==='DEATHMATCH';
+  if(dm){
+    if(alive.length!==1)return {ended:false,alive};
+    const winner=String(alive[0]?.role||'').toUpperCase()==='SHEEP'?'SHEEP':'WOLF';
+    const u=await db.from('game_settings').update({phase:'FINISHED',winner,started:false,notice:'DEATHMATCH_WIN|'+String(round||0)})
+      .eq('id',1).eq('current_round',Number(round||0)).neq('phase','FINISHED').select('id');
+    if(u.error){console.warn('스크린 데스메치 최종승리 확정 실패:',u.error.message);return {ended:false,alive};}
+    if(u.data?.length)return {ended:true,winner,alive};
+    const latest=await getSettings();
+    if(String(latest.phase||'').toUpperCase()==='FINISHED')return {ended:true,winner:latest.winner||winner,alive};
+    return {ended:false,alive};
+  }
   if(alive.length!==2)return {ended:false,alive};
   const sheep=alive.filter(x=>String(x.role||'').toUpperCase()==='SHEEP').length;
   const wolf=alive.filter(x=>String(x.role||'').toUpperCase()==='WOLF').length;
@@ -2521,13 +2545,16 @@ async function screenEvaluateFinalVictory(round){
   if(sheep===2)winner='SHEEP';
   else if(sheep===1&&wolf===1)winner='WOLF';
   else return {ended:false,alive};
-  const msg=winner==='SHEEP'?'생존자가 양 2명이 되어 양이 최종 승리했습니다.':'생존자가 양 1명과 늑대 1명이 되어 늑대가 최종 승리했습니다.';
-  const u=await db.from('game_settings').update({phase:'FINISHED',winner,started:false,notice:msg})
+  const notice=winner+'_ROUND_WIN|'+String(round||0)+'|'+String(Date.now())+'-'+String(Math.random()).slice(2,8)+'|'+String(Date.now());
+  const u=await db.from('game_settings').update({phase:'FINISHED',winner,started:false,notice})
     .eq('id',1).eq('current_round',Number(round||0)).neq('phase','FINISHED').select('id');
-  if(u.error){console.warn('스크린 최종승리 확정 실패:',u.error.message);return {ended:false,alive};}
-  if(u.data?.length)return {ended:true,winner,alive};
-  const latest=await getSettings();
-  if(String(latest.phase||'').toUpperCase()==='FINISHED'&&String(latest.winner||'').toUpperCase()===winner)return {ended:true,winner,alive};
+  if(u.error){console.warn('스크린 중간승리 확정 실패:',u.error.message);return {ended:false,alive};}
+  if(u.data?.length){
+    setTimeout(()=>screenAdvanceAfterIntermediateWin(Number(round||0)).catch(e=>console.warn('스크린 중간승리 후 다음 라운드 전환 오류:',e)),5000);
+    return {ended:true,winner,alive,intermediate:true};
+  }
+  const latest=await getSettings().catch(()=>null);
+  if(String(latest?.phase||'').toUpperCase()==='FINISHED')return {ended:true,winner:latest.winner||winner,alive,intermediate:true};
   return {ended:false,alive};
 }
 
@@ -2572,7 +2599,7 @@ async function screenVoteResultSequence(g){const token=++screenVoteToken;if(scre
     }
   }
   await wait(5000);}
-async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
+async function screenAutoNextRoundNoWinner(g){const next=Number(g.current_round||0)+1;const lock=await db.from('game_settings').update({current_round:next,phase:'LOBBY',started:false,ready:false,roles_selected:false,notice:'다음 라운드 대기 중',winner:null,dead_sheep_found:false,dead_sheep_location:null,investigation_started_at:null,round_started_at:null,round_time_penalty_total:0,game_mode:String(g.game_mode||'NORMAL').toUpperCase()==='DEATHMATCH'?'DEATHMATCH':'NORMAL'}).eq('id',1).eq('phase','VOTE_RESULT').eq('current_round',Number(g.current_round||0));if(lock.error||!lock.data?.length)return;await db.from('players').update({role:'UNASSIGNED',card_selected:false,card_position:null}).eq('status','ALIVE');try{await db.rpc('reset_round_mission_progress',{p_game_round:Number(g.current_round||0)});}catch(_){} }
 async function screenResumeEmergencyAfterTrial(g,eventId=""){
   const round=Number(g.current_round||0);
   const report=await db.from('notifications').select('message').is('target_player',null).eq('notification_type','EMERGENCY_REPORT').order('id',{ascending:false}).limit(30);
