@@ -2122,6 +2122,16 @@ function bindCardSelectionV20(){
 }
 </style>
 
+<style id="mission-game-screen-v1">
+/* 미션 실제 게임 화면: 미니게임만 모바일 전체화면으로 표시 */
+#mission.screen{position:fixed!important;inset:0!important;z-index:420!important;width:100vw!important;height:100dvh!important;min-height:100dvh!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important}
+#mission .missionBackButton{position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;left:max(10px,env(safe-area-inset-left))!important;z-index:30!important;margin:0!important;min-height:44px!important;padding:9px 13px!important;opacity:.88}
+#mission .missionGameViewport{width:100vw!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;padding:clamp(12px,3vw,28px)!important;padding-top:max(clamp(12px,3vw,28px),calc(env(safe-area-inset-top) + 62px))!important;padding-right:max(clamp(12px,3vw,28px),env(safe-area-inset-right))!important;padding-bottom:max(clamp(12px,3vw,28px),env(safe-area-inset-bottom))!important;padding-left:max(clamp(12px,3vw,28px),env(safe-area-inset-left))!important;overflow:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#mission .missionGameViewport > *{max-width:none}
+.missionPuzzleCompat{width:min(760px,100%);margin:auto;padding:clamp(14px,4vw,32px);padding-top:clamp(8px,4vw,30px)}
+.missionPuzzleCompat .question{font-size:clamp(20px,4vw,30px);line-height:1.6;margin:0 0 20px}
+@media(max-width:600px){#mission .missionGameViewport{padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}}
+</style>
 <style id="scroll-behavior-fix-v1">
 /* 스크롤 수정: 기존 픽스된 화면/연출은 유지하고, 내용이 긴 화면만 독립적으로 스크롤 */
 #admin,
@@ -2465,9 +2475,8 @@ function bindCardSelectionV20(){
 </section>
 
 <section id="mission" class="screen">
-<button class="secondary" onclick="renderPlayer()">← 돌아가기</button>
-<div class="card"><div id="mMeta" class="small"></div><h1 id="mTitle"></h1><p id="mDesc" class="muted"></p><div id="missionTimer" class="timer">03:00</div><div id="question" class="question"></div><div id="miniGame"></div>
-<input id="answer" placeholder="답 입력"><button id="answerBtn" style="width:100%" onclick="submitAnswer()">답안 제출</button><div id="missionResult"></div></div>
+<button class="secondary missionBackButton" type="button" onclick="renderPlayer()">← 돌아가기</button>
+<div id="miniGame" class="missionGameViewport"></div>
 </section>
 
 <section id="admin" class="screen">
@@ -2611,7 +2620,7 @@ const SUPABASE_URL="https://nfmryuvkdiiqxznhhcjg.supabase.co";
 const SUPABASE_KEY="sb_publishable_HbU7dNOMplBEY3qLgaW8HQ_PzeWoR2u";
 let db=null,playerId=localStorage.getItem("wolf_game_player_v7"),currentMission=null;
 let missionEntryToken=0;
-let missionTimer=null,missionEndAt=0,missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
+let missionSabotageWatchTimer=null,roundTimer=null,investigationTimer=null,soundEnabled=false,nfcTestMode=false,lastNotice="",pendingAdminAction=null;
 let sabotageUiTimer=null,sabotageUiLastSignature="";
 let localSabotageCooldownUntil=0,localSabotageEventId=null;
 let sabotageEventTimer=null,lastHandledSabotageEventId=null,lastHandledSabotageEnd=0;
@@ -2639,9 +2648,7 @@ function stopRoundTimer(){
   window.__roundTimerDurationMs=0;
 }
 function stopMissionTimer(){
-  if(missionTimer){ clearInterval(missionTimer); missionTimer=null; }
   if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
-  missionEndAt=0;
 }
 function stopInvestigationTimer(){
   if(investigationTimer){ clearInterval(investigationTimer); investigationTimer=null; }
@@ -3558,28 +3565,6 @@ function formatRoundTime(ms){
  const min=Math.floor(total/60), sec=total%60;
  return String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
 }
-function tickMission(){
- const timerEl=el("missionTimer");
- if(!timerEl)return;
-
- const left=Math.max(0,missionEndAt-gameNow());
- const total=Math.ceil(left/1000);
- const min=Math.floor(total/60);
- const sec=total%60;
-
- timerEl.textContent=String(min).padStart(2,"0")+":"+String(sec).padStart(2,"0");
- timerEl.classList.toggle("warn",left>0&&left<=30000);
- timerEl.classList.toggle("end",left<=0);
-
- if(left<=0){
-   stopMissionTimer();
-   if(currentMission && String(currentMission.concept_type||"").toUpperCase()==="MINIGAME"){
-     return;
-   }
-   const result=el("missionResult");
-   if(result)result.innerHTML='<div class="notice alert">미션 시간이 종료되었습니다.</div>';
- }
-}
 function tickRoundTimer(){
  if(!roundTimer)return; const timerEl=el("roundTimer"); if(!timerEl)return; const started=window.__roundTimerStartedAt,duration=window.__roundTimerDurationMs; if(!started||!duration){timerEl.textContent="00:00";return;} const left=Math.max(0,started+duration-gameNow()); timerEl.textContent=formatRoundTime(left); timerEl.classList.toggle("warn",left>0&&left<=60000); timerEl.classList.toggle("end",left<=0); if(left<=0){
   clearInterval(roundTimer);roundTimer=null;
@@ -4173,35 +4158,24 @@ async function openMissionObject(m,loc,p,g,requestToken=missionEntryToken,prefli
   window.__miniOutcomeLocked=false;
   currentMission=m;
 
-  el("mMeta").textContent=(loc?.name||"미션")+" · "+
-    (String(m.concept_type||"").toUpperCase()==="MINIGAME"?"미니게임":"두뇌퍼즐");
-  el("mTitle").textContent=m.title;
-  el("mDesc").textContent=m.description||"";
-  el("question").textContent="";
-  el("answer").value="";
-  el("answer").disabled=false;
-  el("answer").readOnly=false;
-  el("answerBtn").disabled=false;
-  el("answerBtn").style.pointerEvents="auto";
-  el("missionResult").innerHTML="";
-  if(el("miniGame"))el("miniGame").innerHTML="";
+  const miniGame=el("miniGame");
+  if(!miniGame)return;
+  miniGame.innerHTML="";
 
   const isPuzzle=String(m.concept_type||"").toUpperCase()==="PUZZLE";
-  el("answer").style.display=isPuzzle?"":"none";
-  el("answerBtn").style.display=isPuzzle?"":"none";
 
-  const missionStorageKey="wolf-mission-end:"+String(g.current_round)+":"+String(p.id)+":"+String(m.id);
-  const storedMissionEnd=Number(sessionStorage.getItem(missionStorageKey)||0);
-  missionEndAt=storedMissionEnd>gameNow()?storedMissionEnd:gameNow()+180000;
-  sessionStorage.setItem(missionStorageKey,String(missionEndAt));
-  clearInterval(missionTimer);
-  missionTimer=setInterval(tickMission,250);
-  window.__wolfMissionTimerId=missionTimer;
-  tickMission();
   showScreen("mission");
   if(missionSabotageWatchTimer){clearInterval(missionSabotageWatchTimer);missionSabotageWatchTimer=null;}
-  if(isPuzzle)el("question").textContent=m.question||"문제가 없습니다.";
-  else launchMiniGame(m);
+  if(isPuzzle){
+    // 기존 두뇌퍼즐 기능을 유지하되, 미션 화면의 별도 제목/설명/답안 영역은 사용하지 않습니다.
+    miniGame.innerHTML=`<div class="missionPuzzleCompat">
+      <div id="question" class="question"></div>
+      <input id="answer" placeholder="답 입력" autocomplete="off">
+      <button id="answerBtn" style="width:100%" type="button" onclick="submitAnswer()">답안 제출</button>
+      <div id="missionResult"></div>
+    </div>`;
+    el("question").textContent=m.question||"문제가 없습니다.";
+  }else launchMiniGame(m);
 }
 
 async function completeCurrentMission(){
@@ -4245,7 +4219,7 @@ async function completeCurrentMission(){
  if(p.role==="SHEEP"){toast("미션 완료!");const won=await checkMissionGaugeAndWin(g.current_round);if(won){await route();return;}}else toast("늑대 미션 완료! (게이지에는 반영되지 않습니다.)"); await renderPlayer();
 }
 
-async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission||gameNow()>missionEndAt){toast("미션 시간이 종료되었습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
+async function submitAnswer(){const btn=el("answerBtn"),gg=await settings();if(gg.phase!=="PLAY"){toast("현재는 미션을 수행할 수 없습니다.");return;}if(window.__miniOutcomeLocked){toast("이 미션은 이미 실패 처리되었습니다.");return;}if(!currentMission){toast("현재 미션이 없습니다.");return;}const done=busy(btn,"제출 중...");try{const p=await me(),correct=p.role==="WOLF"?currentMission.wolf_answer:currentMission.answer,a=el("answer").value.trim();if(a!==String(correct??"")){el("missionResult").innerHTML='<div class="notice alert">오답입니다.</div>';return;}await completeCurrentMission();}catch(e){el("missionResult").innerHTML='<div class="errorbox">'+esc(e.message||String(e))+'</div>';}finally{done();}}
 async function enableSound(){
  await unlockSound();
  toast("알림 소리가 활성화되었습니다.");
@@ -6570,7 +6544,6 @@ function finishMiniGame(success,message){
   window.__miniOutcomeLocked=true;
   const bridge=window.__wolfGameBridge;
   if(!bridge){console.error("늑대게임 브리지 초기화 실패");window.__miniOutcomeLocked=false;return;}
-  if(window.__wolfMissionTimerId){clearInterval(window.__wolfMissionTimerId);window.__wolfMissionTimerId=null;}
   (async()=>{
     try{
       if(success){
@@ -6635,10 +6608,6 @@ function cancelMiniMission(){
   clearTimeout(window.__wolfMiniOutcomeTimer);
   window.__wolfMiniOutcomeTimer=null;
   window.__miniOutcomeLocked=false;
-  if(window.__wolfMissionTimerId){
-    clearInterval(window.__wolfMissionTimerId);
-    window.__wolfMissionTimerId=null;
-  }
   window.__wolfGameBridge?.setCurrentMission(null);
   window.__wolfGameBridge?.renderPlayer?.();
 }
