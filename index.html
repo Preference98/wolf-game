@@ -4085,7 +4085,10 @@ function mergeSabotageStateForUi(serverState){
   }
   const ends=[...activeLocationEnds.values()].map(Number).filter(Number.isFinite);
   const activeUntil=Math.max(Number(serverState?.activeUntil||0),Number(cached?.activeUntil||0)>now?Number(cached.activeUntil):0,...ends);
-  return {...(serverState||{}),round:serverRound||cachedRound,activeLocationIds,activeLocationEnds,active:activeLocationIds.size>0||activeUntil>now,activeUntil};
+  const merged={...(serverState||{}),round:serverRound||cachedRound,activeLocationIds,activeLocationEnds,active:activeLocationIds.size>0||activeUntil>now,activeUntil};
+  rememberSabotageLocationEnds(merged.round,activeLocationEnds);
+  if(activeLocationIds.size)scheduleSabotageLocationExpiry([...activeLocationIds],merged.round);
+  return merged;
 }
 function setEmergencyButtonState(active){
   const b=el("emergencyReportFloat");
@@ -4362,6 +4365,7 @@ async function renderPlayerCore(){
     allLocations=locationRows;
     completedLocations=completedSet;
     sabotageState=mergeSabotageStateForUi(sabotageData);
+    rememberSabotageLocationEnds(g.current_round,sabotageState.activeLocationEnds||new Map());
     sabotaged=sabotageState.activeLocationIds||new Set();
     gauge=gaugeData;
     if(isStaleMissionRender())return;
@@ -4382,7 +4386,10 @@ async function renderPlayerCore(){
   el("noticeBox").innerHTML=(g.notice?'<div class="notice">'+esc(g.notice)+'</div>':"");
 
   const box=el("missions");
-  const sabotageEnds=sabotageState?.activeLocationEnds||new Map();
+  const sabotageEnds=new Map(sabotageState?.activeLocationEnds||[]);
+  for(const [id,end] of (window.__sabotageLocationEndsUi||new Map())){
+    if(Number(end)>gameNow())sabotageEnds.set(String(id),Math.max(Number(sabotageEnds.get(String(id))||0),Number(end)));
+  }
   const activeIds=new Set(locs.map(x=>String(x.id)));
   box.className="missionBoard";
   box.innerHTML=renderMissionFloorGrid({
@@ -4663,6 +4670,79 @@ async function getSabotagedLocationIds(round){
 // 늑대방해 INSERT Realtime을 받은 플레이어 화면에 즉시 반영합니다.
 // DB 재조회/renderPlayer()를 기다리지 않고 현재 본게임의 해당 버튼만 직접 갱신하여
 // 늑대방해 실행 속도는 유지하면서 플레이어별 UI 지연을 줄입니다.
+// 사보타지 장소별 종료시각을 화면 렌더링과 독립적으로 보존합니다.
+// Realtime 이벤트와 renderPlayer의 서버 조회 타이밍이 서로 덮어쓰지 않도록 합니다.
+window.__sabotageLocationEndsUi=window.__sabotageLocationEndsUi||new Map();
+window.__sabotageUiRound=Number(window.__sabotageUiRound||0);
+function rememberSabotageLocationEnds(round, locationEnds){
+  const r=Number(round||0);
+  if(!r)return;
+  if(window.__sabotageUiRound && window.__sabotageUiRound!==r){
+    window.__sabotageLocationEndsUi.clear();
+  }
+  window.__sabotageUiRound=r;
+  const now=gameNow();
+  for(const [id,end] of new Map(locationEnds||[])){
+    const n=Number(end)||0;
+    if(n>now)window.__sabotageLocationEndsUi.set(String(id),n);
+    else window.__sabotageLocationEndsUi.delete(String(id));
+  }
+}
+function rememberSabotageRealtimeEnd(ev){
+  try{
+    const round=Number(ev?.game_round||0);
+    const endsAt=Date.parse(ev?.ends_at||"");
+    const raw=Array.isArray(ev?.location_ids)?ev.location_ids:JSON.parse(ev?.location_ids||"[]");
+    if(!round||!Number.isFinite(endsAt)||endsAt<=gameNow()||!Array.isArray(raw))return;
+    if(window.__sabotageUiRound && window.__sabotageUiRound!==round)window.__sabotageLocationEndsUi.clear();
+    window.__sabotageUiRound=round;
+    for(const id of new Set(raw.map(String)))window.__sabotageLocationEndsUi.set(id,endsAt);
+  }catch(e){console.warn("늑대방해 종료시각 캐시 기록 오류:",e);}
+}
+function applySabotageCountdownToPlayerBoard(){
+  const screen=document.querySelector("#player.screen.active");
+  if(!screen)return;
+  const now=gameNow();
+  const ends=window.__sabotageLocationEndsUi||new Map();
+  document.querySelectorAll("#player .missionLocationButton[data-location-id]").forEach(button=>{
+    const id=String(button.getAttribute("data-location-id")||"");
+    const end=Math.max(Number(ends.get(id)||0),Number(button.getAttribute("data-sabotage-end")||0));
+    const countdown=button.querySelector(".sabotageCountdown");
+    if(end>now){
+      if(button.classList.contains("sabotaged")){
+        button.setAttribute("data-sabotage-end",String(end));
+        if(countdown){countdown.setAttribute("data-sabotage-countdown",id);countdown.textContent="사보타지 "+Math.ceil((end-now)/1000)+"초";}
+      }
+    }else if(button.classList.contains("sabotaged")){
+      button.removeAttribute("data-sabotage-end");
+      if(countdown){countdown.textContent="";countdown.removeAttribute("data-sabotage-countdown");}
+    }
+  });
+}
+function scheduleSabotageLocationExpiry(locationIds,round){
+  const ids=[...new Set((locationIds||[]).map(String))];
+  if(!ids.length)return;
+  const key=String(round||window.__sabotageUiRound||0)+":"+ids.join(",");
+  window.__sabotageExpiryTimers=window.__sabotageExpiryTimers||new Map();
+  const existing=window.__sabotageExpiryTimers.get(key);
+  if(existing)clearTimeout(existing);
+  const ends=window.__sabotageLocationEndsUi||new Map();
+  const latest=Math.max(...ids.map(id=>Number(ends.get(id)||0)));
+  if(!latest)return;
+  const delay=Math.max(0,latest-gameNow()+50);
+  const timer=setTimeout(async()=>{
+    window.__sabotageExpiryTimers.delete(key);
+    for(const id of ids){
+      const end=Number(ends.get(id)||0);
+      if(end<=gameNow())ends.delete(id);
+    }
+    applySabotageCountdownToPlayerBoard();
+    if(document.querySelector("#player.screen.active")){
+      await renderPlayer().catch(()=>{});
+    }
+  },delay);
+  window.__sabotageExpiryTimers.set(key,timer);
+}
 function applySabotageEventToPlayerBoard(ev){
  try{
    if(!document.querySelector("#player.screen.active"))return false;
@@ -4671,19 +4751,15 @@ function applySabotageEventToPlayerBoard(ev){
      :JSON.parse(ev?.location_ids||"[]");
    const ids=[...new Set((Array.isArray(rawIds)?rawIds:[]).map(String))];
    if(!ids.length)return false;
-
+   rememberSabotageRealtimeEnd(ev);
    const endsAt=Date.parse(ev?.ends_at||"");
    const seconds=endsAt>0?Math.max(0,Math.ceil((endsAt-gameNow())/1000)):0;
    let changed=false;
-
    for(const id of ids){
      const button=document.querySelector('#player .missionLocationButton[data-location-id="'+CSS.escape(id)+'"]');
      if(!button)continue;
-     // 기존 renderPlayer의 우선순위와 동일하게 이미 완료된 미션은 완료 표시를 유지합니다.
      if(button.classList.contains("completed"))continue;
-     // 현재 플레이어에게 활성 미션으로 표시된 장소만 즉시 사보타지 처리합니다.
      if(!button.classList.contains("active")&&!button.classList.contains("sabotaged"))continue;
-
      button.classList.remove("active","inactive");
      button.classList.add("sabotaged");
      button.disabled=true;
@@ -4691,28 +4767,18 @@ function applySabotageEventToPlayerBoard(ev){
      button.removeAttribute("onclick");
      button.style.pointerEvents="none";
      if(endsAt>0)button.setAttribute("data-sabotage-end",String(endsAt));
-
      let countdown=button.querySelector(".sabotageCountdown");
-     if(!countdown){
-       countdown=document.createElement("span");
-       countdown.className="sabotageCountdown";
-       button.appendChild(countdown);
-     }
+     if(!countdown){countdown=document.createElement("span");countdown.className="sabotageCountdown";button.appendChild(countdown);}
      countdown.setAttribute("data-sabotage-countdown",id);
-     countdown.textContent="사보타지 "+(seconds>0?seconds+"초":"종료");
-
+     countdown.textContent=endsAt>0?"사보타지 "+(seconds>0?seconds+"초":"종료"):"사보타지";
      const block=button.closest(".missionBlock");
-     if(block){
-       block.classList.remove("active","inactive");
-       block.classList.add("sabotaged");
-     }
+     if(block){block.classList.remove("active","inactive");block.classList.add("sabotaged");}
      changed=true;
    }
+   scheduleSabotageLocationExpiry(ids,Number(ev?.game_round||0));
+   applySabotageCountdownToPlayerBoard();
    return changed;
- }catch(e){
-   console.warn("늑대방해 즉시 UI 반영 오류:",e);
-   return false;
- }
+ }catch(e){console.warn("늑대방해 즉시 UI 반영 오류:",e);return false;}
 }
 
 let selectedSabotageLocationIds=new Set();
@@ -6278,6 +6344,7 @@ function stopSabotageUiWatcher(){
  if(sabotageUiTimer){clearInterval(sabotageUiTimer);sabotageUiTimer=null;}
  if(sabotageEventTimer){clearInterval(sabotageEventTimer);sabotageEventTimer=null;}
  if(sabotageNotificationTimer){clearInterval(sabotageNotificationTimer);sabotageNotificationTimer=null;}
+ if(window.__sabotageExpiryTimers){for(const t of window.__sabotageExpiryTimers.values())clearTimeout(t);window.__sabotageExpiryTimers.clear();}
  sabotageNotificationStarted=false;
  sabotageUiLastSignature="";
 }
@@ -6417,7 +6484,14 @@ function startSabotageUiWatcher(){
       window.__sabotageStateCache=state;
     }
    const now=gameNow();
-   const activeRemain=Math.max(0,Number(state.activeUntil||0)-now);
+   // Realtime/DOM에서 받은 장소별 종료시각을 watcher closure보다 우선합니다.
+   const uiEnds=window.__sabotageLocationEndsUi||new Map();
+   const mergedLocationEnds=new Map(state.activeLocationEnds||[]);
+   for(const [id,end] of uiEnds){ if(Number(end)>now) mergedLocationEnds.set(String(id),Math.max(Number(mergedLocationEnds.get(String(id))||0),Number(end))); }
+   state.activeLocationEnds=mergedLocationEnds;
+   for(const [id,end] of [...mergedLocationEnds]) if(Number(end)<=now) mergedLocationEnds.delete(id);
+   const now2=gameNow();
+   const activeRemain=Math.max(0,Number(state.activeUntil||0)-now2);
    const cooldownRemain=Math.max(0,Number(state.cooldownUntil||0)-now);
    const active=activeRemain>0;
    window.__sabotageActiveNow=active;
