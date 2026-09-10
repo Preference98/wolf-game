@@ -5,6 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>늑대게임 v190 · 투표 시스템</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23000%27/%3E%3Cpath d=%27M16 44V24l8-8 8 8 8-8 8 8v20H16z%27 fill=%27%23ff334f%27/%3E%3Ccircle cx=%2725%27 cy=%2731%27 r=%273%27 fill=%27%23000%27/%3E%3Ccircle cx=%2739%27 cy=%2731%27 r=%273%27 fill=%27%23000%27/%3E%3C/svg%3E">
+
+<script>
+window.showPlayerScreenImmediate = function(){
+  if(typeof window.syncLoginLobbyChrome === "function"){
+    window.syncLoginLobbyChrome("player");
+  }
+  document.querySelectorAll(".screen").forEach(x=>{
+    x.classList.remove("active");
+    x.style.display="none";
+  });
+  const target=document.getElementById("player");
+  if(target){
+    target.classList.add("active");
+    target.style.display="block";
+  }
+};
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;600;800;900&display=swap');
@@ -6838,7 +6856,7 @@ window.cancelMissionCompletion=function(btn){
   bridge?.setCurrentMission(null);
   // 화면은 서버 조회를 기다리지 않고 즉시 본게임으로 돌립니다.
   closeOverlay();
-  showPlayerScreenImmediate();
+  window.showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionCompletionActionBusy=false;
   // 최신 미션 상태/게이지는 백그라운드에서 갱신합니다.
@@ -6856,7 +6874,7 @@ window.confirmMissionCompletion=function(btn){
   bridge?.setCurrentMission(null);
   closeOverlay();
   // 확인 클릭 즉시 본게임 화면을 먼저 보여주고, 무거운 최신화는 뒤에서 수행합니다.
-  showPlayerScreenImmediate();
+  window.showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionCompletionActionBusy=false;
   Promise.resolve().then(async()=>{
@@ -6891,7 +6909,7 @@ window.cancelMiniMission=function(btn){
   window.__wolfGameBridge?.setCurrentMission(null);
   // 실패 후 복귀도 서버 조회를 기다리지 않고 즉시 본게임으로 전환합니다.
   closeOverlay();
-  showPlayerScreenImmediate();
+  window.showPlayerScreenImmediate();
   window.__miniOutcomeLocked=false;
   window.__missionFailureActionBusy=false;
   Promise.resolve(window.__wolfGameBridge?.renderPlayer?.()).catch(e=>console.error("미션실패 후 화면 갱신 오류:",e));
