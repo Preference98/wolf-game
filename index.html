@@ -5842,7 +5842,7 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken,existingReader=null,e
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
-        if(!nfcTagMatches(event,loc.nfc_tag)){
+        if(!window.nfcTagMatches(event,loc.nfc_tag)){
           missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
           return;
         }
@@ -6800,6 +6800,19 @@ window.stopMissionNfcScan=stopMissionNfcScan;
 window.missionNfcModal=missionNfcModal;
 window.__wolfMissionGetLocation=getMissionLocation;
 window.__wolfMissionReadNfcText=readNfcText;
+  window.nfcTagMatches=function(event,expected){
+    try{
+      const target=String(expected??"").trim();
+      if(!target)return false;
+      const values=typeof readNfcRecordTexts==="function"
+        ? readNfcRecordTexts(event)
+        : [];
+      return values.some(v=>String(v).trim()===target);
+    }catch(e){
+      console.warn("NFC 태그 판정 실패:",e);
+      return false;
+    }
+  };
 
 })();
 
@@ -6866,7 +6879,7 @@ async function startMissionCompletionNfc(current,p,g,locId,message){
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
-        if(!nfcTagMatches(event,loc.nfc_tag)){
+        if(!window.nfcTagMatches(event,loc.nfc_tag)){
           window.missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
           const box=document.querySelector("#overlay .missionNfcModal");if(box){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),900);}
           return;
