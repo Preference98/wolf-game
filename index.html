@@ -3739,6 +3739,47 @@ function takePendingNfcAction(){
 }
 function clearPendingNfcAction(){try{localStorage.removeItem(NFC_ACTION_PENDING_KEY);}catch(_){}
 }
+const NFC_MISSION_COMPLETION_PENDING_KEY="wolf_game_mission_completion_pending_v1";
+function savePendingMissionCompletion(data){try{localStorage.setItem(NFC_MISSION_COMPLETION_PENDING_KEY,JSON.stringify(data||null));}catch(_){} }
+function getPendingMissionCompletion(){try{return JSON.parse(localStorage.getItem(NFC_MISSION_COMPLETION_PENDING_KEY)||"null");}catch(_){return null;}}
+function clearPendingMissionCompletion(){try{localStorage.removeItem(NFC_MISSION_COMPLETION_PENDING_KEY);}catch(_){} }
+
+async function completeMissionByNfcUrlToken(token){
+  const pending=getPendingMissionCompletion();
+  if(!pending||!pending.location_id||!pending.mission_id)return false;
+  const loc=await getMissionLocation(pending.location_id).catch(()=>null);
+  const normalized=normalizeMissionNfcToken(token);
+  const candidates=[loc?.nfc_token,loc?.nfc_tag].map(normalizeMissionNfcToken).filter(Boolean);
+  if(!loc||!candidates.includes(normalized))return false;
+  const p=await me().catch(()=>null),g=await settings().catch(()=>null);
+  if(!p||String(p.status||"").toUpperCase()!=="ALIVE"||String(g?.phase||"").toUpperCase()!=="PLAY")return false;
+  if(Number(pending.round)!==Number(g.current_round))return false;
+  const mr=await db.from("missions").select("*").eq("id",pending.mission_id).maybeSingle();
+  if(mr.error)throw new Error("미션 정보 조회 실패: "+mr.error.message);
+  if(!mr.data)return false;
+  const bridge=window.__wolfGameBridge;
+  if(!bridge)return false;
+  bridge.setCurrentMission(mr.data);
+  clearPendingMissionCompletion();
+  window.__miniOutcomeLocked=true;
+  try{
+    await finalizeMissionSuccess();
+    window.__miniOutcomeLocked=true;
+    window.missionNfcModal("미션성공","success",'<button class="secondary missionNfcButton" type="button" onclick="confirmMissionCompletion(this)">확인</button>');
+    return true;
+  }catch(e){
+    clearPendingMissionCompletion();
+    window.__miniOutcomeLocked=false;
+    throw e;
+  }
+}
+
+async function prepareMissionCompletionUrl(current,p,g,locId){
+  savePendingMissionCompletion({mission_id:current?.id||null,location_id:locId||null,round:Number(g?.current_round||0),created_at:Date.now()});
+  window.__miniOutcomeLocked=true;
+  window.missionNfcModal("미션 태그에 태그하세요","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
+}
+
 async function handleNfcUrlAction(){
   if(localStorage.getItem("wolf_game_admin_v7")==="1")return false;
   const action=takePendingNfcAction();
@@ -3750,6 +3791,11 @@ async function handleNfcUrlAction(){
   if(action.type==="MISSION"){
     if(phase!=="PLAY")return false;
     clearPendingNfcAction();
+    const pending=getPendingMissionCompletion();
+    if(pending?.mission_id&&pending?.location_id){
+      const completed=await completeMissionByNfcUrlToken(action.token);
+      if(completed)return true;
+    }
     await handleMissionNfcUrlEntry();
     return true;
   }
@@ -7765,6 +7811,8 @@ function finishMiniGame(success,message){
       if(g.nfc_enabled===false){
         await finalizeMissionSuccess();
         showMiniMissionOutcome(true);
+      }else if(!(typeof NDEFReader!=="undefined"&&"NDEFReader" in window)){
+        await prepareMissionCompletionUrl(current,p,g,locId);
       }else{
         await startMissionCompletionNfc(current,p,g,locId,message);
       }
