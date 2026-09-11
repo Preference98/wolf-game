@@ -498,7 +498,7 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .wolfMiniOutcomeText{font-size:17px;color:#ddd;line-height:1.6;white-space:pre-line}
 .wolfMiniCancel{margin-top:22px;min-width:140px}
 
-.missionGaugeWrap{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.missionGauge{height:12px;background:#222;border:1px solid #3a3a3a;border-radius:999px;overflow:hidden;margin-top:7px}.missionGauge>div{height:100%;width:0%;transition:width .25s ease;background:#35d878}#night{background:#050505}#night .lock{min-height:82vh}#nightWolfAction{margin-top:18px}
+.missionGaugeWrap{margin-top:12px;padding-top:10px;border-top:1px solid #292929}.missionGauge{height:12px;background:#222;border:1px solid #3a3a3a;border-radius:999px;overflow:hidden;margin-top:7px}.missionGauge>div{height:100%;width:0%;transition:width .25s ease;background:#35d878}#night{background:#050505}#night .lock{min-height:82vh}#nightWolfAction{margin-top:18px}.nightWolfDeathActionButton{width:76px!important;height:76px!important;border-radius:50%!important;border:2px solid rgba(255,255,255,.3)!important;box-shadow:0 8px 24px rgba(0,0,0,.45)!important;padding:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;font-size:27px!important}.nightWolfDeathActionButton .dockIcon{width:50px!important;height:50px!important;display:block}.nightWolfDeathActionButton .dockLabel{font-size:12px;font-weight:900;line-height:1;color:#fff;white-space:nowrap}.nightWolfDeathActionWrap{display:flex;flex-direction:column;align-items:center;gap:10px}.nightWolfDeathActionWrap .small{margin:0}
 .sabotageSkillWrap{display:flex;justify-content:center;margin:10px 0 0}
 .sabotageSkillButton{position:relative;width:76px;height:76px;border-radius:50%;padding:0;border:2px solid rgba(255,255,255,.35);overflow:hidden;font-size:34px;line-height:1}
 .sabotageSkillButton .skillCooldown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);font-size:19px;font-weight:900;color:#fff}
@@ -4120,8 +4120,10 @@ async function renderNight(p,g){
    if(isWolf && el("nightWolfAction")){
      const deathAvailable=deathmatchMode?true:await wolfDeathButtonAvailable(g,p);
      el("nightWolfAction").innerHTML=
-       '<button class="danger" style="width:100%" '+(deathAvailable?'onclick="openWolfDeathList()"':'disabled')+'>☠️ 사망처리</button>'+
-       '<p class="small muted">'+(deathmatchMode?'사망처리 제한 없음':'이번 라운드의 사망 처리는 최대 1명입니다.')+'</p>';
+       '<div class="nightWolfDeathActionWrap">'+
+         '<button class="dockItem deathItem danger nightWolfDeathActionButton" title="잡아먹기" '+(deathAvailable?'onclick="openWolfDeathList()"':'disabled')+'>'+missionActionIcon("death")+'<span class="dockLabel">잡아먹기</span></button>'+
+         '<p class="small muted">'+(deathmatchMode?'사망처리 제한 없음':'이번 라운드의 사망 처리는 최대 1명입니다.')+'</p>'+
+       '</div>';
    }
  }
 
@@ -4637,7 +4639,7 @@ function closeActionDock(){
 function missionActionIcon(type){
  if(type==="discovery") return '<img class="dockIcon discoveryIcon" src="assets/sheep_dead.png" alt="">';
  if(type==="sabotage") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M20 9l8 5 7-2 5-8 7 4-1 9 5 5 9-1 4 8-8 5-1 7 6 6-5 7-8-4-7 4-2 9-9 0-2-9-7-4-8 4-5-7 6-6-1-7-8-5 4-8 9 1 5-5-1-9 8-4zm12 15a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M13 50L50 13" stroke="#ef3340" stroke-width="7" stroke-linecap="round"/><path fill="currentColor" d="M42 9l13 7-4 5-13-7zM37 16l7 4-11 20-6-3zM30 39l7 4-7 12-8-4z"/><path d="M27 55l-5 4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>';
- if(type==="death") return '<svg class="dockIcon" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 27C18 16 24 9 32 9s14 7 14 18v16c0 8-6 13-14 13s-14-5-14-13V27zm-8 6h8v7h-8v-7zm36 0h8v7h-8v-7z"/><circle cx="27" cy="30" r="3.5" fill="#000"/><circle cx="37" cy="30" r="3.5" fill="#000"/><path d="M27 41h10M32 41v7" stroke="#000" stroke-width="3"/><path d="M41 12l8 8" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/><path d="M49 20L35 34" stroke="#4ade80" stroke-width="6" stroke-linecap="round"/></svg>';
+ if(type==="death") return '<img class="dockIcon deathIcon" src="assets/Scratch.png" alt="">';
  return "";
 }
 async function renderActionDock(g,p){
@@ -4655,7 +4657,7 @@ async function renderActionDock(g,p){
     '<button id="dockSabotage" class="dockItem sabotageItem danger" title="늑대방해" '+(remain>0?"disabled":"onclick=\"closeActionDock();openSabotageScreen()\"")+'>'+
       missionActionIcon("sabotage")+'<span class="dockLabel">늑대방해</span>'+
       '<span class="cooldownShade" style="'+(remain>0?"display:flex":"display:none")+'">'+(remain>0?Math.ceil(remain/1000):"")+'</span></button>'+
-    '<button class="dockItem deathItem danger" title="사망처리" '+(deathAvailable?'onclick="closeActionDock();openWolfDeathList()"':'disabled')+'>'+missionActionIcon("death")+'<span class="dockLabel">사망처리</span></button>'+
+    '<button class="dockItem deathItem danger" title="잡아먹기" '+(deathAvailable?'onclick="closeActionDock();openWolfDeathList()"':'disabled')+'>'+missionActionIcon("death")+'<span class="dockLabel">잡아먹기</span></button>'+
     '<button class="dockItem discoveryItem secondary" title="죽은 양 발견" onclick="closeActionDock();openLocationChoice()">'+discovery+'<span class="dockLabel">죽은 양 발견</span></button>';
  }else{
    d.innerHTML='<button class="dockMain danger" title="죽은 양 발견" onclick="openLocationChoice()">'+discovery+'<span class="dockMainLabel">죽은 양 발견</span></button>';
