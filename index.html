@@ -3759,6 +3759,11 @@ async function routeCore(){
     // 그 시점의 최신 전역 상태에 합류합니다.
     if(currentPhase!=="LOBBY" && currentPhase!=="ROLE_SELECT" && currentPhase!=="ROLE_REVEAL" && currentPhase!=="COUNTDOWN")return;
   }
+  const pendingDeath=getDeathProcessPending();
+  if(p.status==="ALIVE" && pendingDeath?.notificationId){
+   await runDeathProcessCountdown(String(pendingDeath.notificationId),Number(pendingDeath.startedAt)||Date.now());
+   return;
+  }
   if(p.status!=="ALIVE"){
    if(localStorage.getItem("wolf_game_death_lock_v1")==="1"){
      stopAllTimers();
@@ -5369,31 +5374,23 @@ async function completeWolfDeathByNfc(victim,wolf,g){
    if(attempt.error)throw new Error(attempt.error.message);
    attemptId=attempt.data?.id||attempt.data?.[0]?.id||null;
  }
+
+ // NFC 인식 직후에는 아직 피해자를 DEAD로 만들지 않습니다.
+ // 사망처리 권한만 먼저 예약하고, 피해자 기기에서 5초 예고가 끝난 뒤 실제 DEAD 처리합니다.
  try{
-   const lock=await db.from('players').update({status:'DEAD'}).eq('id',victim.id).eq('status','ALIVE').select('id');
-   if(lock.error)throw new Error(lock.error.message);
-   if(!lock.data?.length)throw new Error('해당 플레이어의 상태가 이미 변경되었습니다.');
+   const notice=await db.from('notifications').insert({
+     target_player:String(victim.id),
+     notification_type:'DEATH_PROCESS',
+     message:JSON.stringify({event_id:String(Date.now())+'-'+String(Math.random()).slice(2,8),round,started_at:Date.now(),victim_name:victim.name||''})
+   }).select('id').maybeSingle();
+   if(notice.error)throw new Error(notice.error.message);
  }catch(e){
    if(attemptId)await db.from('wolf_attempts').delete().eq('id',attemptId).eq('status','PENDING');
    throw e;
  }
- if(!deathmatchMode){
-   const wr=await db.rpc('complete_wolf_attempt',{p_game_round:round,p_victim_player_id:String(victim.id)});
-   if(wr.error)throw new Error(wr.error.message);
- }
+
  closeOverlay();stopWolfDeathNfcScan();wolfDeathProcessActive=false;
- await playSound('death','nfc-death-'+String(victim.id)).catch(()=>{});
- await evaluateSurvivorOutcome(round);
- toast((victim.name||'플레이어')+' 탈락');
- // 사망처리 중 긴급신고가 먼저 접수되었다면, 사망처리 완료 직후 바로 긴급재판 준비 화면으로 따라잡습니다.
- const afterDeath=await settings().catch(()=>null);
- const afterDeathEmergency=afterDeath&&String(afterDeath.phase||'').toUpperCase()==='PLAY'
-   &&String(afterDeath.notice||'').startsWith('EMERGENCY_REPORT|');
- if(afterDeathEmergency){
-   await renderEmergencyTrialReady(await me().catch(()=>null),afterDeath,true,emergencyNoticeData(afterDeath)?.eventId||'');
-   return;
- }
- await route();
+ toast((victim.name||'플레이어')+'에게 사망처리를 시작했습니다.');
 }
 
 async function showDeathConfirmation(notification){
@@ -5409,14 +5406,36 @@ async function showDeathConfirmation(notification){
    '</div>';
 }
 
+async function showDeathProcessNotification(notification){
+ const current=await me().catch(()=>null);
+ if(!current || String(current.status||"").toUpperCase()!=="ALIVE")return;
+ let data={};
+ try{data=JSON.parse(notification?.message||"{}");}catch(_){}
+ const startedAt=Number(data.started_at)||Date.now();
+ const pending=getDeathProcessPending();
+ if(pending?.notificationId===String(notification?.id||""))return;
+ await playSound("death","death-process-"+String(notification?.id||Date.now())).catch(()=>{});
+ await runDeathProcessCountdown(String(notification?.id||""),startedAt);
+}
+
 function ignoreDeathConfirmation(){
  showScreen("player");
  route();
 }
 
-async function confirmDeathByPlayer(notificationId){
- await showScreen("deathWarning");
+const DEATH_PROCESS_PENDING_KEY="wolf_game_death_process_pending_v1";
+function getDeathProcessPending(){
+ try{return JSON.parse(localStorage.getItem(DEATH_PROCESS_PENDING_KEY)||"null");}catch(_){return null;}
+}
+function setDeathProcessPending(v){try{localStorage.setItem(DEATH_PROCESS_PENDING_KEY,JSON.stringify(v));}catch(_){}}
+function clearDeathProcessPending(){try{localStorage.removeItem(DEATH_PROCESS_PENDING_KEY);}catch(_){}}
 
+async function runDeathProcessCountdown(notificationId,startedAt){
+ const current=await me().catch(()=>null);
+ if(!current || String(current.status||"").toUpperCase()!=="ALIVE")return;
+ const start=Number(startedAt)||Date.now();
+ setDeathProcessPending({notificationId:String(notificationId||""),startedAt:start});
+ await showScreen("deathWarning");
  const warningStage=el("deathWarning").querySelector(".deathWarningStage");
  warningStage.innerHTML=
    '<div><div class="symbol">☠️</div><h1>사망 처리</h1>'+
@@ -5425,15 +5444,27 @@ async function confirmDeathByPlayer(notificationId){
    '<p id="deathWarningCountdownText" style="font-size:24px;font-weight:900;color:#ff3347">5초 후에 당신은 완전히 죽습니다.</p></div>';
 
  for(let n=5;n>=1;n--){
-   el("deathWarningCountdown").textContent=n;
-   el("deathWarningCountdownText").textContent=n+"초 후에 당신은 완전히 죽습니다.";
-   await new Promise(r=>setTimeout(r,1000));
+   const remainMs=Math.max(0,start+5000-Date.now());
+   const remain=Math.min(n,Math.max(1,Math.ceil(remainMs/1000)));
+   el("deathWarningCountdown").textContent=remain;
+   el("deathWarningCountdownText").textContent=remain+"초 후에 당신은 완전히 죽습니다.";
+   const wait=Math.max(0,start+5000-Date.now());
+   if(wait<=0)break;
+   await new Promise(r=>setTimeout(r,Math.min(1000,wait)));
+   if(getDeathProcessPending()?.notificationId!==String(notificationId||""))return;
  }
 
+ await completeDeathProcessByPlayer(notificationId);
+}
+
+async function completeDeathProcessByPlayer(notificationId){
+ const current=await me().catch(()=>null);
+ if(!current || String(current.status||"").toUpperCase()!=="ALIVE")return;
  localStorage.setItem("wolf_game_death_lock_v1","1");
  const r=await db.from("players").update({status:"DEAD"}).eq("id",playerId).eq("status","ALIVE");
  if(r.error){
    localStorage.removeItem("wolf_game_death_lock_v1");
+   clearDeathProcessPending();
    toast("사망 처리 실패: "+r.error.message);
    return;
  }
@@ -5448,8 +5479,8 @@ async function confirmDeathByPlayer(notificationId){
  });
  if(wr.error)console.error("complete_wolf_attempt 오류:",wr.error);
 
- // 실제 DEAD 상태가 DB에 확정된 뒤에만 사망 효과음을 재생합니다.
- await playSound("death","death-completed-"+notificationId).catch(()=>{});
+ await playSound("death","death-completed-"+String(notificationId)).catch(()=>{});
+ const warningStage=el("deathWarning").querySelector(".deathWarningStage");
  warningStage.innerHTML=
    '<div><div class="symbol">☠️</div>'+
    '<h1 class="deathLockTitle">사망 처리 완료</h1>'+
@@ -5458,11 +5489,16 @@ async function confirmDeathByPlayer(notificationId){
    '</div>';
  showScreen("deathWarning");
  stopAllTimers();
-
+ clearDeathProcessPending();
  await db.from("notifications").delete().eq("id",notificationId);
 }
 
+async function confirmDeathByPlayer(notificationId){
+ await runDeathProcessCountdown(notificationId,Date.now());
+}
+
 function closeDeathWarning(){
+ clearDeathProcessPending();
  localStorage.removeItem("wolf_game_death_lock_v1");
  stopAllTimers();
  closeOverlay();
@@ -6829,7 +6865,7 @@ async function startDeathNotificationWatcher(){
 
    const r=await db.from("notifications").select("*")
      .eq("target_player",String(playerId))
-     .eq("notification_type","DEATH_CONFIRM")
+     .in("notification_type",["DEATH_CONFIRM","DEATH_PROCESS"])
      .gt("id",deathNotificationMinId)
      .order("id",{ascending:true}).limit(20);
    if(r.error){console.warn("사망 확인 알림 조회 실패:",r.error.message);return;}
@@ -6841,8 +6877,9 @@ async function startDeathNotificationWatcher(){
      seenDeathNotificationIds.add(id);
 
      // 현재 사망확인 화면이 이미 떠 있다면 중복 표시하지 않습니다.
-     if(document.querySelector("#deathConfirm.screen.active"))continue;
-     await showDeathConfirmation(n);
+     if(document.querySelector("#deathConfirm.screen.active") || document.querySelector("#deathWarning.screen.active"))continue;
+     if(String(n.notification_type||"").toUpperCase()==="DEATH_PROCESS")await showDeathProcessNotification(n);
+     else await showDeathConfirmation(n);
      break;
    }
   }catch(e){console.warn("사망 확인 알림 폴백 오류:",e);}
@@ -7090,6 +7127,16 @@ function realtime(){
    if(n.notification_type==="NIGHT_WARNING"){
      const current=await settings();
      if(current.phase==="PLAY" && String(current.notice||"").startsWith("NIGHT_WARNING|"))await renderNightPreAlert(current);
+     return;
+   }
+   if(String(n.notification_type||"").toUpperCase()==="DEATH_PROCESS"){
+     const nid=String(n.id);
+     if(Number(n.id)<=deathNotificationMinId)return;
+     if(!seenDeathNotificationIds.has(nid)){
+       seenDeathNotificationIds.add(nid);
+       deathNotificationMinId=Math.max(deathNotificationMinId,Number(n.id)||0);
+       showDeathProcessNotification(n);
+     }
      return;
    }
    if(n.notification_type==="DEATH_CONFIRM"){
