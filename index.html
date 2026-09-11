@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>wg</title>
+<title>늑대게임 v190 · 투표 시스템</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23000%27/%3E%3Cpath d=%27M16 44V24l8-8 8 8 8-8 8 8v20H16z%27 fill=%27%23ff334f%27/%3E%3Ccircle cx=%2725%27 cy=%2731%27 r=%273%27 fill=%27%23000%27/%3E%3Ccircle cx=%2739%27 cy=%2731%27 r=%273%27 fill=%27%23000%27/%3E%3C/svg%3E">
 
 <script>
@@ -3703,6 +3703,85 @@ async function findPlayerByNfcTag(event){
  return r.data||null;
 }
 
+const NFC_ACTION_PENDING_KEY="wolf_game_nfc_action_pending_v2";
+function getNfcActionFromUrl(){
+  try{
+    const u=new URL(window.location.href);
+    const path=u.pathname.replace(/\/+/g,"/");
+    let m=path.match(/^\/nfc\/player\/([^/]+)\/?$/i);
+    if(m)return {type:"PLAYER",token:decodeURIComponent(m[1]).trim().toLowerCase()};
+    m=path.match(/^\/nfc\/emergency\/?$/i);
+    if(m)return {type:"EMERGENCY",token:"emergency"};
+    m=path.match(/^\/nfc\/([^/]+)\/?$/i);
+    if(m){
+      const token=decodeURIComponent(m[1]).trim();
+      if(/^p\d+$/i.test(token))return {type:"PLAYER",token:token.toLowerCase()};
+      if(token.toLowerCase()==="emergency")return {type:"EMERGENCY",token:"emergency"};
+      if(token)return {type:"MISSION",token};
+    }
+    const type=String(u.searchParams.get("nfc_type")||"").trim().toUpperCase();
+    const token=String(u.searchParams.get("nfc")||u.searchParams.get("nfc_token")||"").trim();
+    if(type==="PLAYER"&&token)return {type:"PLAYER",token:token.toLowerCase()};
+    if(type==="EMERGENCY")return {type:"EMERGENCY",token:"emergency"};
+    if(token)return {type:"MISSION",token};
+  }catch(_){ }
+  return null;
+}
+function savePendingNfcAction(action){try{localStorage.setItem(NFC_ACTION_PENDING_KEY,JSON.stringify(action));}catch(_){}
+}
+function takePendingNfcAction(){
+  try{
+    const direct=getNfcActionFromUrl();
+    if(direct){savePendingNfcAction(direct);return direct;}
+    const raw=localStorage.getItem(NFC_ACTION_PENDING_KEY)||"";
+    return raw?JSON.parse(raw):null;
+  }catch(_){return null;}
+}
+function clearPendingNfcAction(){try{localStorage.removeItem(NFC_ACTION_PENDING_KEY);}catch(_){}
+}
+async function handleNfcUrlAction(){
+  if(localStorage.getItem("wolf_game_admin_v7")==="1")return false;
+  const action=takePendingNfcAction();
+  if(!action||!playerId||!db)return false;
+  const p=await me().catch(()=>null),g=await settings().catch(()=>null);
+  if(!p||!g)return false;
+  if(String(p.status||"").toUpperCase()!=="ALIVE"){clearPendingNfcAction();return false;}
+  const phase=String(g.phase||"").toUpperCase();
+  if(action.type==="MISSION"){
+    if(phase!=="PLAY")return false;
+    clearPendingNfcAction();
+    await handleMissionNfcUrlEntry();
+    return true;
+  }
+  if(action.type==="PLAYER"){
+    if(phase!=="PLAY"&&phase!=="NIGHT")return false;
+    if(String(p.role||"").toUpperCase()!=="WOLF"){
+      clearPendingNfcAction();toast("플레이어 NFC는 늑대만 사용할 수 있습니다.");return false;
+    }
+    const tag=String(action.token||"").trim().toLowerCase();
+    const r=await db.from("players").select("*").eq("nfc_tag",tag).maybeSingle();
+    if(r.error)throw new Error("플레이어 NFC 확인 실패: "+r.error.message);
+    const victim=r.data;
+    if(!victim){clearPendingNfcAction();toast("등록된 플레이어 NFC 태그가 아닙니다.");return false;}
+    if(String(victim.status||"").toUpperCase()!=="ALIVE"){clearPendingNfcAction();toast("이미 탈락한 플레이어의 태그입니다.");return false;}
+    if(String(victim.id)===String(p.id)){clearPendingNfcAction();toast("자신의 태그에는 사망처리를 할 수 없습니다.");return false;}
+    const deathmatchMode=isDeathmatchMode(g);
+    if(!deathmatchMode&&String(victim.role||"").toUpperCase()!=="SHEEP"){
+      clearPendingNfcAction();toast("늑대의 태그입니다. 양의 태그를 태그해주세요.");return false;
+    }
+    clearPendingNfcAction();
+    await completeWolfDeathByNfc(victim,p,g);
+    return true;
+  }
+  if(action.type==="EMERGENCY"){
+    if(phase!=="PLAY")return false;
+    clearPendingNfcAction();
+    await submitEmergencyReport(null);
+    return true;
+  }
+  return false;
+}
+
 async function join(){
  const btn=el("joinBtn"),name=el("name").value.trim();if(!name){toast("이름을 입력해 주세요.");return;}
  const done=busy(btn,"접속 중...");el("loginStatus").innerHTML='<div class="muted">서버에 접속하는 중입니다...</div>';
@@ -3727,7 +3806,7 @@ async function join(){
    if(!p||!p.id)throw new Error("플레이어 정보를 가져오지 못했습니다.");
    p=await ensurePlayerNfcTag(p);
    playerId=p.id;localStorage.setItem("wolf_game_player_v7",playerId);localStorage.removeItem("wolf_game_admin_v7");
-   toast("접속되었습니다.");await route();
+   toast("접속되었습니다.");await route();await handleNfcUrlAction();
  }catch(e){console.error(e);showError("loginStatus",e.message||String(e));}finally{done();}
 }
 
@@ -5808,11 +5887,28 @@ async function refreshMissionLocations(){
  }finally{done();}
 }
 
+async function ensureMissionLocationNfcTokens(){
+ // 미션 장소의 NFC 토큰이 비어 있으면 sort_order → id 순서로 m1~m10을 자동 부여합니다.
+ const r=await db.from("mission_locations").select("id,nfc_token,sort_order").order("sort_order").order("id");
+ if(r.error)throw new Error("미션 장소 NFC 조회 실패: "+r.error.message);
+ const rows=r.data||[],used=new Set(rows.map(x=>String(x.nfc_token||"").trim().toLowerCase()).filter(Boolean));
+ for(let i=0;i<rows.length;i++){
+  const row=rows[i];
+  if(String(row.nfc_token||"").trim())continue;
+  let n=i+1; while(used.has("m"+n))n++;
+  const token="m"+n;
+  const u=await db.from("mission_locations").update({nfc_token:token}).eq("id",row.id).is("nfc_token",null);
+  if(u.error)throw new Error("미션 장소 NFC 자동 부여 실패: "+u.error.message);
+  used.add(token);
+ }
+}
+
 async function renderAdmin(){
  try{
   const g=await settings();
   // 모든 BGM은 관리자 화면이 아니라 전용 스크린에서만 재생합니다.
   stopAllAdminBgm();
+  await ensureMissionLocationNfcTokens();
   const p=(await db.from("players").select("*").order("created_at")).data||[],c=await comps(g.current_round),m=await missions(),ls=await locations();
   const roundMissionLocations=(g.phase==="PLAY"||g.phase==="TRIAL"||g.phase==="NIGHT"||g.phase==="INVESTIGATION")
     ?await getRoundMissionLocationUnion(g.current_round,false)
@@ -6472,6 +6568,60 @@ async function startMissionLocation(locationId){
     console.error("미션 입장 오류:",e);toast(e.message||String(e));
   }
 }
+const NFC_URL_PENDING_KEY="wolf_game_nfc_url_pending_v1";
+function getMissionNfcUrlToken(){
+  try{
+    const u=new URL(window.location.href);
+    const q=String(u.searchParams.get("nfc")||u.searchParams.get("nfc_token")||"").trim();
+    if(q)return q;
+    const m=u.pathname.match(/^\/nfc\/([^/]+)\/?$/i);
+    return m?decodeURIComponent(m[1]).trim():"";
+  }catch(_){return "";}
+}
+function setPendingMissionNfcUrlToken(token){try{localStorage.setItem(NFC_URL_PENDING_KEY,String(token||""));}catch(_){}
+}
+function getPendingMissionNfcUrlToken(){try{return String(localStorage.getItem(NFC_URL_PENDING_KEY)||"").trim();}catch(_){return "";}}
+function clearPendingMissionNfcUrlToken(){try{localStorage.removeItem(NFC_URL_PENDING_KEY);}catch(_){}
+}
+async function findMissionLocationByNfcUrlToken(token){
+  const raw=String(token||"").trim();
+  if(!raw)return null;
+  // 1순위: 새 nfc_token 컬럼의 값으로 조회합니다.
+  const byToken=await db.from("mission_locations").select("*").eq("nfc_token",raw).maybeSingle();
+  if(byToken.error)throw new Error("미션 NFC 토큰 조회 실패: "+byToken.error.message);
+  if(byToken.data)return byToken.data;
+  // 숫자 토큰은 기존 장소 ID도 허용합니다. 기존 DB를 건드리지 않고 바로 사용할 수 있습니다.
+  if(/^\d+$/.test(raw)){
+    const byId=await db.from("mission_locations").select("*").eq("id",Number(raw)).maybeSingle();
+    if(byId.error)throw new Error("미션 장소 조회 실패: "+byId.error.message);
+    if(byId.data)return byId.data;
+  }
+  return null;
+}
+async function handleMissionNfcUrlEntry(){
+  let token=getMissionNfcUrlToken();
+  if(token){setPendingMissionNfcUrlToken(token);}
+  else token=getPendingMissionNfcUrlToken();
+  if(!token || !db || !playerId)return false;
+
+  const p=await me().catch(()=>null);
+  const g=await settings().catch(()=>null);
+  if(!p||!g)return false;
+  if(String(p.status||"").toUpperCase()!=="ALIVE" || String(g.phase||"").toUpperCase()!=="PLAY"){
+    // 아직 미션에 들어갈 수 없는 단계면 토큰을 유지했다가 PLAY가 된 뒤 다시 처리합니다.
+    return false;
+  }
+
+  const loc=await findMissionLocationByNfcUrlToken(token);
+  if(!loc){clearPendingMissionNfcUrlToken();toast("등록되지 않은 미션 NFC URL입니다.");return false;}
+  if(loc.active===false){clearPendingMissionNfcUrlToken();toast("비활성화된 미션 장소입니다.");return false;}
+
+  clearPendingMissionNfcUrlToken();
+  // URL 방식은 실제 NFC 하드웨어 API를 사용하지 않으므로 iPhone에서도 동일한 검증 흐름을 사용합니다.
+  await openMissionByLocation(loc.id);
+  return true;
+}
+
 async function startMissionNfcEntry(m,loc,p,g,requestToken){
   if(!loc?.nfc_tag){
     closeMissionNfcOverlay();
@@ -6940,6 +7090,7 @@ document.addEventListener("visibilitychange",()=>{
 });
 window.addEventListener("pageshow",()=>{ensureCentralServerClock(true).catch(()=>{});schedulePlayerResumeSync();});
 setInterval(()=>{if(document.visibilityState==="visible")ensureCentralServerClock(true).catch(()=>{});},30000);
+setInterval(()=>{if(document.visibilityState==="visible"&&(getPendingMissionNfcUrlToken()||takePendingNfcAction()))handleNfcUrlAction().catch(e=>console.warn("NFC URL 자동 처리 오류:",e));},1500);
 
 function realtime(){
  db.channel("wg-v7-settings").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game_settings"},async payload=>{
@@ -7423,7 +7574,7 @@ async function boot(){
   startDeathNotificationWatcher();
   el("name").addEventListener("keydown",e=>{if(e.key==="Enter")join();});
   if(localStorage.getItem("wolf_game_admin_v7")==="1"){showScreen("admin");await renderAdmin();return;}
-  if(playerId)await route();
+  if(playerId){await route();await handleNfcUrlAction();}
  }catch(e){
   console.error(e);
   const fb=el("bootFallback"),ft=el("bootFallbackText");
@@ -7434,7 +7585,7 @@ async function boot(){
 
 window.join=join;window.closeOverlay=closeOverlay;window.confirmAction=confirmAction;window.runConfirmedAdminAction=runConfirmedAdminAction;
 window.renderPlayer=renderPlayer;window.openMission=openMission;window.openMissionByLocation=openMissionByLocation;window.startMissionLocation=startMissionLocation;window.submitAnswer=submitAnswer;window.enableSound=enableSound;
-window.openLocationChoice=openLocationChoice;window.toggleActionDock=toggleActionDock;window.closeActionDock=closeActionDock;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
+window.handleMissionNfcUrlEntry=handleMissionNfcUrlEntry;window.handleNfcUrlAction=handleNfcUrlAction;window.openLocationChoice=openLocationChoice;window.toggleActionDock=toggleActionDock;window.closeActionDock=closeActionDock;window.confirmDeadSheepLocation=confirmDeadSheepLocation;window.deadSheepFound=deadSheepFound;
 window.savePlayerNfcTag=savePlayerNfcTag;window.cancelWolfDeathNfc=cancelWolfDeathNfc;window.saveMissionLocation=saveMissionLocation;window.saveMissionLocationNfc=saveMissionLocationNfc;window.saveLocationNfc=saveLocationNfc;window.scanNfcForLocation=scanNfcForLocation;window.openWolfDeathList=openWolfDeathList;window.useSabotage=useSabotage;window.openSabotageScreen=openSabotageScreen;window.executeSelectedSabotage=executeSelectedSabotage;window.closeSabotageScreen=closeSabotageScreen;
 window.ignoreDeathConfirmation=ignoreDeathConfirmation;window.confirmDeathByPlayer=confirmDeathByPlayer;window.closeDeathWarning=closeDeathWarning;
 window.startGame=startGame;window.skipToGame=skipToGame;window.testNight=testNight;window.nextRound=nextRound;window.startTrial=startTrial;window.startVote=startVote;window.submitVote=submitVote;window.confirmVote=confirmVote;window.confirmIdentity=confirmIdentity;window.resetGame=resetGame;window.forceSheepWin=forceSheepWin;window.forceWolfWin=forceWolfWin;
