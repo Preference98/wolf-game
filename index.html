@@ -6583,14 +6583,26 @@ function setPendingMissionNfcUrlToken(token){try{localStorage.setItem(NFC_URL_PE
 function getPendingMissionNfcUrlToken(){try{return String(localStorage.getItem(NFC_URL_PENDING_KEY)||"").trim();}catch(_){return "";}}
 function clearPendingMissionNfcUrlToken(){try{localStorage.removeItem(NFC_URL_PENDING_KEY);}catch(_){}
 }
+function normalizeMissionNfcToken(value){
+  const raw=String(value||"").trim();
+  if(!raw)return "";
+  try{
+    const u=new URL(raw);
+    const q=String(u.searchParams.get("nfc")||u.searchParams.get("nfc_token")||"").trim();
+    if(q)return q;
+  }catch(_){}
+  return raw;
+}
 async function findMissionLocationByNfcUrlToken(token){
-  const raw=String(token||"").trim();
+  const raw=normalizeMissionNfcToken(token);
   if(!raw)return null;
-  // 1순위: 새 nfc_token 컬럼의 값으로 조회합니다.
+  // URL 방식의 m1~m10은 기존 관리자 NFC 필드(nfc_tag)와 새 URL 전용 필드(nfc_token) 모두 인정합니다.
   const byToken=await db.from("mission_locations").select("*").eq("nfc_token",raw).maybeSingle();
   if(byToken.error)throw new Error("미션 NFC 토큰 조회 실패: "+byToken.error.message);
   if(byToken.data)return byToken.data;
-  // 숫자 토큰은 기존 장소 ID도 허용합니다. 기존 DB를 건드리지 않고 바로 사용할 수 있습니다.
+  const byTag=await db.from("mission_locations").select("*").eq("nfc_tag",raw).maybeSingle();
+  if(byTag.error)throw new Error("미션 NFC 태그 조회 실패: "+byTag.error.message);
+  if(byTag.data)return byTag.data;
   if(/^\d+$/.test(raw)){
     const byId=await db.from("mission_locations").select("*").eq("id",Number(raw)).maybeSingle();
     if(byId.error)throw new Error("미션 장소 조회 실패: "+byId.error.message);
