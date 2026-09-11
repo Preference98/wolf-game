@@ -6485,17 +6485,26 @@ function decodeNfcRecordData(rec){
   }
 }
 function decodeNfcUriRecord(rec){
-  if(String(rec?.recordType||"").toLowerCase()!=="url")return "";
   const data=rec?.data;
   if(data==null)return "";
   try{
     const bytes=new Uint8Array(data.buffer??data,data.byteOffset??0,data.byteLength??(data.length||0));
     if(!bytes.length)return "";
+    // Android NFC 검사기에서 확인된 실제 NDEF URI payload는
+    // 0x04 + "wg-wine.vercel.app/?nfc=m1" 형태입니다.
+    // recordType이 "url"이 아니라 "U" 등으로 노출되는 브라우저도 있으므로
+    // recordType에 의존하지 않고 URI 식별자 바이트를 직접 해석합니다.
     const prefixes=["","http://www.","https://www.","http://","https://"];
     const prefix=prefixes[bytes[0]];
-    if(prefix===undefined)return "";
-    const suffix=new TextDecoder("utf-8").decode(bytes.slice(1));
-    return (prefix+suffix).replace(/\u0000/g,"").trim();
+    if(prefix!==undefined){
+      const suffix=new TextDecoder("utf-8").decode(bytes.slice(1));
+      const uri=(prefix+suffix).replace(/\u0000/g,"").trim();
+      if(/^https?:\/\//i.test(uri))return uri;
+    }
+    // 일부 구현은 data를 이미 UTF-8 문자열로 노출할 수 있습니다.
+    const text=new TextDecoder("utf-8").decode(bytes).replace(/\u0000/g,"").trim();
+    if(/^https?:\/\//i.test(text))return text;
+    return "";
   }catch(_){return "";}
 }
 function readNfcRecordTexts(event){
@@ -7703,12 +7712,22 @@ window.__wolfMissionGetLocation=getMissionLocation;
 window.__wolfMissionReadNfcText=readNfcText;
   window.nfcTagMatches=function(event,expected){
     try{
-      const target=String(expected??"").trim();
+      // 실제 미션 판정에서 호출되는 공개 함수도 동일한 URL/NDEF 정규화 로직을 사용합니다.
+      // 이 래퍼가 별도의 단순 문자열 비교를 하면 앞의 nfcTagMatches 구현을 덮어써
+      // https://wg-wine.vercel.app/?nfc=m1 와 DB의 m1이 서로 다르다고 판정하는 문제가 생깁니다.
+      const target=typeof normalizeNfcComparisonValue==="function"
+        ? normalizeNfcComparisonValue(expected)
+        : String(expected??"").trim().toLowerCase();
       if(!target)return false;
       const values=typeof readNfcRecordTexts==="function"
         ? readNfcRecordTexts(event)
         : [];
-      return values.some(v=>String(v).trim()===target);
+      return values.some(v=>{
+        const value=typeof normalizeNfcComparisonValue==="function"
+          ? normalizeNfcComparisonValue(v)
+          : String(v??"").trim().toLowerCase();
+        return value===target;
+      });
     }catch(e){
       console.warn("NFC 태그 판정 실패:",e);
       return false;
