@@ -6536,10 +6536,14 @@ function readNfcText(event){
   return readNfcRecordTexts(event).join("").trim();
 }
 function nfcTagMatches(event, expected){
-  const target=normalizeNfcComparisonValue(expected);
-  if(!target)return false;
+  const expectedValues=Array.isArray(expected)?expected: [expected];
+  const targets=expectedValues.map(normalizeNfcComparisonValue).filter(Boolean);
+  if(!targets.length)return false;
   const values=readNfcRecordTexts(event);
-  return values.some(v=>normalizeNfcComparisonValue(v)===target);
+  return values.some(v=>{
+    const value=normalizeNfcComparisonValue(v);
+    return value && targets.includes(value);
+  });
 }
 function stopMissionNfcScan(){
   try{window.__missionNfcAbortController?.abort();}catch(_){}
@@ -6676,7 +6680,7 @@ async function handleMissionNfcUrlEntry(){
 }
 
 async function startMissionNfcEntry(m,loc,p,g,requestToken){
-  if(!loc?.nfc_tag){
+  if(!loc?.nfc_tag && !loc?.nfc_token){
     closeMissionNfcOverlay();
     toast("이 장소에 등록된 미션 태그가 없습니다.");
     return;
@@ -6713,7 +6717,7 @@ async function startMissionNfcEntry(m,loc,p,g,requestToken){
       if(window.__missionNfcHandled)return;
 
       try{
-        if(!window.nfcTagMatches(event,loc.nfc_tag)){
+        if(!window.nfcTagMatches(event,[loc.nfc_tag,loc.nfc_token])){
           missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="closeMissionNfcOverlay(this)">취소</button>');
           return;
         }
@@ -7712,21 +7716,19 @@ window.__wolfMissionGetLocation=getMissionLocation;
 window.__wolfMissionReadNfcText=readNfcText;
   window.nfcTagMatches=function(event,expected){
     try{
-      // 실제 미션 판정에서 호출되는 공개 함수도 동일한 URL/NDEF 정규화 로직을 사용합니다.
-      // 이 래퍼가 별도의 단순 문자열 비교를 하면 앞의 nfcTagMatches 구현을 덮어써
-      // https://wg-wine.vercel.app/?nfc=m1 와 DB의 m1이 서로 다르다고 판정하는 문제가 생깁니다.
-      const target=typeof normalizeNfcComparisonValue==="function"
-        ? normalizeNfcComparisonValue(expected)
-        : String(expected??"").trim().toLowerCase();
-      if(!target)return false;
-      const values=typeof readNfcRecordTexts==="function"
-        ? readNfcRecordTexts(event)
-        : [];
+      // Android Web NFC와 URL형 NDEF를 같은 태그에서 처리합니다.
+      // expected가 배열이면 nfc_tag(기존 값)와 nfc_token(URL 토큰)을 모두 후보로 비교합니다.
+      const expectedValues=Array.isArray(expected)?expected:[expected];
+      const targets=expectedValues.map(v=>typeof normalizeNfcComparisonValue==="function"
+        ? normalizeNfcComparisonValue(v)
+        : String(v??"").trim().toLowerCase()).filter(Boolean);
+      if(!targets.length)return false;
+      const values=typeof readNfcRecordTexts==="function"?readNfcRecordTexts(event):[];
       return values.some(v=>{
         const value=typeof normalizeNfcComparisonValue==="function"
           ? normalizeNfcComparisonValue(v)
           : String(v??"").trim().toLowerCase();
-        return value===target;
+        return value && targets.includes(value);
       });
     }catch(e){
       console.warn("NFC 태그 판정 실패:",e);
@@ -7806,7 +7808,7 @@ async function startMissionCompletionNfc(current,p,g,locId,message){
       if(window.__missionNfcHandled)return;
       try{
         const value=window.__wolfMissionReadNfcText(event);
-        if(!window.nfcTagMatches(event,loc.nfc_tag)){
+        if(!window.nfcTagMatches(event,[loc.nfc_tag,loc.nfc_token])){
           window.missionNfcModal("다른 미션장소 태그입니다.","ready",'<button class="secondary missionNfcButton" type="button" onclick="cancelMissionCompletion(this)">미션취소</button>');
           const box=document.querySelector("#overlay .missionNfcModal");if(box){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),900);}
           return;
