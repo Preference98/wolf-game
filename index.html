@@ -516,12 +516,12 @@ input,select{padding:10px;border-radius:8px;border:1px solid #4b5563;background:
 .actionDock .dockMain .chev{font-size:11px;display:block;line-height:10px}
 @media(max-width:600px){.actionDock{right:14px;bottom:14px}.actionDock .dockMain,.actionDock .dockItem{width:58px;height:58px}}
 
-/* 긴급신고: 화면 우측 하단 고정 버튼 */
-.emergencyReportFloat{position:fixed;right:22px;bottom:22px;z-index:9010;display:flex;align-items:center;justify-content:center;min-width:132px;height:54px;padding:0 18px;border-radius:999px;border:2px solid rgba(255,255,255,.35);background:#b91c1c;color:#fff;font-weight:1000;font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer;opacity:.28;filter:saturate(.55);transition:opacity .2s,filter .2s,box-shadow .2s}
+/* 긴급신고: 화면 좌측 상단 고정 버튼 */
+.emergencyReportFloat{position:fixed;left:22px;top:22px;z-index:9010;display:flex;align-items:center;justify-content:center;min-width:132px;height:54px;padding:0 18px;border-radius:999px;border:2px solid rgba(255,255,255,.35);background:#b91c1c;color:#fff;font-weight:1000;font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer;opacity:.28;filter:saturate(.55);transition:opacity .2s,filter .2s,box-shadow .2s}
 .emergencyReportFloat.show{opacity:1;filter:none;box-shadow:0 10px 30px rgba(185,28,28,.55)}
 .emergencyReportFloat:disabled{cursor:not-allowed}
 .emergencyReportFloat.show:disabled{opacity:.42;filter:saturate(.5);box-shadow:0 10px 30px rgba(0,0,0,.35)}
-@media(max-width:600px){.emergencyReportFloat{right:14px;bottom:14px;min-width:116px;height:48px;font-size:15px}}
+@media(max-width:600px){.emergencyReportFloat{left:14px;top:14px;min-width:116px;height:48px;font-size:15px}}
 
 
 .trialScreen{min-height:100vh;padding:22px 18px 40px;background:radial-gradient(circle at 50% 20%,#260006,#070707 55%,#000);color:#fff}
